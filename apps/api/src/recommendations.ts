@@ -44,7 +44,9 @@ export async function fetchThirdPartyUsers(): Promise<UserList> {
 	return response.json() as Promise<UserList>;
 }
 
-export async function fetchThirdPartyUser(userId: string): Promise<CurrentUser> {
+export async function fetchThirdPartyUser(
+	userId: string,
+): Promise<CurrentUser> {
 	const response = await fetch(
 		`${config.thirdPartyBaseUrl}/users/${encodeURIComponent(userId)}`,
 	);

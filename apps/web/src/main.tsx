@@ -2,12 +2,18 @@ import { CalendarClock, CheckCircle2, RefreshCw, Save } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
 import {
-	completeAppointment,
 	type Appointment,
+	completeAppointment,
 	listAppointments,
 	updateSessionNotes,
 } from "./api";
 import "./styles.css";
+
+const panelClass = "rounded-lg border border-line bg-surface p-[18px]";
+const tagClass =
+	"rounded-full bg-tag px-2 py-1 font-extrabold text-[0.8rem] text-accent";
+const buttonBase =
+	"inline-flex cursor-pointer items-center justify-center gap-1.5 rounded-lg px-3 py-[9px] disabled:cursor-wait disabled:opacity-60";
 
 function App() {
 	const [appointments, setAppointments] = useState<Appointment[]>([]);
@@ -81,7 +87,9 @@ function App() {
 			setStatus("Appointment marked complete");
 		} catch (error) {
 			setStatus(
-				error instanceof Error ? error.message : "Unable to complete appointment",
+				error instanceof Error
+					? error.message
+					: "Unable to complete appointment",
 			);
 		} finally {
 			setIsLoading(false);
@@ -93,15 +101,19 @@ function App() {
 	}, [refresh]);
 
 	return (
-		<main className="shell">
-			<header className="topbar">
+		<main className="min-h-screen p-[18px] min-[820px]:p-7">
+			<header className="mx-auto mb-6 flex max-w-[1180px] items-center justify-between">
 				<div>
-					<p className="eyebrow">AnF denim fitting</p>
-					<h1>Appointment prep dashboard</h1>
+					<p className="mb-1 font-bold text-[0.78rem] text-clay uppercase">
+						AnF denim fitting
+					</p>
+					<h1 className="font-bold text-[clamp(2rem,4vw,3.25rem)] leading-none">
+						Appointment prep dashboard
+					</h1>
 				</div>
 				<button
 					type="button"
-					className="iconButton"
+					className="inline-flex size-[42px] cursor-pointer items-center justify-center rounded-full bg-ink text-white transition-opacity hover:opacity-90 disabled:cursor-wait disabled:opacity-60"
 					onClick={refresh}
 					disabled={isLoading}
 					aria-label="Refresh appointments"
@@ -110,77 +122,98 @@ function App() {
 				</button>
 			</header>
 
-			<section className="workspace">
-				<section className="panel summaryPanel">
-					<div className="panelHeader">
+			<section className="mx-auto grid max-w-[1180px] grid-cols-1 gap-4 min-[820px]:grid-cols-[minmax(240px,320px)_minmax(320px,1fr)]">
+				<section
+					className={`${panelClass} self-start`}
+					data-testid="summary-panel"
+				>
+					<div className="mb-3 flex items-center justify-between gap-2">
 						<div>
-							<p className="eyebrow">Booked journeys</p>
-							<h2>{appointments.length}</h2>
+							<p className="mb-1 font-bold text-[0.78rem] text-clay uppercase">
+								Booked journeys
+							</p>
+							<h2 className="font-semibold text-base">{appointments.length}</h2>
 						</div>
 						<CalendarClock size={24} />
 					</div>
-					<p className="status">{status}</p>
+					<p className="text-[0.9rem] text-muted">{status}</p>
 				</section>
 
-				<section className="panel appointmentsPanel">
-					<div className="panelHeader">
-						<h2>Stylist prep queue</h2>
-						<span>{appointments.length}</span>
+				<section
+					className={`${panelClass} min-h-[360px]`}
+					data-testid="appointments-panel"
+				>
+					<div className="mb-3 flex items-center justify-between gap-2">
+						<h2 className="font-semibold text-base">Stylist prep queue</h2>
+						<span className="text-[0.9rem] text-muted">
+							{appointments.length}
+						</span>
 					</div>
-					<div className="appointmentList">
+					<div className="grid gap-3" data-testid="appointment-list">
 						{appointments.map((appointment) => (
-							<article className="appointmentRow" key={appointment.id}>
-								<div className="appointmentHeading">
-									<div>
+							<article
+								className="grid gap-3 rounded-lg border border-rowline p-3"
+								key={appointment.id}
+								data-testid="appointment-row"
+							>
+								<div className="flex items-start justify-between gap-3">
+									<div className="grid gap-0.5">
 										<strong>{appointment.customerName}</strong>
-										<span>
+										<span className="text-muted">
 											{new Date(appointment.slotStart).toLocaleString()} with{" "}
 											{appointment.assignedStylist.displayName}
 										</span>
 									</div>
-									<span className="stylistTitle">
+									<span className="text-right text-muted">
 										{appointment.status === "completed"
 											? "Completed"
 											: appointment.assignedStylist.title}
 									</span>
 								</div>
-								<div className="prepTags">
-									<span>{appointment.museTag}</span>
-									<span>{appointment.occasion}</span>
-									<span>{appointment.status}</span>
+								<div className="flex flex-wrap gap-2">
+									<span className={tagClass}>{appointment.museTag}</span>
+									<span className={tagClass}>{appointment.occasion}</span>
+									<span className={tagClass}>{appointment.status}</span>
 								</div>
-								<p>
+								<p className="text-muted">
 									Focus: {appointment.focusColors || "None specified"} / Avoid:{" "}
 									{appointment.avoidColors || "None specified"}
 								</p>
-								<p>
+								<p className="text-muted">
 									Style signals: {appointment.styleKeywords.join(", ")}
 								</p>
-								<p>
-									Order signal: {appointment.orderHistorySummary.denimItems} denim
-									items, {appointment.orderHistorySummary.returnedItems} returns,
-									preferred sizes{" "}
+								<p className="text-muted">
+									Order signal: {appointment.orderHistorySummary.denimItems}{" "}
+									denim items, {appointment.orderHistorySummary.returnedItems}{" "}
+									returns, preferred sizes{" "}
 									{appointment.orderHistorySummary.preferredSizes.join(", ") ||
 										"unknown"}
 								</p>
 								{appointment.guidance ? (
-									<p>Customer note: {appointment.guidance}</p>
+									<p className="text-muted">
+										Customer note: {appointment.guidance}
+									</p>
 								) : null}
-								<section className="suggestedProducts">
-									<div className="sectionHeader">
+								<section className="grid gap-2 rounded-lg border border-suggestline border-dashed bg-suggest p-3">
+									<div className="flex items-center justify-between">
 										<strong>Suggested products</strong>
-										<span>{appointment.suggestedProducts.length}</span>
+										<span className="min-w-[24px] rounded-full bg-ink px-2 py-0.5 text-center font-extrabold text-[0.78rem] text-white">
+											{appointment.suggestedProducts.length}
+										</span>
 									</div>
 									{appointment.suggestedProducts.length === 0 ? (
-										<p className="empty">
+										<p className="text-[0.9rem] text-muted">
 											No suggested products yet. This area is reserved for the
 											product recommendation pipeline.
 										</p>
 									) : null}
 								</section>
-								<label className="notesField">
-									<span>Associate session notes</span>
+								<label className="grid gap-1.5">
+									<span className="font-extrabold text-[0.85rem] text-ink">
+										Associate session notes
+									</span>
 									<textarea
+										className="min-h-24 w-full resize-y rounded-lg border border-line bg-surface p-2.5 text-ink focus:border-accent focus:outline-none"
 										value={sessionNotes[appointment.id] ?? ""}
 										onChange={(event) =>
 											setSessionNotes((current) => ({
@@ -192,10 +225,10 @@ function App() {
 										placeholder="Summarize fit feedback, products tried, and follow-up recommendations."
 									/>
 								</label>
-								<div className="rowActions">
+								<div className="flex flex-wrap justify-end gap-2">
 									<button
 										type="button"
-										className="secondaryButton"
+										className={`${buttonBase} border border-control bg-surface text-ink transition-colors hover:bg-canvas`}
 										onClick={() => void saveNotes(appointment)}
 										disabled={appointment.status === "completed" || isLoading}
 									>
@@ -204,7 +237,7 @@ function App() {
 									</button>
 									<button
 										type="button"
-										className="primaryButton"
+										className={`${buttonBase} border border-ink bg-ink text-white transition-opacity hover:opacity-90`}
 										onClick={() => void completeSession(appointment)}
 										disabled={appointment.status === "completed" || isLoading}
 									>
@@ -215,7 +248,12 @@ function App() {
 							</article>
 						))}
 						{appointments.length === 0 ? (
-							<p className="empty">No guided appointments yet.</p>
+							<p
+								className="text-[0.9rem] text-muted"
+								data-testid="appointments-empty"
+							>
+								No guided appointments yet.
+							</p>
 						) : null}
 					</div>
 				</section>
