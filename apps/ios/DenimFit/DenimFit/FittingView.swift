@@ -648,16 +648,11 @@ struct FittingView: View {
         defer { isLoading = false }
 
         do {
-            async let user = apiClient.getCurrentUser()
-            async let availableUsers = apiClient.getUsers()
-            async let availableSlots = apiClient.getAppointmentSlots()
-            async let upcomingAppointment = apiClient.getUpcomingAppointment()
-            async let past = apiClient.getPastAppointments()
-            currentUser = try await user
-            users = try await availableUsers
-            slots = try await availableSlots
-            appointment = try await upcomingAppointment
-            pastAppointments = try await past
+            currentUser = try await apiClient.getCurrentUser()
+            users = try await apiClient.getUsers()
+            slots = try await apiClient.getAppointmentSlots()
+            appointment = try await apiClient.getUpcomingAppointment()
+            pastAppointments = try await apiClient.getPastAppointments()
             detailAppointment = nil
             guidance = appointment?.guidance ?? ""
             screen = .home
