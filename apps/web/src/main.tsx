@@ -4,6 +4,7 @@ import {
 	type Appointment,
 	completeAppointment,
 	listAppointments,
+	regenerateSuggestions,
 	updateSessionNotes,
 } from "./api";
 import {
@@ -102,6 +103,24 @@ function App() {
 		}
 	};
 
+	const regenerate = async (appointment: Appointment) => {
+		setIsLoading(true);
+		setStatus("Regenerating suggestions…");
+		try {
+			const updatedAppointment = await regenerateSuggestions(appointment.id);
+			replaceAppointment(updatedAppointment);
+			setStatus("Suggestions regenerated");
+		} catch (error) {
+			setStatus(
+				error instanceof Error
+					? error.message
+					: "Unable to regenerate suggestions",
+			);
+		} finally {
+			setIsLoading(false);
+		}
+	};
+
 	useEffect(() => {
 		void refresh();
 	}, [refresh]);
@@ -175,6 +194,7 @@ function App() {
 						onCompleteSession={(appointment) =>
 							void completeSession(appointment)
 						}
+						onRegenerate={(appointment) => void regenerate(appointment)}
 					/>
 				) : (
 					<AppointmentList
