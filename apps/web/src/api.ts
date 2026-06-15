@@ -103,3 +103,19 @@ export async function completeAppointment(
 	const data = (await response.json()) as { appointment: Appointment };
 	return data.appointment;
 }
+
+export async function regenerateSuggestions(
+	appointmentId: string,
+): Promise<Appointment> {
+	const response = await fetch(
+		`${apiBaseUrl}/api/appointments/${appointmentId}/regenerate-suggestions`,
+		{ method: "POST" },
+	);
+
+	if (!response.ok) {
+		throw new Error("Could not regenerate suggestions");
+	}
+
+	const data = (await response.json()) as { appointment: Appointment };
+	return data.appointment;
+}

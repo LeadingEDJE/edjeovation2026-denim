@@ -1,10 +1,17 @@
-import { CalendarClock, CheckCircle2, RefreshCw, Save } from "lucide-react";
+import {
+	CalendarClock,
+	CheckCircle2,
+	RefreshCw,
+	Save,
+	Sparkles,
+} from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
 import {
 	type Appointment,
 	completeAppointment,
 	listAppointments,
+	regenerateSuggestions,
 	updateSessionNotes,
 } from "./api";
 import "./styles.css";
@@ -90,6 +97,24 @@ function App() {
 				error instanceof Error
 					? error.message
 					: "Unable to complete appointment",
+			);
+		} finally {
+			setIsLoading(false);
+		}
+	};
+
+	const regenerate = async (appointment: Appointment) => {
+		setIsLoading(true);
+		setStatus("Regenerating suggestions…");
+		try {
+			const updatedAppointment = await regenerateSuggestions(appointment.id);
+			replaceAppointment(updatedAppointment);
+			setStatus("Suggestions regenerated");
+		} catch (error) {
+			setStatus(
+				error instanceof Error
+					? error.message
+					: "Unable to regenerate suggestions",
 			);
 		} finally {
 			setIsLoading(false);
@@ -195,11 +220,24 @@ function App() {
 									</p>
 								) : null}
 								<section className="grid gap-2 rounded-lg border border-suggestline border-dashed bg-suggest p-3">
-									<div className="flex items-center justify-between">
+									<div className="flex items-center justify-between gap-2">
 										<strong>Suggested products</strong>
-										<span className="min-w-[24px] rounded-full bg-ink px-2 py-0.5 text-center font-extrabold text-[0.78rem] text-white">
-											{appointment.suggestedProducts.length}
-										</span>
+										<div className="flex items-center gap-2">
+											<button
+												type="button"
+												className={`${buttonBase} border border-control bg-surface text-[0.8rem] text-ink transition-colors hover:bg-canvas`}
+												onClick={() => void regenerate(appointment)}
+												disabled={
+													appointment.status === "completed" || isLoading
+												}
+											>
+												<Sparkles size={14} />
+												Regenerate
+											</button>
+											<span className="min-w-[24px] rounded-full bg-ink px-2 py-0.5 text-center font-extrabold text-[0.78rem] text-white">
+												{appointment.suggestedProducts.length}
+											</span>
+										</div>
 									</div>
 									{appointment.suggestedProducts.length === 0 ? (
 										<p className="text-[0.9rem] text-muted">

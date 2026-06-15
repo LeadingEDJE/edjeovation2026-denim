@@ -1398,6 +1398,75 @@ export async function registerRoutes(app: FastifyInstance) {
 		},
 	);
 
+	app.post(
+		"/api/appointments/:appointmentId/regenerate-suggestions",
+		{
+			schema: {
+				tags: ["appointments"],
+				summary: "Re-run the recommendation engine for an appointment",
+				params: appointmentIdParamsJsonSchema,
+				response: {
+					200: {
+						type: "object",
+						required: ["appointment"],
+						properties: {
+							appointment: appointmentSummaryJsonSchema,
+						},
+					},
+					404: errorJsonSchema,
+					409: errorJsonSchema,
+					502: errorJsonSchema,
+				},
+			},
+		},
+		async (request, reply) => {
+			const { appointmentId } = request.params as { appointmentId: string };
+
+			const existing = await pool.query(
+				"SELECT * FROM appointments WHERE id = $1",
+				[appointmentId],
+			);
+			if (!existing.rows[0]) {
+				return reply.code(404).send({ message: "Appointment not found" });
+			}
+			const appointment = mapAppointment(existing.rows[0]);
+			if (appointment.status === "completed") {
+				return reply
+					.code(409)
+					.send({ message: "Completed appointments cannot be edited" });
+			}
+
+			try {
+				const customer = await fetchThirdPartyUser(appointment.customerId);
+				const suggestedProducts = await buildSuggestedProducts(
+					customer,
+					{
+						slotStart: appointment.slotStart,
+						occasion: appointment.occasion,
+						focusColors: appointment.focusColors,
+						avoidColors: appointment.avoidColors,
+						styleKeywords: appointment.styleKeywords,
+						guidance: appointment.guidance,
+					},
+					appointment.museTag,
+					appointment.orderHistorySummary,
+				);
+
+				const result = await pool.query(
+					"UPDATE appointments SET suggested_products = $1 WHERE id = $2 RETURNING *",
+					[JSON.stringify(suggestedProducts), appointmentId],
+				);
+
+				return { appointment: mapAppointment(result.rows[0]) };
+			} catch (error) {
+				request.log.error(error);
+				return reply
+					.code(502)
+					.send({ message: "Unable to regenerate suggestions" });
+			}
+		},
+	);
+
 	app.delete(
 		"/api/appointments/:appointmentId",
 		{
