@@ -1,9 +1,11 @@
 import { describe, expect, it } from "vitest";
 import {
+	coarseCategory,
 	type FitProfile,
 	parseColors,
 	rankCandidates,
 	scoreProduct,
+	shortlistDiverse,
 	targetLength,
 	targetWaistSize,
 } from "./recommendation-scoring.js";
@@ -129,6 +131,54 @@ describe("color scoring", () => {
 			base,
 		).score;
 		expect(unrelated).toBeCloseTo(neutral, 5);
+	});
+});
+
+describe("coarseCategory", () => {
+	it("buckets products by name across garment types", () => {
+		expect(
+			coarseCategory(product({ name: "High Rise 90s Straight Jean" })),
+		).toBe("bottoms");
+		expect(coarseCategory(product({ name: "Linen-Blend Mini Dress" }))).toBe(
+			"dresses",
+		);
+		expect(coarseCategory(product({ name: "Cropped Rib Tank Top" }))).toBe(
+			"tops",
+		);
+		expect(coarseCategory(product({ name: "Cropped Denim Jacket" }))).toBe(
+			"outerwear",
+		);
+		expect(coarseCategory(product({ name: "Leather Crossbody Bag" }))).toBe(
+			"other",
+		);
+	});
+});
+
+describe("shortlistDiverse", () => {
+	it("includes multiple categories rather than only top-scoring bottoms", () => {
+		const products = [
+			product({ name: "Straight Jean A", fit: "straight", sizes: ["29"] }),
+			product({ name: "Straight Jean B", fit: "straight", sizes: ["29"] }),
+			product({ name: "Straight Jean C", fit: "straight", sizes: ["29"] }),
+			product({ name: "Straight Jean D", fit: "straight", sizes: ["29"] }),
+			product({ name: "Straight Jean E", fit: "straight", sizes: ["29"] }),
+			product({ name: "Silk Cami Top", colors: ["indigo"] }),
+			product({ name: "Midi Dress", colors: ["indigo"] }),
+		];
+		const shortlist = shortlistDiverse(
+			{ ...input, focusColors: ["indigo"] },
+			products,
+			4,
+			12,
+		);
+		const buckets = new Set(shortlist.map((c) => coarseCategory(c.product)));
+		expect(buckets.has("tops")).toBe(true);
+		expect(buckets.has("dresses")).toBe(true);
+		// At most `perCategory` bottoms even though they out-score everything.
+		const bottoms = shortlist.filter(
+			(c) => coarseCategory(c.product) === "bottoms",
+		);
+		expect(bottoms.length).toBeLessThanOrEqual(4);
 	});
 });
 

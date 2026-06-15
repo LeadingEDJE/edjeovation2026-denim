@@ -1,11 +1,50 @@
 /**
  * Rule-based scoring for the catalog-backed recommendation engine — the cheap,
- * deterministic first stage of the hybrid pipeline. It scores each candidate
- * product against the fitting profile and returns a ranked shortlist that the
- * Claude re-ranker then refines. Pure functions only (no DB, no network) so the
+ * deterministic first stage of the hybrid pipeline. It scores any catalog
+ * product (not just denim) against the customer's fit profile and the
+ * appointment's color context, then builds a category-diverse shortlist the
+ * Claude re-ranker refines. Pure functions only (no DB, no network) so the
  * scoring is easy to unit-test and reason about.
  */
 import type { CatalogProduct } from "./types.js";
+
+export type CoarseCategory =
+	| "bottoms"
+	| "dresses"
+	| "tops"
+	| "outerwear"
+	| "other";
+
+/**
+ * Bucket a product into a coarse garment category from its name + category
+ * text. Used to keep the shortlist diverse across product types. Order matters:
+ * more specific buckets (bottoms, dresses, outerwear) are checked before tops.
+ */
+export function coarseCategory(product: CatalogProduct): CoarseCategory {
+	const text = `${product.name} ${product.category ?? ""}`.toLowerCase();
+	// Outerwear and dresses are checked before bottoms so a "denim jacket" or
+	// "denim dress" isn't miscategorized as bottoms by the "denim" keyword.
+	if (/\b(jacket|coat|blazer|outerwear|parka|trench|bomber)\b/.test(text)) {
+		return "outerwear";
+	}
+	if (/\b(dress|jumpsuit|romper|gown)\b/.test(text)) return "dresses";
+	if (
+		/\b(jean|denim|pant|trouser|short|skort|skirt|legging|chino|cargo)\b/.test(
+			text,
+		) ||
+		/bottom/.test(text)
+	) {
+		return "bottoms";
+	}
+	if (
+		/\b(top|tee|t-shirt|shirt|blouse|cami|tank|bodysuit|sweater|sweatshirt|hoodie|knit|cardigan|polo|corset|bustier|vest|henley|crewneck)\b/.test(
+			text,
+		)
+	) {
+		return "tops";
+	}
+	return "other";
+}
 
 // Self-contained fit profile the scorer needs. Decoupled from any request/UI
 // shape so it can be fed from the logged-in user's measurements + preferences
@@ -59,14 +98,17 @@ const FIT_ADJACENCY: Record<FitProfile["fitPreference"], string[]> = {
 };
 
 const WEIGHTS = {
+	// Bottoms-only fit signals (these attributes only exist on denim/bottoms).
 	fitExact: 0.4,
 	fitAdjacent: 0.2,
 	stretchExact: 0.25,
 	stretchOther: 0.05,
 	waistAvailable: 0.2,
 	lengthAvailable: 0.1,
-	colorFocus: 0.12,
-	colorAvoid: 0.3, // penalty
+	// Color signals apply to every product, so they carry more weight — they are
+	// the main cross-category criterion in a styling appointment.
+	colorFocus: 0.3,
+	colorAvoid: 0.45, // penalty
 };
 
 /** A&F jean waist sizes are labeled in inches, so round the body measurement. */
@@ -149,4 +191,35 @@ export function rankCandidates(
 		.map((product) => scoreProduct(input, product))
 		.sort((a, b) => b.score - a.score)
 		.slice(0, limit);
+}
+
+/**
+ * Build a category-diverse shortlist across the whole catalog. Bottoms tend to
+ * out-score everything else (they have fit/size signals), so a plain top-N would
+ * be all denim. Instead we take the best `perCategory` from each garment bucket,
+ * then keep the top `total` by score — giving the Claude re-ranker a varied set
+ * (jeans, tops, dresses, …) to assemble a recommendation from.
+ */
+export function shortlistDiverse(
+	input: RecommendationContext,
+	products: CatalogProduct[],
+	perCategory = 4,
+	total = 12,
+): ScoredCandidate[] {
+	const scored = products
+		.map((product) => scoreProduct(input, product))
+		.sort((a, b) => b.score - a.score);
+
+	const perBucket = new Map<CoarseCategory, number>();
+	const picked: ScoredCandidate[] = [];
+	for (const candidate of scored) {
+		const bucket = coarseCategory(candidate.product);
+		const count = perBucket.get(bucket) ?? 0;
+		if (count < perCategory) {
+			perBucket.set(bucket, count + 1);
+			picked.push(candidate);
+		}
+	}
+
+	return picked.sort((a, b) => b.score - a.score).slice(0, total);
 }

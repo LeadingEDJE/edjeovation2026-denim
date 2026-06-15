@@ -7,7 +7,11 @@
  */
 import Anthropic from "@anthropic-ai/sdk";
 import { config } from "./config.js";
-import type { FitProfile, ScoredCandidate } from "./recommendation-scoring.js";
+import {
+	coarseCategory,
+	type FitProfile,
+	type ScoredCandidate,
+} from "./recommendation-scoring.js";
 
 export type RankedRecommendation = {
 	productId: string;
@@ -33,22 +37,24 @@ export type StyleContext = {
 
 // Stable across all requests → safe to mark for prompt caching. The volatile
 // parts (customer profile, candidate list) go in the user turn.
-const SYSTEM_PROMPT = `You are a denim fit specialist prepping a stylist for an Abercrombie women's
-appointment. You receive the customer's fit profile, the appointment's style context
-(occasion, focus/avoid colors, style keywords, muse tag, and the sizes they've kept
-before), and a shortlist of candidate jeans a rule-based scorer pre-selected. Re-rank
-the candidates from best to worst for THIS appointment, weighing fit/stretch/size
-match together with how well each product suits the occasion, requested colors, and
-style direction.
+const SYSTEM_PROMPT = `You are a personal stylist prepping for an Abercrombie women's appointment. You
+receive the customer's fit profile, the appointment's style context (occasion,
+focus/avoid colors, style keywords, muse tag, and the sizes they've kept before),
+and a shortlist of candidate products across categories (jeans, pants, tops,
+dresses, outerwear, …) that a rule-based scorer pre-selected. Recommend the best
+products for THIS appointment, weighing how well each suits the occasion, requested
+colors, and style direction — plus fit/stretch/size match for bottoms, where those
+attributes apply.
 
 Rules:
 - Only rank products from the provided candidate list; never invent products.
 - Use each product's exact productId in your output.
+- Aim for a useful, well-rounded set for the occasion (e.g. mix bottoms with tops or
+  a dress) rather than near-duplicates, unless one category clearly fits best.
 - Write a concise, specific rationale (one or two sentences) per product that ties it
-  to the customer's measurements/preferences AND the appointment's occasion, colors,
-  or style direction.
-- Favor focus colors and avoid the colors to skip. Lead with the strongest match.
-  Include every candidate you are given.`;
+  to the customer's preferences AND the appointment's occasion, colors, or style.
+  For bottoms, reference fit/size; for other categories, lean on color and style.
+- Favor focus colors and avoid the colors to skip. Lead with the strongest match.`;
 
 const OUTPUT_SCHEMA = {
 	type: "object",
@@ -77,13 +83,15 @@ function candidateLine(c: ScoredCandidate): string {
 	return [
 		`productId: ${p.productId}`,
 		`name: ${p.name}`,
-		`fit: ${p.fit ?? "unknown"}`,
-		`rise: ${p.rise ?? "unknown"}`,
-		`stretch: ${p.stretch ?? "unknown"}`,
+		`category: ${p.category ?? "unknown"}`,
+		`fit: ${p.fit ?? "n/a"}`,
+		`rise: ${p.rise ?? "n/a"}`,
+		`stretch: ${p.stretch ?? "n/a"}`,
 		`price: ${p.price ?? "?"} ${p.currency ?? ""}`.trim(),
+		`colors: ${p.colors.join(", ") || "n/a"}`,
 		`sizes: ${p.sizes.join(", ") || "n/a"}`,
 		`ruleScore: ${c.score.toFixed(2)}`,
-		`description: ${(p.description ?? "").slice(0, 240)}`,
+		`description: ${(p.description ?? "").slice(0, 200)}`,
 	].join(" | ");
 }
 
@@ -122,7 +130,7 @@ function buildUserPrompt(
 	return `Customer profile: ${profile}
 Appointment style context: ${styleLines || "none provided"}
 
-Candidate jeans (pre-scored shortlist):
+Candidate products (pre-scored shortlist):
 ${candidates}
 
 Return the best ${topN} candidates, ranked 1 (best) to ${topN}, with a rationale for each and a one-sentence overall summary.`;
@@ -187,17 +195,53 @@ export async function rerank(
 }
 
 function fallback(shortlist: ScoredCandidate[], topN: number): RerankResult {
-	const rankings = shortlist.slice(0, topN).map((c, i) => ({
+	const rankings = diversifyByCategory(shortlist, topN).map((c, i) => ({
 		productId: c.product.productId,
 		rank: i + 1,
 		rationale:
-			c.reasons.join("; ") ||
-			"Closest available match for your fitting profile.",
+			c.reasons.join("; ") || "Closest available match for the appointment.",
 	}));
 	return {
 		engine: "rule-based",
 		summary:
-			"Ranked by rule-based fit scoring (Claude re-ranking unavailable).",
+			"Ranked by rule-based scoring across the catalog (Claude re-ranking unavailable).",
 		rankings,
 	};
+}
+
+/**
+ * Pick a varied top-N from a score-sorted shortlist by round-robining across
+ * garment categories — so the no-LLM fallback returns a mix (jeans, a top, a
+ * dress, …) rather than several near-identical jeans. Categories are visited
+ * strongest-first.
+ */
+function diversifyByCategory(
+	shortlist: ScoredCandidate[],
+	topN: number,
+): ScoredCandidate[] {
+	const queues = new Map<string, ScoredCandidate[]>();
+	for (const candidate of shortlist) {
+		const key = coarseCategory(candidate.product);
+		const queue = queues.get(key);
+		if (queue) queue.push(candidate);
+		else queues.set(key, [candidate]);
+	}
+
+	// Strongest category (by its best candidate) leads.
+	const ordered = [...queues.values()].sort((a, b) => b[0].score - a[0].score);
+
+	const result: ScoredCandidate[] = [];
+	let progress = true;
+	while (result.length < topN && progress) {
+		progress = false;
+		for (const queue of ordered) {
+			const next = queue.shift();
+			if (next) {
+				result.push(next);
+				progress = true;
+				if (result.length >= topN) break;
+			}
+		}
+	}
+	return result;
 }

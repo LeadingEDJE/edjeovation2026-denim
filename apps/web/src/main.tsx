@@ -134,7 +134,7 @@ function AppointmentCard({ appointment }: { appointment: Appointment }) {
 			<div className="suggestions">
 				<div className="suggestionsHeader">
 					<Sparkles size={14} />
-					<span>Suggested denim</span>
+					<span>Suggested products</span>
 					{recs ? (
 						<span className={`engineBadge ${recs.engine}`}>
 							{recs.engine === "claude" ? "Claude re-ranked" : "Rule-based"}
@@ -155,7 +155,12 @@ function AppointmentCard({ appointment }: { appointment: Appointment }) {
 										{rec.product?.name ?? "Unknown product"}
 									</a>
 									<small>
-										{[rec.product?.fit, rec.product?.rise, rec.product?.stretch]
+										{[
+											rec.product?.category,
+											rec.product?.fit,
+											rec.product?.rise,
+											rec.product?.stretch,
+										]
 											.filter(Boolean)
 											.join(" · ")}
 										{rec.product?.price != null
@@ -174,7 +179,7 @@ function AppointmentCard({ appointment }: { appointment: Appointment }) {
 						onClick={loadSuggestions}
 						disabled={loading}
 					>
-						{loading ? "Finding denim…" : "Suggest denim"}
+						{loading ? "Finding pieces…" : "Suggest products"}
 					</button>
 				)}
 				{error ? <p className="empty">{error}</p> : null}

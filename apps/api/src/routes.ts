@@ -5,7 +5,7 @@ import { pool } from "./db.js";
 import {
 	parseColors,
 	type RecommendationContext,
-	rankCandidates,
+	shortlistDiverse,
 } from "./recommendation-scoring.js";
 import {
 	fetchThirdPartyOrderHistory,
@@ -1167,8 +1167,9 @@ export async function registerRoutes(app: FastifyInstance) {
 	);
 
 	// Hybrid catalog recommendations for a specific appointment: rule-based
-	// scoring (fit/stretch/size + focus/avoid colors) shortlists denim, then
-	// Claude re-ranks with the appointment's occasion/style/muse context.
+	// scoring (focus/avoid colors for all products + fit/stretch/size for
+	// bottoms) builds a category-diverse shortlist across the whole catalog,
+	// then Claude re-ranks with the appointment's occasion/style/muse context.
 	app.get(
 		"/api/appointments/:appointmentId/recommendations",
 		async (request, reply) => {
@@ -1202,11 +1203,9 @@ export async function registerRoutes(app: FastifyInstance) {
 				avoidColors: parseColors(appointment.avoidColors),
 			};
 
-			const catalogResult = await pool.query(
-				"SELECT * FROM catalog_products WHERE fit IS NOT NULL",
-			);
+			const catalogResult = await pool.query("SELECT * FROM catalog_products");
 			const candidates = catalogResult.rows.map(mapCatalogProduct);
-			const shortlist = rankCandidates(context, candidates, 10);
+			const shortlist = shortlistDiverse(context, candidates, 4, 12);
 
 			const style: StyleContext = {
 				occasion: appointment.occasion,

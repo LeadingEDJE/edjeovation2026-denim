@@ -28,6 +28,7 @@ export type Appointment = {
 export type CatalogProduct = {
 	productId: string;
 	name: string;
+	category: string | null;
 	productUrl: string;
 	imageUrl: string | null;
 	price: number | null;
