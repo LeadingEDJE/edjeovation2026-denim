@@ -1,255 +1,29 @@
-:root {
-	color: #1c2430;
-	background: #f5f1ea;
-	font-family:
+@import "tailwindcss";
+
+@theme {
+	--color-canvas: #f5f1ea; /* page background */
+	--color-surface: #fffdfa; /* panels */
+	--color-ink: #1c2430; /* primary text / dark buttons */
+	--color-accent: #275c63; /* teal */
+	--color-clay: #6b4f3f; /* eyebrow */
+	--color-muted: #6c7480; /* secondary text */
+	--color-line: #ded7cd; /* panel / textarea border */
+	--color-rowline: #ece4d8; /* appointment row border */
+	--color-tag: #e7f0ef; /* prep tag chip background */
+	--color-suggest: #f7f8f4; /* suggested-products background */
+	--color-suggestline: #cfd7c7; /* suggested-products dashed border */
+	--color-control: #bfc7bd; /* secondary button border */
+
+	--font-sans:
 		Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
 		"Segoe UI", sans-serif;
-	line-height: 1.4;
 }
 
-* {
-	box-sizing: border-box;
-}
-
-body {
-	margin: 0;
-}
-
-button {
-	font: inherit;
-}
-
-.shell {
-	min-height: 100vh;
-	padding: 28px;
-}
-
-.topbar {
-	align-items: center;
-	display: flex;
-	justify-content: space-between;
-	margin: 0 auto 24px;
-	max-width: 1180px;
-}
-
-.eyebrow {
-	color: #6b4f3f;
-	font-size: 0.78rem;
-	font-weight: 700;
-	letter-spacing: 0;
-	margin: 0 0 4px;
-	text-transform: uppercase;
-}
-
-h1,
-h2,
-p {
-	margin: 0;
-}
-
-h1 {
-	font-size: clamp(2rem, 4vw, 3.25rem);
-	line-height: 1;
-}
-
-h2 {
-	font-size: 1rem;
-}
-
-.workspace {
-	display: grid;
-	gap: 16px;
-	grid-template-columns: minmax(240px, 320px) minmax(320px, 1fr);
-	margin: 0 auto;
-	max-width: 1180px;
-}
-
-.panel {
-	background: #fffdfa;
-	border: 1px solid #ded7cd;
-	border-radius: 8px;
-	padding: 18px;
-}
-
-.panelHeader {
-	align-items: center;
-	display: flex;
-	gap: 8px;
-	justify-content: space-between;
-	margin-bottom: 12px;
-}
-
-.summaryPanel {
-	align-self: start;
-}
-
-.iconButton {
-	align-items: center;
-	border: 0;
-	cursor: pointer;
-	display: inline-flex;
-	justify-content: center;
-}
-
-.iconButton {
-	background: #1c2430;
-	border-radius: 999px;
-	color: white;
-	height: 42px;
-	width: 42px;
-}
-
-button:disabled {
-	cursor: wait;
-	opacity: 0.62;
-}
-
-.status,
-.empty {
-	color: #6c7480;
-	font-size: 0.9rem;
-}
-
-.appointmentsPanel {
-	min-height: 360px;
-}
-
-.appointmentList {
-	display: grid;
-	gap: 12px;
-}
-
-.appointmentRow {
-	border: 1px solid #ece4d8;
-	border-radius: 8px;
-	display: grid;
-	gap: 8px;
-	padding: 12px;
-}
-
-.appointmentRow span,
-.appointmentRow p {
-	color: #6c7480;
-}
-
-.appointmentHeading {
-	align-items: start;
-	display: flex;
-	gap: 12px;
-	justify-content: space-between;
-}
-
-.appointmentHeading div {
-	display: grid;
-	gap: 2px;
-}
-
-.stylistTitle {
-	text-align: right;
-}
-
-.prepTags {
-	display: flex;
-	flex-wrap: wrap;
-	gap: 8px;
-}
-
-.prepTags span {
-	background: #e7f0ef;
-	border-radius: 999px;
-	color: #275c63;
-	font-size: 0.8rem;
-	font-weight: 800;
-	padding: 4px 8px;
-}
-
-.suggestions {
-	border-top: 1px dashed #e0d8cc;
-	margin-top: 4px;
-	padding-top: 10px;
-}
-
-.suggestionsHeader {
-	align-items: center;
-	color: #1f2933;
-	display: flex;
-	font-weight: 800;
-	gap: 6px;
-}
-
-.engineBadge {
-	border-radius: 999px;
-	font-size: 0.65rem;
-	font-weight: 700;
-	margin-left: auto;
-	padding: 2px 8px;
-	text-transform: uppercase;
-}
-
-.engineBadge.claude {
-	background: #e7dafe;
-	color: #5b34b3;
-}
-
-.engineBadge.rule-based {
-	background: #e7ece4;
-	color: #4a6353;
-}
-
-.suggestionSummary {
-	color: #4a4f57;
-	font-style: italic;
-	margin: 8px 0;
-}
-
-.suggestionList {
-	display: grid;
-	gap: 10px;
-	margin: 0;
-	padding-left: 18px;
-}
-
-.suggestionList a {
-	color: #1f2933;
-	font-weight: 700;
-	text-decoration: none;
-}
-
-.suggestionList a:hover {
-	text-decoration: underline;
-}
-
-.suggestionList small {
-	color: #6c7480;
-	display: block;
-	text-transform: capitalize;
-}
-
-.suggestionList p {
-	color: #4a4f57;
-	margin: 2px 0 0;
-}
-
-.suggestButton {
-	background: #1c2430;
-	border: 0;
-	border-radius: 8px;
-	color: white;
-	cursor: pointer;
-	margin-top: 8px;
-	padding: 8px 14px;
-}
-
-.suggestButton:disabled {
-	opacity: 0.6;
-}
-
-@media (max-width: 820px) {
-	.shell {
-		padding: 18px;
-	}
-
-	.workspace {
-		grid-template-columns: 1fr;
+@layer base {
+	html {
+		color: var(--color-ink);
+		background: var(--color-canvas);
+		font-family: var(--font-sans);
+		line-height: 1.4;
 	}
 }

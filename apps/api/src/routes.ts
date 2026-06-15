@@ -29,6 +29,7 @@ import {
 	type StylistAvailabilitySchedule,
 	type StylistAvailabilityStatus,
 	type StylistProfile,
+	type SuggestedProduct,
 	type UserList,
 } from "./types.js";
 
@@ -60,6 +61,7 @@ const museTagEnum = [
 	"Boyish Muse",
 	"Statement Maker",
 ] as const;
+const appointmentStatusEnum = ["scheduled", "completed"] as const;
 const styleKeywordEnum = [
 	"minimal",
 	"effortless",
@@ -363,6 +365,14 @@ const updateAppointmentJsonSchema = {
 	},
 } as const;
 
+const updateSessionNotesJsonSchema = {
+	type: "object",
+	required: ["sessionNotes"],
+	properties: {
+		sessionNotes: { type: "string", maxLength: 3000 },
+	},
+} as const;
+
 const appointmentIdParamsJsonSchema = {
 	type: "object",
 	required: ["appointmentId"],
@@ -385,9 +395,13 @@ const appointmentSummaryJsonSchema = {
 		"avoidColors",
 		"styleKeywords",
 		"guidance",
+		"sessionNotes",
+		"status",
 		"museTag",
 		"assignedStylist",
 		"orderHistorySummary",
+		"suggestedProducts",
+		"completedAt",
 		"createdAt",
 	],
 	properties: {
@@ -402,6 +416,8 @@ const appointmentSummaryJsonSchema = {
 		avoidColors: { type: "string" },
 		styleKeywords: { type: "array", items: { type: "string" } },
 		guidance: { type: "string" },
+		sessionNotes: { type: "string" },
+		status: { type: "string", enum: appointmentStatusEnum },
 		museTag: { type: "string", enum: museTagEnum },
 		assignedStylist: stylistJsonSchema,
 		orderHistorySummary: {
@@ -418,6 +434,25 @@ const appointmentSummaryJsonSchema = {
 				returnedItems: { type: "integer" },
 				preferredSizes: { type: "array", items: { type: "string" } },
 			},
+		},
+		suggestedProducts: {
+			type: "array",
+			items: {
+				type: "object",
+				required: ["rank", "rationale", "score", "product"],
+				properties: {
+					rank: { type: "integer" },
+					rationale: { type: "string" },
+					score: { anyOf: [{ type: "number" }, { type: "null" }] },
+					product: {
+						type: "object",
+						additionalProperties: true,
+					},
+				},
+			},
+		},
+		completedAt: {
+			anyOf: [{ type: "string", format: "date-time" }, { type: "null" }],
 		},
 		createdAt: { type: "string", format: "date-time" },
 	},
@@ -592,11 +627,19 @@ function mapAppointment(row: Record<string, unknown>): Appointment {
 		avoidColors: String(row.avoid_colors),
 		styleKeywords: parseJsonField<string[]>(row.style_keywords),
 		guidance: String(row.guidance),
+		sessionNotes: String(row.session_notes ?? ""),
+		status: String(row.status ?? "scheduled") as Appointment["status"],
 		museTag: String(row.muse_tag) as MuseTag,
 		assignedStylist: parseJsonField<StylistProfile>(row.assigned_stylist),
 		orderHistorySummary: parseJsonField<Appointment["orderHistorySummary"]>(
 			row.order_history_summary,
 		),
+		suggestedProducts: row.suggested_products
+			? parseJsonField<SuggestedProduct[]>(row.suggested_products)
+			: [],
+		completedAt: row.completed_at
+			? new Date(String(row.completed_at)).toISOString()
+			: null,
 		createdAt: new Date(String(row.created_at)).toISOString(),
 	};
 }
@@ -628,6 +671,58 @@ function mapCatalogProduct(row: Record<string, unknown>): CatalogProduct {
 		colors: Array.isArray(row.colors) ? (row.colors as string[]) : [],
 		scrapedAt: new Date(String(row.scraped_at)).toISOString(),
 	};
+}
+
+/**
+ * Hybrid product recommendations for an appointment: rule-based scoring
+ * (focus/avoid colors for all products + fit/stretch/size for bottoms) builds a
+ * category-diverse shortlist across the whole catalog, then Claude re-ranks it
+ * with the appointment's occasion/style/muse context (falling back to the
+ * rule-based order when no API key is set). Returned as enriched, ranked items
+ * to store on the appointment.
+ */
+async function buildSuggestedProducts(
+	customer: CurrentUser,
+	input: CreateAppointmentInput,
+	museTag: MuseTag,
+	orderHistorySummary: Appointment["orderHistorySummary"],
+): Promise<SuggestedProduct[]> {
+	const context: RecommendationContext = {
+		waistInches: customer.measurements.waistInches,
+		inseamInches: customer.measurements.inseamInches,
+		fitPreference: customer.preferences.fitPreference,
+		stretchPreference: customer.preferences.stretchPreference,
+		focusColors: parseColors(input.focusColors),
+		avoidColors: parseColors(input.avoidColors),
+	};
+
+	const catalogResult = await pool.query("SELECT * FROM catalog_products");
+	const candidates = catalogResult.rows.map(mapCatalogProduct);
+	const shortlist = shortlistDiverse(context, candidates, 4, 12);
+
+	const style: StyleContext = {
+		occasion: input.occasion,
+		focusColors: input.focusColors,
+		avoidColors: input.avoidColors,
+		styleKeywords: input.styleKeywords,
+		museTag,
+		preferredSizes: orderHistorySummary.preferredSizes,
+	};
+	const reranked = await rerank(context, style, shortlist, 5);
+
+	const byId = new Map(shortlist.map((c) => [c.product.productId, c]));
+	return reranked.rankings.flatMap((r) => {
+		const scored = byId.get(r.productId);
+		if (!scored) return [];
+		return [
+			{
+				rank: r.rank,
+				rationale: r.rationale,
+				score: Number(scored.score.toFixed(3)),
+				product: scored.product,
+			},
+		];
+	});
 }
 
 export async function registerRoutes(app: FastifyInstance) {
@@ -918,6 +1013,7 @@ export async function registerRoutes(app: FastifyInstance) {
 						FROM appointments
 						WHERE customer_id = $1
 							AND slot_start >= now()
+							AND status = 'scheduled'
 						ORDER BY slot_start ASC
 						LIMIT 1
 					`,
@@ -932,6 +1028,52 @@ export async function registerRoutes(app: FastifyInstance) {
 				return reply
 					.code(502)
 					.send({ message: "Unable to load upcoming appointment" });
+			}
+		},
+	);
+
+	app.get(
+		"/api/appointments/me/past",
+		{
+			schema: {
+				tags: ["appointments"],
+				summary: "List the mocked customer's past guided fitting appointments",
+				response: {
+					200: {
+						type: "object",
+						required: ["appointments"],
+						properties: {
+							appointments: {
+								type: "array",
+								items: appointmentSummaryJsonSchema,
+							},
+						},
+					},
+					502: errorJsonSchema,
+				},
+			},
+		},
+		async (request, reply) => {
+			try {
+				const currentUser = await getActiveUser();
+				const result = await pool.query(
+					`
+						SELECT *
+						FROM appointments
+						WHERE customer_id = $1
+							AND (slot_start < now() OR status = 'completed')
+						ORDER BY slot_start DESC
+						LIMIT 25
+					`,
+					[currentUser.customerId],
+				);
+
+				return { appointments: result.rows.map(mapAppointment) };
+			} catch (error) {
+				request.log.error(error);
+				return reply
+					.code(502)
+					.send({ message: "Unable to load past appointments" });
 			}
 		},
 	);
@@ -973,6 +1115,7 @@ export async function registerRoutes(app: FastifyInstance) {
 						FROM appointments
 						WHERE customer_id = $1
 							AND slot_start >= now()
+							AND status = 'scheduled'
 						ORDER BY slot_start ASC
 						LIMIT 1
 					`,
@@ -1026,15 +1169,22 @@ export async function registerRoutes(app: FastifyInstance) {
 					input.orderHistoryScenario ?? "standard",
 				);
 				const orderHistorySummary = summarizeOrderHistory(orderHistory);
+				const suggestedProducts = await buildSuggestedProducts(
+					currentUser,
+					input,
+					museTag,
+					orderHistorySummary,
+				);
 
 				const insertResult = await pool.query(
 					`
 						INSERT INTO appointments (
 							id, customer_id, loyalty_id, customer_name, slot_start, slot_end,
 							occasion, focus_colors, avoid_colors, style_keywords, guidance,
-							muse_tag, assigned_stylist, order_history_summary, source_payload
+							session_notes, status, muse_tag, assigned_stylist,
+							order_history_summary, suggested_products, source_payload
 						)
-						VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+						VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, '', 'scheduled', $12, $13, $14, $15, $16)
 						RETURNING *
 					`,
 					[
@@ -1052,6 +1202,7 @@ export async function registerRoutes(app: FastifyInstance) {
 						museTag,
 						JSON.stringify(assignedStylist),
 						JSON.stringify(orderHistorySummary),
+						JSON.stringify(suggestedProducts),
 						JSON.stringify({ input, currentUser, orderHistory }),
 					],
 				);
@@ -1102,6 +1253,7 @@ export async function registerRoutes(app: FastifyInstance) {
 						WHERE id = $2
 							AND customer_id = $3
 							AND slot_start >= now()
+							AND status = 'scheduled'
 						RETURNING *
 					`,
 					[input.guidance, appointmentId, currentUser.customerId],
@@ -1117,6 +1269,131 @@ export async function registerRoutes(app: FastifyInstance) {
 				return reply
 					.code(502)
 					.send({ message: "Unable to update appointment" });
+			}
+		},
+	);
+
+	app.patch(
+		"/api/appointments/:appointmentId/session-notes",
+		{
+			schema: {
+				tags: ["appointments"],
+				summary:
+					"Update associate session notes while an appointment is not completed",
+				params: appointmentIdParamsJsonSchema,
+				body: updateSessionNotesJsonSchema,
+				response: {
+					200: {
+						type: "object",
+						required: ["appointment"],
+						properties: {
+							appointment: appointmentSummaryJsonSchema,
+						},
+					},
+					404: errorJsonSchema,
+					409: errorJsonSchema,
+					502: errorJsonSchema,
+				},
+			},
+		},
+		async (request, reply) => {
+			const { appointmentId } = request.params as { appointmentId: string };
+			const input = request.body as { sessionNotes: string };
+
+			try {
+				const result = await pool.query(
+					`
+						UPDATE appointments
+						SET session_notes = $1
+						WHERE id = $2
+							AND status <> 'completed'
+						RETURNING *
+					`,
+					[input.sessionNotes, appointmentId],
+				);
+
+				if (!result.rows[0]) {
+					const existing = await pool.query(
+						"SELECT status FROM appointments WHERE id = $1",
+						[appointmentId],
+					);
+					if (existing.rows[0]?.status === "completed") {
+						return reply
+							.code(409)
+							.send({ message: "Completed appointments cannot be edited" });
+					}
+					return reply.code(404).send({ message: "Appointment not found" });
+				}
+
+				return { appointment: mapAppointment(result.rows[0]) };
+			} catch (error) {
+				request.log.error(error);
+				return reply
+					.code(502)
+					.send({ message: "Unable to update session notes" });
+			}
+		},
+	);
+
+	app.post(
+		"/api/appointments/:appointmentId/complete",
+		{
+			schema: {
+				tags: ["appointments"],
+				summary: "Mark an appointment session as completed",
+				params: appointmentIdParamsJsonSchema,
+				body: updateSessionNotesJsonSchema,
+				response: {
+					200: {
+						type: "object",
+						required: ["appointment"],
+						properties: {
+							appointment: appointmentSummaryJsonSchema,
+						},
+					},
+					404: errorJsonSchema,
+					409: errorJsonSchema,
+					502: errorJsonSchema,
+				},
+			},
+		},
+		async (request, reply) => {
+			const { appointmentId } = request.params as { appointmentId: string };
+			const input = request.body as { sessionNotes: string };
+
+			try {
+				const result = await pool.query(
+					`
+						UPDATE appointments
+						SET session_notes = $1,
+							status = 'completed',
+							completed_at = now()
+						WHERE id = $2
+							AND status <> 'completed'
+						RETURNING *
+					`,
+					[input.sessionNotes, appointmentId],
+				);
+
+				if (!result.rows[0]) {
+					const existing = await pool.query(
+						"SELECT status FROM appointments WHERE id = $1",
+						[appointmentId],
+					);
+					if (existing.rows[0]?.status === "completed") {
+						return reply
+							.code(409)
+							.send({ message: "Appointment is already completed" });
+					}
+					return reply.code(404).send({ message: "Appointment not found" });
+				}
+
+				return { appointment: mapAppointment(result.rows[0]) };
+			} catch (error) {
+				request.log.error(error);
+				return reply
+					.code(502)
+					.send({ message: "Unable to complete appointment" });
 			}
 		},
 	);
@@ -1148,6 +1425,7 @@ export async function registerRoutes(app: FastifyInstance) {
 						WHERE id = $1
 							AND customer_id = $2
 							AND slot_start >= now()
+							AND status = 'scheduled'
 					`,
 					[appointmentId, currentUser.customerId],
 				);
@@ -1163,78 +1441,6 @@ export async function registerRoutes(app: FastifyInstance) {
 					.code(502)
 					.send({ message: "Unable to cancel appointment" });
 			}
-		},
-	);
-
-	// Hybrid catalog recommendations for a specific appointment: rule-based
-	// scoring (focus/avoid colors for all products + fit/stretch/size for
-	// bottoms) builds a category-diverse shortlist across the whole catalog,
-	// then Claude re-ranks with the appointment's occasion/style/muse context.
-	app.get(
-		"/api/appointments/:appointmentId/recommendations",
-		async (request, reply) => {
-			const { appointmentId } = request.params as { appointmentId: string };
-
-			const appointmentResult = await pool.query(
-				"SELECT * FROM appointments WHERE id = $1",
-				[appointmentId],
-			);
-			if (!appointmentResult.rowCount) {
-				return reply.code(404).send({ message: "Appointment not found" });
-			}
-			const appointment = mapAppointment(appointmentResult.rows[0]);
-
-			let customer: CurrentUser;
-			try {
-				customer = await fetchThirdPartyUser(appointment.customerId);
-			} catch (error) {
-				request.log.error(error);
-				return reply
-					.code(502)
-					.send({ message: "Unable to load customer profile" });
-			}
-
-			const context: RecommendationContext = {
-				waistInches: customer.measurements.waistInches,
-				inseamInches: customer.measurements.inseamInches,
-				fitPreference: customer.preferences.fitPreference,
-				stretchPreference: customer.preferences.stretchPreference,
-				focusColors: parseColors(appointment.focusColors),
-				avoidColors: parseColors(appointment.avoidColors),
-			};
-
-			const catalogResult = await pool.query("SELECT * FROM catalog_products");
-			const candidates = catalogResult.rows.map(mapCatalogProduct);
-			const shortlist = shortlistDiverse(context, candidates, 4, 12);
-
-			const style: StyleContext = {
-				occasion: appointment.occasion,
-				focusColors: appointment.focusColors,
-				avoidColors: appointment.avoidColors,
-				styleKeywords: appointment.styleKeywords,
-				museTag: appointment.museTag,
-				preferredSizes: appointment.orderHistorySummary.preferredSizes,
-			};
-			const reranked = await rerank(context, style, shortlist, 5);
-
-			const byId = new Map(shortlist.map((c) => [c.product.productId, c]));
-			const recommendations = reranked.rankings.map((r) => {
-				const scored = byId.get(r.productId);
-				return {
-					rank: r.rank,
-					rationale: r.rationale,
-					score: scored ? Number(scored.score.toFixed(3)) : null,
-					product: scored?.product ?? null,
-				};
-			});
-
-			return {
-				appointmentId,
-				engine: reranked.engine,
-				summary: reranked.summary,
-				candidatesConsidered: candidates.length,
-				recommendations,
-			};
 		},
 	);
 

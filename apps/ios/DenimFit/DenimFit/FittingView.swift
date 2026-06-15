@@ -6,6 +6,8 @@ struct FittingView: View {
     @State private var slots: [AppointmentSlot] = []
     @State private var selectedSlot: AppointmentSlot?
     @State private var appointment: Appointment?
+    @State private var detailAppointment: Appointment?
+    @State private var pastAppointments: [Appointment] = []
     @State private var screen: AppScreen = .home
     @State private var step: JourneyStep = .landing
     @State private var occasion = ""
@@ -76,8 +78,8 @@ struct FittingView: View {
         case .booking:
             bookingContent
         case .appointmentDetail:
-            if let appointment {
-                existingAppointment(appointment)
+            if let detailAppointment {
+                existingAppointment(detailAppointment)
             } else {
                 home
             }
@@ -204,6 +206,7 @@ struct FittingView: View {
                 if let appointment {
                     Button {
                         guidance = appointment.guidance
+                        detailAppointment = appointment
                         screen = .appointmentDetail
                     } label: {
                         VStack(alignment: .leading, spacing: 10) {
@@ -244,6 +247,50 @@ struct FittingView: View {
                     .buttonStyle(.borderedProminent)
                     .controlSize(.large)
                     .disabled(currentUser == nil || slots.isEmpty)
+                }
+
+                Divider()
+
+                Text("Past appointments")
+                    .font(.title2)
+                    .fontWeight(.bold)
+                if pastAppointments.isEmpty {
+                    Text("No past fitting appointments yet.")
+                        .foregroundStyle(.secondary)
+                } else {
+                    ForEach(pastAppointments) { pastAppointment in
+                        Button {
+                            guidance = pastAppointment.guidance
+                            detailAppointment = pastAppointment
+                            screen = .appointmentDetail
+                        } label: {
+                            VStack(alignment: .leading, spacing: 8) {
+                                HStack {
+                                    Text(displayDate(pastAppointment.slotStart))
+                                        .font(.headline)
+                                    Spacer()
+                                    Text(pastAppointment.status.capitalized)
+                                        .font(.caption)
+                                        .fontWeight(.semibold)
+                                        .foregroundStyle(.secondary)
+                                }
+                                Text("with \(pastAppointment.assignedStylist.displayName)")
+                                    .font(.subheadline)
+                                    .foregroundStyle(.secondary)
+                                if !pastAppointment.sessionNotes.isEmpty {
+                                    Text(pastAppointment.sessionNotes)
+                                        .font(.footnote)
+                                        .foregroundStyle(.secondary)
+                                        .lineLimit(2)
+                                }
+                            }
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding()
+                            .background(Color(.secondarySystemGroupedBackground))
+                            .clipShape(RoundedRectangle(cornerRadius: 8))
+                        }
+                        .buttonStyle(.plain)
+                    }
                 }
 
                 Text(status)
@@ -330,49 +377,68 @@ struct FittingView: View {
         }
     }
 
+    @ViewBuilder
     private func existingAppointment(_ appointment: Appointment) -> some View {
+        let canEdit = appointment.status == "scheduled" && isFuture(appointment.slotStart)
+
         VStack(spacing: 0) {
             ScrollView {
                 VStack(alignment: .leading, spacing: 18) {
-                    Text("Upcoming appointment")
+                    Text(canEdit ? "Upcoming appointment" : "Past appointment")
                         .font(.subheadline)
                         .fontWeight(.semibold)
                         .foregroundStyle(.teal)
-                    Text("Your fitting journey is booked.")
+                    Text(canEdit ? "Your fitting journey is booked." : "Your fitting recap")
                         .font(.largeTitle)
                         .fontWeight(.bold)
-                    Text("You can update the note your stylist sees or cancel this appointment.")
+                    Text(canEdit ? "You can update the note your stylist sees or cancel this appointment." : "This appointment is read-only.")
                         .foregroundStyle(.secondary)
                     SummaryRow(label: "Appointment", value: displayDate(appointment.slotStart))
                     SummaryRow(label: "Stylist", value: "\(appointment.assignedStylist.displayName), \(appointment.assignedStylist.title)")
+                    SummaryRow(label: "Status", value: appointment.status.capitalized)
                     SummaryRow(label: "Muse", value: appointment.museTag)
                     SummaryRow(label: "Occasion", value: appointment.occasion)
                     SummaryRow(label: "Colors", value: "Focus: \(appointment.focusColors.isEmpty ? "None" : appointment.focusColors). Avoid: \(appointment.avoidColors.isEmpty ? "None" : appointment.avoidColors).")
-                    TextField("Note for your stylist", text: $guidance, axis: .vertical)
-                        .textFieldStyle(.roundedBorder)
-                        .lineLimit(4, reservesSpace: true)
+                    if canEdit {
+                        TextField("Note for your stylist", text: $guidance, axis: .vertical)
+                            .textFieldStyle(.roundedBorder)
+                            .lineLimit(4, reservesSpace: true)
+                    } else {
+                        SummaryRow(label: "Your note", value: appointment.guidance.isEmpty ? "None" : appointment.guidance)
+                        SummaryRow(label: "Session notes", value: appointment.sessionNotes.isEmpty ? "Not added yet" : appointment.sessionNotes)
+                    }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(24)
             }
             HStack {
-                Button("Cancel appointment", role: .destructive) {
-                    Task { await cancelAppointment() }
-                }
-                .buttonStyle(.bordered)
-                .disabled(isLoading)
-                Spacer()
-                Button {
-                    Task { await updateAppointmentGuidance() }
-                } label: {
-                    if isLoading {
-                        ProgressView()
-                    } else {
-                        Text("Save note")
+                if canEdit {
+                    Button("Cancel appointment", role: .destructive) {
+                        Task { await cancelAppointment() }
                     }
+                    .buttonStyle(.bordered)
+                    .disabled(isLoading)
                 }
-                .buttonStyle(.borderedProminent)
-                .disabled(isLoading)
+                Spacer()
+                if canEdit {
+                    Button {
+                        Task { await updateAppointmentGuidance() }
+                    } label: {
+                        if isLoading {
+                            ProgressView()
+                        } else {
+                            Text("Save note")
+                        }
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .disabled(isLoading)
+                } else {
+                    Button("Done") {
+                        detailAppointment = nil
+                        screen = .home
+                    }
+                    .buttonStyle(.borderedProminent)
+                }
             }
             .padding(20)
             .background(.regularMaterial)
@@ -475,6 +541,7 @@ struct FittingView: View {
                 SummaryRow(label: "Colors", value: "Focus: \(appointment.focusColors.isEmpty ? "None" : appointment.focusColors). Avoid: \(appointment.avoidColors.isEmpty ? "None" : appointment.avoidColors).")
             }
             Button("Manage appointment") {
+                detailAppointment = appointment
                 screen = .appointmentDetail
             }
             .buttonStyle(.bordered)
@@ -556,10 +623,12 @@ struct FittingView: View {
             async let availableUsers = apiClient.getUsers()
             async let availableSlots = apiClient.getAppointmentSlots()
             async let upcomingAppointment = apiClient.getUpcomingAppointment()
+            async let past = apiClient.getPastAppointments()
             currentUser = try await user
             users = try await availableUsers
             slots = try await availableSlots
             appointment = try await upcomingAppointment
+            pastAppointments = try await past
             guidance = appointment?.guidance ?? ""
             status = "Ready"
         } catch {
@@ -585,6 +654,7 @@ struct FittingView: View {
                 orderHistoryScenario: "standard"
             )
             appointment = try await apiClient.createAppointment(input: request).appointment
+            pastAppointments = try await apiClient.getPastAppointments()
             status = "Confirmed"
             step = .confirmation
         } catch {
@@ -645,14 +715,17 @@ struct FittingView: View {
 
     @MainActor
     private func updateAppointmentGuidance() async {
-        guard let appointment else { return }
+        guard let detailAppointment else { return }
         isLoading = true
         status = "Saving note"
         defer { isLoading = false }
 
         do {
-            self.appointment = try await apiClient.updateAppointment(id: appointment.id, guidance: guidance).appointment
+            let updated = try await apiClient.updateAppointment(id: detailAppointment.id, guidance: guidance).appointment
+            self.appointment = updated
+            self.detailAppointment = nil
             status = "Note saved"
+            screen = .home
         } catch {
             status = "Could not save appointment note"
         }
@@ -660,17 +733,19 @@ struct FittingView: View {
 
     @MainActor
     private func cancelAppointment() async {
-        guard let appointment else { return }
+        guard let detailAppointment else { return }
         isLoading = true
         status = "Canceling appointment"
         defer { isLoading = false }
 
         do {
-            try await apiClient.cancelAppointment(id: appointment.id)
+            try await apiClient.cancelAppointment(id: detailAppointment.id)
             clearJourney()
             self.appointment = nil
+            self.detailAppointment = nil
             step = .landing
             status = "Appointment canceled"
+            screen = .home
         } catch {
             status = "Could not cancel appointment"
         }
@@ -686,6 +761,8 @@ struct FittingView: View {
             let active = try await apiClient.setActiveUser(customerId: user.customerId)
             currentUser = active.user
             appointment = try await apiClient.getUpcomingAppointment()
+            pastAppointments = try await apiClient.getPastAppointments()
+            detailAppointment = nil
             guidance = appointment?.guidance ?? ""
             clearJourney()
             step = .landing
@@ -704,6 +781,12 @@ struct FittingView: View {
         let formatter = ISO8601DateFormatter()
         guard let date = formatter.date(from: value) else { return value }
         return date.formatted(date: .abbreviated, time: .shortened)
+    }
+
+    private func isFuture(_ value: String) -> Bool {
+        let formatter = ISO8601DateFormatter()
+        guard let date = formatter.date(from: value) else { return false }
+        return date > Date()
     }
 }
 

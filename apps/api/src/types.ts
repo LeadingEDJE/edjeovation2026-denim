@@ -148,6 +148,16 @@ export type MuseTag =
 	| "Romantic Muse"
 	| "Boyish Muse"
 	| "Statement Maker";
+export type AppointmentStatus = "scheduled" | "completed";
+
+// A catalog product the recommendation engine suggested for an appointment,
+// with the engine's ranking and rationale. Stored on the appointment.
+export type SuggestedProduct = {
+	rank: number;
+	rationale: string;
+	score: number | null;
+	product: CatalogProduct;
+};
 
 export type AppointmentSlot = {
 	slotStart: string;
@@ -179,6 +189,8 @@ export type Appointment = {
 	avoidColors: string;
 	styleKeywords: string[];
 	guidance: string;
+	sessionNotes: string;
+	status: AppointmentStatus;
 	museTag: MuseTag;
 	assignedStylist: StylistProfile;
 	orderHistorySummary: {
@@ -187,5 +199,7 @@ export type Appointment = {
 		returnedItems: number;
 		preferredSizes: string[];
 	};
+	suggestedProducts: SuggestedProduct[];
+	completedAt: string | null;
 	createdAt: string;
 };

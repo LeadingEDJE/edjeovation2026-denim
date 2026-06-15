@@ -56,6 +56,36 @@ function makeStylist(overrides: Partial<StylistProfile> = {}): StylistProfile {
 	};
 }
 
+function appointmentRow(overrides: Record<string, unknown> = {}) {
+	return {
+		id: "11111111-1111-4111-8111-111111111111",
+		customer_id: "cust_avery_001",
+		loyalty_id: "anf-1",
+		customer_name: "Avery Parker",
+		slot_start: "2026-06-16T15:00:00.000Z",
+		slot_end: "2026-06-16T16:00:00.000Z",
+		occasion: "Weekend trip",
+		focus_colors: "Dark wash",
+		avoid_colors: "White",
+		style_keywords: ["minimal"],
+		guidance: "Customer note",
+		session_notes: "",
+		status: "scheduled",
+		muse_tag: "Clean Muse",
+		assigned_stylist: makeStylist(),
+		order_history_summary: {
+			totalOrders: 1,
+			denimItems: 1,
+			returnedItems: 0,
+			preferredSizes: ["28"],
+		},
+		suggested_products: [],
+		completed_at: null,
+		created_at: "2026-06-01T12:00:00.000Z",
+		...overrides,
+	};
+}
+
 async function buildApp(): Promise<FastifyInstance> {
 	const app = Fastify();
 	await registerRoutes(app);
@@ -221,5 +251,66 @@ describe("GET /api/catalog", () => {
 		});
 
 		expect(res.statusCode).toBe(400);
+	});
+});
+
+describe("PATCH /api/appointments/:appointmentId/session-notes", () => {
+	it("updates associate notes for a non-completed appointment", async () => {
+		(query as Mock).mockResolvedValueOnce({
+			rows: [appointmentRow({ session_notes: "Great fit in straight denim" })],
+		});
+
+		const res = await app.inject({
+			method: "PATCH",
+			url: "/api/appointments/11111111-1111-4111-8111-111111111111/session-notes",
+			payload: { sessionNotes: "Great fit in straight denim" },
+		});
+
+		expect(res.statusCode).toBe(200);
+		expect(res.json().appointment.sessionNotes).toBe(
+			"Great fit in straight denim",
+		);
+	});
+
+	it("rejects session note edits after completion", async () => {
+		(query as Mock)
+			.mockResolvedValueOnce({ rows: [] })
+			.mockResolvedValueOnce({ rows: [{ status: "completed" }] });
+
+		const res = await app.inject({
+			method: "PATCH",
+			url: "/api/appointments/11111111-1111-4111-8111-111111111111/session-notes",
+			payload: { sessionNotes: "Late edit" },
+		});
+
+		expect(res.statusCode).toBe(409);
+	});
+});
+
+describe("POST /api/appointments/:appointmentId/complete", () => {
+	it("marks an appointment completed with session notes", async () => {
+		(query as Mock).mockResolvedValueOnce({
+			rows: [
+				appointmentRow({
+					session_notes: "Purchased dark straight jeans",
+					status: "completed",
+					completed_at: "2026-06-16T16:00:00.000Z",
+				}),
+			],
+		});
+
+		const res = await app.inject({
+			method: "POST",
+			url: "/api/appointments/11111111-1111-4111-8111-111111111111/complete",
+			payload: { sessionNotes: "Purchased dark straight jeans" },
+		});
+
+		expect(res.statusCode).toBe(200);
+		expect(res.json().appointment).toMatchObject({
+			status: "completed",
+			sessionNotes: "Purchased dark straight jeans",
+			completedAt: "2026-06-16T16:00:00.000Z",
+			suggestedProducts: [],
+		});
 	});
 });
