@@ -7,6 +7,9 @@ services:
       API_PORT: 4000
       DATABASE_URL: postgres://denim:denim@postgres:5432/denim_fit
       THIRD_PARTY_BASE_URL: http://wiremock:8080
+      # Optional: set ANTHROPIC_API_KEY in your shell/.env to enable Claude
+      # re-ranking; unset falls back to rule-based scoring.
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
     ports:
       - "4000:4000"
     depends_on:

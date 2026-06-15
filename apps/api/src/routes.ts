@@ -1,6 +1,12 @@
 import { randomUUID } from "node:crypto";
 import type { FastifyInstance } from "fastify";
+import { rerank, type StyleContext } from "./claude-reranker.js";
 import { pool } from "./db.js";
+import {
+	parseColors,
+	type RecommendationContext,
+	shortlistDiverse,
+} from "./recommendation-scoring.js";
 import {
 	fetchThirdPartyOrderHistory,
 	fetchThirdPartyStylist,
@@ -15,6 +21,7 @@ import {
 	type AppointmentSlot,
 	type CatalogProduct,
 	type CreateAppointmentInput,
+	type CurrentUser,
 	catalogQuerySchema,
 	type MuseTag,
 	type OrderHistory,
@@ -22,6 +29,7 @@ import {
 	type StylistAvailabilitySchedule,
 	type StylistAvailabilityStatus,
 	type StylistProfile,
+	type SuggestedProduct,
 	type UserList,
 } from "./types.js";
 
@@ -427,7 +435,22 @@ const appointmentSummaryJsonSchema = {
 				preferredSizes: { type: "array", items: { type: "string" } },
 			},
 		},
-		suggestedProducts: { type: "array", items: { type: "object" } },
+		suggestedProducts: {
+			type: "array",
+			items: {
+				type: "object",
+				required: ["rank", "rationale", "score", "product"],
+				properties: {
+					rank: { type: "integer" },
+					rationale: { type: "string" },
+					score: { anyOf: [{ type: "number" }, { type: "null" }] },
+					product: {
+						type: "object",
+						additionalProperties: true,
+					},
+				},
+			},
+		},
 		completedAt: {
 			anyOf: [{ type: "string", format: "date-time" }, { type: "null" }],
 		},
@@ -612,7 +635,7 @@ function mapAppointment(row: Record<string, unknown>): Appointment {
 			row.order_history_summary,
 		),
 		suggestedProducts: row.suggested_products
-			? parseJsonField<CatalogProduct[]>(row.suggested_products)
+			? parseJsonField<SuggestedProduct[]>(row.suggested_products)
 			: [],
 		completedAt: row.completed_at
 			? new Date(String(row.completed_at)).toISOString()
@@ -648,6 +671,58 @@ function mapCatalogProduct(row: Record<string, unknown>): CatalogProduct {
 		colors: Array.isArray(row.colors) ? (row.colors as string[]) : [],
 		scrapedAt: new Date(String(row.scraped_at)).toISOString(),
 	};
+}
+
+/**
+ * Hybrid product recommendations for an appointment: rule-based scoring
+ * (focus/avoid colors for all products + fit/stretch/size for bottoms) builds a
+ * category-diverse shortlist across the whole catalog, then Claude re-ranks it
+ * with the appointment's occasion/style/muse context (falling back to the
+ * rule-based order when no API key is set). Returned as enriched, ranked items
+ * to store on the appointment.
+ */
+async function buildSuggestedProducts(
+	customer: CurrentUser,
+	input: CreateAppointmentInput,
+	museTag: MuseTag,
+	orderHistorySummary: Appointment["orderHistorySummary"],
+): Promise<SuggestedProduct[]> {
+	const context: RecommendationContext = {
+		waistInches: customer.measurements.waistInches,
+		inseamInches: customer.measurements.inseamInches,
+		fitPreference: customer.preferences.fitPreference,
+		stretchPreference: customer.preferences.stretchPreference,
+		focusColors: parseColors(input.focusColors),
+		avoidColors: parseColors(input.avoidColors),
+	};
+
+	const catalogResult = await pool.query("SELECT * FROM catalog_products");
+	const candidates = catalogResult.rows.map(mapCatalogProduct);
+	const shortlist = shortlistDiverse(context, candidates, 4, 12);
+
+	const style: StyleContext = {
+		occasion: input.occasion,
+		focusColors: input.focusColors,
+		avoidColors: input.avoidColors,
+		styleKeywords: input.styleKeywords,
+		museTag,
+		preferredSizes: orderHistorySummary.preferredSizes,
+	};
+	const reranked = await rerank(context, style, shortlist, 5);
+
+	const byId = new Map(shortlist.map((c) => [c.product.productId, c]));
+	return reranked.rankings.flatMap((r) => {
+		const scored = byId.get(r.productId);
+		if (!scored) return [];
+		return [
+			{
+				rank: r.rank,
+				rationale: r.rationale,
+				score: Number(scored.score.toFixed(3)),
+				product: scored.product,
+			},
+		];
+	});
 }
 
 export async function registerRoutes(app: FastifyInstance) {
@@ -1094,6 +1169,12 @@ export async function registerRoutes(app: FastifyInstance) {
 					input.orderHistoryScenario ?? "standard",
 				);
 				const orderHistorySummary = summarizeOrderHistory(orderHistory);
+				const suggestedProducts = await buildSuggestedProducts(
+					currentUser,
+					input,
+					museTag,
+					orderHistorySummary,
+				);
 
 				const insertResult = await pool.query(
 					`
@@ -1101,9 +1182,9 @@ export async function registerRoutes(app: FastifyInstance) {
 							id, customer_id, loyalty_id, customer_name, slot_start, slot_end,
 							occasion, focus_colors, avoid_colors, style_keywords, guidance,
 							session_notes, status, muse_tag, assigned_stylist,
-							order_history_summary, source_payload
+							order_history_summary, suggested_products, source_payload
 						)
-						VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, '', 'scheduled', $12, $13, $14, $15)
+						VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, '', 'scheduled', $12, $13, $14, $15, $16)
 						RETURNING *
 					`,
 					[
@@ -1121,6 +1202,7 @@ export async function registerRoutes(app: FastifyInstance) {
 						museTag,
 						JSON.stringify(assignedStylist),
 						JSON.stringify(orderHistorySummary),
+						JSON.stringify(suggestedProducts),
 						JSON.stringify({ input, currentUser, orderHistory }),
 					],
 				);

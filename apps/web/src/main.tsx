@@ -203,10 +203,43 @@ function App() {
 									</div>
 									{appointment.suggestedProducts.length === 0 ? (
 										<p className="text-[0.9rem] text-muted">
-											No suggested products yet. This area is reserved for the
-											product recommendation pipeline.
+											No suggested products for this appointment.
 										</p>
-									) : null}
+									) : (
+										<ol className="grid gap-2.5">
+											{appointment.suggestedProducts.map((suggestion) => (
+												<li
+													key={suggestion.rank}
+													className="grid gap-0.5 border-rowline border-b pb-2.5 last:border-b-0 last:pb-0"
+												>
+													<a
+														className="font-bold text-ink hover:underline"
+														href={suggestion.product.productUrl}
+														target="_blank"
+														rel="noreferrer"
+													>
+														{suggestion.rank}. {suggestion.product.name}
+													</a>
+													<small className="text-[0.8rem] text-muted capitalize">
+														{[
+															suggestion.product.category,
+															suggestion.product.fit,
+															suggestion.product.rise,
+															suggestion.product.stretch,
+														]
+															.filter(Boolean)
+															.join(" · ")}
+														{suggestion.product.price != null
+															? ` · $${suggestion.product.price}`
+															: ""}
+													</small>
+													<p className="text-[0.85rem] text-muted">
+														{suggestion.rationale}
+													</p>
+												</li>
+											))}
+										</ol>
+									)}
 								</section>
 								<label className="grid gap-1.5">
 									<span className="font-extrabold text-[0.85rem] text-ink">

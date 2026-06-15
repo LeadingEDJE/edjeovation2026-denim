@@ -1,3 +1,23 @@
+export type CatalogProduct = {
+	productId: string;
+	name: string;
+	category: string | null;
+	productUrl: string;
+	imageUrl: string | null;
+	price: number | null;
+	currency: string | null;
+	fit: string | null;
+	rise: string | null;
+	stretch: string | null;
+};
+
+export type SuggestedProduct = {
+	rank: number;
+	rationale: string;
+	score: number | null;
+	product: CatalogProduct;
+};
+
 export type Appointment = {
 	id: string;
 	customerId: string;
@@ -24,7 +44,7 @@ export type Appointment = {
 		returnedItems: number;
 		preferredSizes: string[];
 	};
-	suggestedProducts: Array<Record<string, unknown>>;
+	suggestedProducts: SuggestedProduct[];
 	completedAt: string | null;
 	createdAt: string;
 };
