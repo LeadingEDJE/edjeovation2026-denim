@@ -327,9 +327,7 @@ describe("PATCH /api/appointments/:appointmentId", () => {
 		});
 
 		expect(res.statusCode).toBe(200);
-		expect(res.json().appointment.guidance).toBe(
-			"Please pull darker washes.",
-		);
+		expect(res.json().appointment.guidance).toBe("Please pull darker washes.");
 	});
 
 	it("rejects customer guidance edits after completion", async () => {
