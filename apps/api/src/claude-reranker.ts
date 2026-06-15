@@ -56,27 +56,20 @@ Rules:
   For bottoms, reference fit/size; for other categories, lean on color and style.
 - Favor focus colors and avoid the colors to skip. Lead with the strongest match.`;
 
-const OUTPUT_SCHEMA = {
-	type: "object",
-	additionalProperties: false,
-	required: ["rankings", "summary"],
-	properties: {
-		summary: { type: "string" },
-		rankings: {
-			type: "array",
-			items: {
-				type: "object",
-				additionalProperties: false,
-				required: ["productId", "rank", "rationale"],
-				properties: {
-					productId: { type: "string" },
-					rank: { type: "integer" },
-					rationale: { type: "string" },
-				},
-			},
-		},
-	},
-} as const;
+// The exact JSON shape we ask the model to emit. We instruct this in the prompt
+// rather than using output_config.format because some compatible proxies (e.g.
+// LiteLLM → Bedrock) reject structured-output schemas.
+const OUTPUT_INSTRUCTION = `Return ONLY a JSON object (no markdown fences, no prose) of the form:
+{"summary": string, "rankings": [{"productId": string, "rank": integer, "rationale": string}]}`;
+
+/** Pull a JSON object out of model text, tolerating markdown fences/prose. */
+function extractJson(text: string): string {
+	const fenced = text.match(/```(?:json)?\s*([\s\S]*?)```/i);
+	const body = fenced ? fenced[1] : text;
+	const start = body.indexOf("{");
+	const end = body.lastIndexOf("}");
+	return start >= 0 && end > start ? body.slice(start, end + 1) : body;
+}
 
 function candidateLine(c: ScoredCandidate): string {
 	const p = c.product;
@@ -133,7 +126,9 @@ Appointment style context: ${styleLines || "none provided"}
 Candidate products (pre-scored shortlist):
 ${candidates}
 
-Return the best ${topN} candidates, ranked 1 (best) to ${topN}, with a rationale for each and a one-sentence overall summary.`;
+Return the best ${topN} candidates, ranked 1 (best) to ${topN}, with a rationale for each and a one-sentence overall summary.
+
+${OUTPUT_INSTRUCTION}`;
 }
 
 /** Re-rank the shortlist with Claude, or fall back to the rule-based order. */
@@ -148,15 +143,15 @@ export async function rerank(
 	}
 
 	try {
-		const client = new Anthropic({ apiKey: config.anthropicApiKey });
+		const client = new Anthropic({
+			apiKey: config.anthropicApiKey,
+			...(config.anthropicBaseUrl ? { baseURL: config.anthropicBaseUrl } : {}),
+		});
 		const response = await client.messages.create({
 			model: config.recommenderModel,
 			max_tokens: 2048,
 			thinking: { type: "adaptive" },
-			output_config: {
-				effort: "low",
-				format: { type: "json_schema", schema: OUTPUT_SCHEMA },
-			},
+			output_config: { effort: "low" },
 			system: [
 				{
 					type: "text",
@@ -175,7 +170,7 @@ export async function rerank(
 		const text = response.content.find((b) => b.type === "text");
 		if (text?.type !== "text") return fallback(shortlist, topN);
 
-		const parsed = JSON.parse(text.text) as {
+		const parsed = JSON.parse(extractJson(text.text)) as {
 			summary: string;
 			rankings: RankedRecommendation[];
 		};
