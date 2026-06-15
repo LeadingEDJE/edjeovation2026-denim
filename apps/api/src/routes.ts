@@ -1,11 +1,18 @@
 import { randomUUID } from "node:crypto";
 import type { FastifyInstance } from "fastify";
 import { pool } from "./db.js";
-import { fetchThirdPartyRecommendation, toRecommendation } from "./recommendations.js";
-import { fittingInputSchema, type DenimRecommendation, type FittingInput, type FittingSession } from "./types.js";
+import { fetchThirdPartyOrderHistory, fetchThirdPartyRecommendation, toRecommendation } from "./recommendations.js";
+import {
+  fittingInputSchema,
+  type DenimRecommendation,
+  type FittingInput,
+  type FittingSession,
+  type OrderHistoryScenario
+} from "./types.js";
 
 const fitPreferenceEnum = ["skinny", "slim", "straight", "relaxed", "wide"] as const;
 const stretchPreferenceEnum = ["rigid", "comfort-stretch", "high-stretch"] as const;
+const orderHistoryScenarioEnum = ["standard", "denim-heavy", "returns", "empty", "error"] as const;
 
 const fittingInputJsonSchema = {
   type: "object",
@@ -61,6 +68,60 @@ const errorJsonSchema = {
   type: "object",
   properties: {
     message: { type: "string" }
+  }
+} as const;
+
+const orderHistoryItemJsonSchema = {
+  type: "object",
+  required: [
+    "sku",
+    "productName",
+    "category",
+    "sizeLabel",
+    "fit",
+    "wash",
+    "quantity",
+    "unitPrice",
+    "kept",
+    "returnReason"
+  ],
+  properties: {
+    sku: { type: "string" },
+    productName: { type: "string" },
+    category: { type: "string" },
+    sizeLabel: { type: "string" },
+    fit: { type: "string" },
+    wash: { type: "string" },
+    quantity: { type: "integer", minimum: 1 },
+    unitPrice: { type: "number", minimum: 0 },
+    kept: { type: "boolean" },
+    returnReason: { anyOf: [{ type: "string" }, { type: "null" }] }
+  }
+} as const;
+
+const orderHistoryJsonSchema = {
+  type: "object",
+  required: ["customerId", "scenario", "orders"],
+  properties: {
+    customerId: { type: "string" },
+    scenario: { type: "string", enum: orderHistoryScenarioEnum },
+    orders: {
+      type: "array",
+      items: {
+        type: "object",
+        required: ["orderId", "orderedAt", "channel", "status", "items"],
+        properties: {
+          orderId: { type: "string" },
+          orderedAt: { type: "string", format: "date-time" },
+          channel: { type: "string", enum: ["web", "store", "mobile"] },
+          status: { type: "string", enum: ["processing", "delivered", "returned", "exchanged"] },
+          items: {
+            type: "array",
+            items: orderHistoryItemJsonSchema
+          }
+        }
+      }
+    }
   }
 } as const;
 
@@ -137,6 +198,40 @@ export async function registerRoutes(app: FastifyInstance) {
     `);
 
     return { sessions: result.rows.map(mapSession) };
+  });
+
+  app.get("/api/customers/:customerId/order-history", {
+    schema: {
+      tags: ["order-history"],
+      summary: "Get customer order history from the simulated third-party service",
+      params: {
+        type: "object",
+        required: ["customerId"],
+        properties: {
+          customerId: { type: "string", minLength: 1 }
+        }
+      },
+      querystring: {
+        type: "object",
+        properties: {
+          scenario: { type: "string", enum: orderHistoryScenarioEnum, default: "standard" }
+        }
+      },
+      response: {
+        200: orderHistoryJsonSchema,
+        502: errorJsonSchema
+      }
+    }
+  }, async (request, reply) => {
+    const { customerId } = request.params as { customerId: string };
+    const { scenario = "standard" } = request.query as { scenario?: OrderHistoryScenario };
+
+    try {
+      return await fetchThirdPartyOrderHistory(customerId, scenario);
+    } catch (error) {
+      request.log.error(error);
+      return reply.code(502).send({ message: "Unable to load third-party order history" });
+    }
   });
 
   app.get("/api/fitting-sessions/:id", {

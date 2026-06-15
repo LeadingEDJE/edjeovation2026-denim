@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { config } from "./config.js";
-import type { DenimRecommendation, FittingInput } from "./types.js";
+import type { DenimRecommendation, FittingInput, OrderHistory, OrderHistoryScenario } from "./types.js";
 
 type ThirdPartyRecommendation = {
   styleName: string;
@@ -33,4 +33,20 @@ export function toRecommendation(sessionId: string, source: ThirdPartyRecommenda
     rationale: source.rationale,
     createdAt: new Date().toISOString()
   };
+}
+
+export async function fetchThirdPartyOrderHistory(
+  customerId: string,
+  scenario: OrderHistoryScenario = "standard"
+): Promise<OrderHistory> {
+  const url = new URL(`${config.thirdPartyBaseUrl}/customers/${encodeURIComponent(customerId)}/orders`);
+  url.searchParams.set("scenario", scenario);
+
+  const response = await fetch(url);
+
+  if (!response.ok) {
+    throw new Error(`Third-party order history failed with ${response.status}`);
+  }
+
+  return response.json() as Promise<OrderHistory>;
 }

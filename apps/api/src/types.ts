@@ -26,3 +26,32 @@ export type DenimRecommendation = {
   rationale: string;
   createdAt: string;
 };
+
+export type OrderHistoryScenario = "standard" | "denim-heavy" | "returns" | "empty" | "error";
+
+export type OrderHistoryItem = {
+  sku: string;
+  productName: string;
+  category: string;
+  sizeLabel: string;
+  fit: string;
+  wash: string;
+  quantity: number;
+  unitPrice: number;
+  kept: boolean;
+  returnReason: string | null;
+};
+
+export type OrderHistoryOrder = {
+  orderId: string;
+  orderedAt: string;
+  channel: "web" | "store" | "mobile";
+  status: "processing" | "delivered" | "returned" | "exchanged";
+  items: OrderHistoryItem[];
+};
+
+export type OrderHistory = {
+  customerId: string;
+  scenario: OrderHistoryScenario;
+  orders: OrderHistoryOrder[];
+};

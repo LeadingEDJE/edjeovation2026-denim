@@ -9,3 +9,5 @@ DerivedData/
 *.xcuserstate
 .idea/
 .vscode/
+apps/ios/DenimFit/DenimFit.xcodeproj/project.xcworkspace/contents.xcworkspacedata
+apps/ios/DenimFit/DenimFit.xcodeproj/xcuserdata/

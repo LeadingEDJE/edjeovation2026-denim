@@ -15,9 +15,9 @@ The iOS app is a SwiftUI project that runs separately through Xcode and talks to
 
 ## Prerequisites
 
-- Docker Desktop, Podman Desktop, or another local Docker Compose-compatible runtime
+- Docker Desktop, Podman Desktop, or another local runtime with Docker Compose v2 support
 - Node.js 24+ only if you want to run local type checks outside Docker
-- Xcode for the iOS simulator
+- Xcode only if you want to run the iOS simulator app
 
 No local PostgreSQL, WireMock, API server, or web server is required. Compose owns those.
 
@@ -53,6 +53,18 @@ Check API health:
 curl http://localhost:4000/health
 ```
 
+Check the OpenAPI spec:
+
+```sh
+curl http://localhost:4000/openapi.json
+```
+
+Open the interactive API docs in a browser:
+
+```text
+http://localhost:4000/docs
+```
+
 Create a sample fitting session:
 
 ```sh
@@ -70,6 +82,20 @@ curl -X POST http://localhost:4000/api/fitting-sessions \
 ```
 
 Expected result: a JSON response with a `session` and `recommendation`, including a size like `29W x 30L`.
+
+Load mocked third-party order history through the API:
+
+```sh
+curl 'http://localhost:4000/api/customers/cust_avery_001/order-history?scenario=standard'
+```
+
+Supported order-history scenarios:
+
+- `standard`
+- `denim-heavy`
+- `returns`
+- `empty`
+- `error`
 
 ## Daily Run Commands
 
@@ -196,7 +222,7 @@ Database defaults:
 - `apps/web`: React web UI source and Dockerfile
 - `apps/ios/DenimFit`: SwiftUI iOS project
 - `infra/db/init.sql`: database schema
-- `infra/wiremock/mappings/fit-recommendation.json`: mocked third-party recommendation endpoint
+- `infra/wiremock/mappings`: mocked third-party recommendation and order-history endpoints
 - `docs/requirements-review.md`: open product and requirements questions
 
 ## Troubleshooting
@@ -207,12 +233,14 @@ If `localhost:4000` or `localhost:5173` is already in use, stop the conflicting 
 docker compose down
 ```
 
-If the API starts but database data looks stale, reset the database:
+If the API starts but database data looks stale, reset the database volume:
 
 ```sh
 docker compose down -v
 docker compose up -d --build
 ```
+
+This removes the local PostgreSQL volume and recreates the schema from `infra/db/init.sql`.
 
 If WireMock recommendations are not changing, check the mapping file:
 
