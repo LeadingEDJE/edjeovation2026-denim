@@ -130,6 +130,8 @@ function App() {
 				return appointment.status === "completed";
 			case "cancelled":
 				return appointment.status === "cancelled";
+			default:
+				return false;
 		}
 	});
 
