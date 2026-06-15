@@ -7,9 +7,13 @@ services:
       API_PORT: 4000
       DATABASE_URL: postgres://denim:denim@postgres:5432/denim_fit
       THIRD_PARTY_BASE_URL: http://wiremock:8080
-      # Optional: set ANTHROPIC_API_KEY in your shell/.env to enable Claude
-      # re-ranking; unset falls back to rule-based scoring.
+      # Optional: set these in a gitignored .env to enable Claude re-ranking;
+      # unset falls back to rule-based scoring. ANTHROPIC_BASE_URL can point at a
+      # compatible proxy (e.g. a LiteLLM gateway); RECOMMENDER_MODEL must be a
+      # model that endpoint serves (e.g. claude-opus-4.7 on LiteLLM).
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      ANTHROPIC_BASE_URL: ${ANTHROPIC_BASE_URL:-}
+      RECOMMENDER_MODEL: ${RECOMMENDER_MODEL:-}
     ports:
       - "4000:4000"
     depends_on:
