@@ -10,6 +10,8 @@ export type Appointment = {
 	avoidColors: string;
 	styleKeywords: string[];
 	guidance: string;
+	sessionNotes: string;
+	status: "scheduled" | "completed";
 	museTag: string;
 	assignedStylist: {
 		id: string;
@@ -22,6 +24,8 @@ export type Appointment = {
 		returnedItems: number;
 		preferredSizes: string[];
 	};
+	suggestedProducts: Array<Record<string, unknown>>;
+	completedAt: string | null;
 	createdAt: string;
 };
 
@@ -36,4 +40,46 @@ export async function listAppointments(): Promise<Appointment[]> {
 
 	const data = (await response.json()) as { appointments: Appointment[] };
 	return data.appointments;
+}
+
+export async function updateSessionNotes(
+	appointmentId: string,
+	sessionNotes: string,
+): Promise<Appointment> {
+	const response = await fetch(
+		`${apiBaseUrl}/api/appointments/${appointmentId}/session-notes`,
+		{
+			method: "PATCH",
+			headers: { "content-type": "application/json" },
+			body: JSON.stringify({ sessionNotes }),
+		},
+	);
+
+	if (!response.ok) {
+		throw new Error("Could not save session notes");
+	}
+
+	const data = (await response.json()) as { appointment: Appointment };
+	return data.appointment;
+}
+
+export async function completeAppointment(
+	appointmentId: string,
+	sessionNotes: string,
+): Promise<Appointment> {
+	const response = await fetch(
+		`${apiBaseUrl}/api/appointments/${appointmentId}/complete`,
+		{
+			method: "POST",
+			headers: { "content-type": "application/json" },
+			body: JSON.stringify({ sessionNotes }),
+		},
+	);
+
+	if (!response.ok) {
+		throw new Error("Could not complete appointment");
+	}
+
+	const data = (await response.json()) as { appointment: Appointment };
+	return data.appointment;
 }

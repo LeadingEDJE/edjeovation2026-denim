@@ -1,11 +1,17 @@
-import { CalendarClock, RefreshCw } from "lucide-react";
+import { CalendarClock, CheckCircle2, RefreshCw, Save } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
-import { type Appointment, listAppointments } from "./api";
+import {
+	completeAppointment,
+	type Appointment,
+	listAppointments,
+	updateSessionNotes,
+} from "./api";
 import "./styles.css";
 
 function App() {
 	const [appointments, setAppointments] = useState<Appointment[]>([]);
+	const [sessionNotes, setSessionNotes] = useState<Record<string, string>>({});
 	const [status, setStatus] = useState("Loading appointments");
 	const [isLoading, setIsLoading] = useState(false);
 
@@ -14,6 +20,14 @@ function App() {
 		try {
 			const nextAppointments = await listAppointments();
 			setAppointments(nextAppointments);
+			setSessionNotes(
+				Object.fromEntries(
+					nextAppointments.map((appointment) => [
+						appointment.id,
+						appointment.sessionNotes,
+					]),
+				),
+			);
 			setStatus("Appointments loaded");
 		} catch (error) {
 			setStatus(
@@ -23,6 +37,56 @@ function App() {
 			setIsLoading(false);
 		}
 	}, []);
+
+	const replaceAppointment = (updatedAppointment: Appointment) => {
+		setAppointments((current) =>
+			current.map((appointment) =>
+				appointment.id === updatedAppointment.id
+					? updatedAppointment
+					: appointment,
+			),
+		);
+		setSessionNotes((current) => ({
+			...current,
+			[updatedAppointment.id]: updatedAppointment.sessionNotes,
+		}));
+	};
+
+	const saveNotes = async (appointment: Appointment) => {
+		setIsLoading(true);
+		try {
+			const updatedAppointment = await updateSessionNotes(
+				appointment.id,
+				sessionNotes[appointment.id] ?? "",
+			);
+			replaceAppointment(updatedAppointment);
+			setStatus("Session notes saved");
+		} catch (error) {
+			setStatus(
+				error instanceof Error ? error.message : "Unable to save session notes",
+			);
+		} finally {
+			setIsLoading(false);
+		}
+	};
+
+	const completeSession = async (appointment: Appointment) => {
+		setIsLoading(true);
+		try {
+			const updatedAppointment = await completeAppointment(
+				appointment.id,
+				sessionNotes[appointment.id] ?? "",
+			);
+			replaceAppointment(updatedAppointment);
+			setStatus("Appointment marked complete");
+		} catch (error) {
+			setStatus(
+				error instanceof Error ? error.message : "Unable to complete appointment",
+			);
+		} finally {
+			setIsLoading(false);
+		}
+	};
 
 	useEffect(() => {
 		void refresh();
@@ -75,12 +139,15 @@ function App() {
 										</span>
 									</div>
 									<span className="stylistTitle">
-										{appointment.assignedStylist.title}
+										{appointment.status === "completed"
+											? "Completed"
+											: appointment.assignedStylist.title}
 									</span>
 								</div>
 								<div className="prepTags">
 									<span>{appointment.museTag}</span>
 									<span>{appointment.occasion}</span>
+									<span>{appointment.status}</span>
 								</div>
 								<p>
 									Focus: {appointment.focusColors || "None specified"} / Avoid:{" "}
@@ -96,7 +163,55 @@ function App() {
 									{appointment.orderHistorySummary.preferredSizes.join(", ") ||
 										"unknown"}
 								</p>
-								{appointment.guidance ? <p>{appointment.guidance}</p> : null}
+								{appointment.guidance ? (
+									<p>Customer note: {appointment.guidance}</p>
+								) : null}
+								<section className="suggestedProducts">
+									<div className="sectionHeader">
+										<strong>Suggested products</strong>
+										<span>{appointment.suggestedProducts.length}</span>
+									</div>
+									{appointment.suggestedProducts.length === 0 ? (
+										<p className="empty">
+											No suggested products yet. This area is reserved for the
+											product recommendation pipeline.
+										</p>
+									) : null}
+								</section>
+								<label className="notesField">
+									<span>Associate session notes</span>
+									<textarea
+										value={sessionNotes[appointment.id] ?? ""}
+										onChange={(event) =>
+											setSessionNotes((current) => ({
+												...current,
+												[appointment.id]: event.target.value,
+											}))
+										}
+										disabled={appointment.status === "completed" || isLoading}
+										placeholder="Summarize fit feedback, products tried, and follow-up recommendations."
+									/>
+								</label>
+								<div className="rowActions">
+									<button
+										type="button"
+										className="secondaryButton"
+										onClick={() => void saveNotes(appointment)}
+										disabled={appointment.status === "completed" || isLoading}
+									>
+										<Save size={16} />
+										Save notes
+									</button>
+									<button
+										type="button"
+										className="primaryButton"
+										onClick={() => void completeSession(appointment)}
+										disabled={appointment.status === "completed" || isLoading}
+									>
+										<CheckCircle2 size={16} />
+										Mark complete
+									</button>
+								</div>
 							</article>
 						))}
 						{appointments.length === 0 ? (

@@ -148,6 +148,7 @@ export type MuseTag =
 	| "Romantic Muse"
 	| "Boyish Muse"
 	| "Statement Maker";
+export type AppointmentStatus = "scheduled" | "completed";
 
 export type AppointmentSlot = {
 	slotStart: string;
@@ -179,6 +180,8 @@ export type Appointment = {
 	avoidColors: string;
 	styleKeywords: string[];
 	guidance: string;
+	sessionNotes: string;
+	status: AppointmentStatus;
 	museTag: MuseTag;
 	assignedStylist: StylistProfile;
 	orderHistorySummary: {
@@ -187,5 +190,7 @@ export type Appointment = {
 		returnedItems: number;
 		preferredSizes: string[];
 	};
+	suggestedProducts: CatalogProduct[];
+	completedAt: string | null;
 	createdAt: string;
 };

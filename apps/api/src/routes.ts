@@ -16,7 +16,6 @@ import {
 	type CatalogProduct,
 	catalogQuerySchema,
 	type CreateAppointmentInput,
-	type CurrentUser,
 	type MuseTag,
 	type OrderHistory,
 	type OrderHistoryScenario,
@@ -54,6 +53,7 @@ const museTagEnum = [
 	"Boyish Muse",
 	"Statement Maker",
 ] as const;
+const appointmentStatusEnum = ["scheduled", "completed"] as const;
 const styleKeywordEnum = [
 	"minimal",
 	"effortless",
@@ -368,6 +368,14 @@ const updateAppointmentJsonSchema = {
 	},
 } as const;
 
+const updateSessionNotesJsonSchema = {
+	type: "object",
+	required: ["sessionNotes"],
+	properties: {
+		sessionNotes: { type: "string", maxLength: 3000 },
+	},
+} as const;
+
 const appointmentIdParamsJsonSchema = {
 	type: "object",
 	required: ["appointmentId"],
@@ -390,9 +398,13 @@ const appointmentSummaryJsonSchema = {
 		"avoidColors",
 		"styleKeywords",
 		"guidance",
+		"sessionNotes",
+		"status",
 		"museTag",
 		"assignedStylist",
 		"orderHistorySummary",
+		"suggestedProducts",
+		"completedAt",
 		"createdAt",
 	],
 	properties: {
@@ -407,6 +419,8 @@ const appointmentSummaryJsonSchema = {
 		avoidColors: { type: "string" },
 		styleKeywords: { type: "array", items: { type: "string" } },
 		guidance: { type: "string" },
+		sessionNotes: { type: "string" },
+		status: { type: "string", enum: appointmentStatusEnum },
 		museTag: { type: "string", enum: museTagEnum },
 		assignedStylist: stylistJsonSchema,
 		orderHistorySummary: {
@@ -423,6 +437,10 @@ const appointmentSummaryJsonSchema = {
 				returnedItems: { type: "integer" },
 				preferredSizes: { type: "array", items: { type: "string" } },
 			},
+		},
+		suggestedProducts: { type: "array", items: { type: "object" } },
+		completedAt: {
+			anyOf: [{ type: "string", format: "date-time" }, { type: "null" }],
 		},
 		createdAt: { type: "string", format: "date-time" },
 	},
@@ -595,11 +613,19 @@ function mapAppointment(row: Record<string, unknown>): Appointment {
 		avoidColors: String(row.avoid_colors),
 		styleKeywords: parseJsonField<string[]>(row.style_keywords),
 		guidance: String(row.guidance),
+		sessionNotes: String(row.session_notes ?? ""),
+		status: String(row.status ?? "scheduled") as Appointment["status"],
 		museTag: String(row.muse_tag) as MuseTag,
 		assignedStylist: parseJsonField<StylistProfile>(row.assigned_stylist),
 		orderHistorySummary: parseJsonField<Appointment["orderHistorySummary"]>(
 			row.order_history_summary,
 		),
+		suggestedProducts: row.suggested_products
+			? parseJsonField<CatalogProduct[]>(row.suggested_products)
+			: [],
+		completedAt: row.completed_at
+			? new Date(String(row.completed_at)).toISOString()
+			: null,
 		createdAt: new Date(String(row.created_at)).toISOString(),
 	};
 }
@@ -920,6 +946,7 @@ export async function registerRoutes(app: FastifyInstance) {
 						FROM appointments
 						WHERE customer_id = $1
 							AND slot_start >= now()
+							AND status = 'scheduled'
 						ORDER BY slot_start ASC
 						LIMIT 1
 					`,
@@ -934,6 +961,52 @@ export async function registerRoutes(app: FastifyInstance) {
 				return reply
 					.code(502)
 					.send({ message: "Unable to load upcoming appointment" });
+			}
+		},
+	);
+
+	app.get(
+		"/api/appointments/me/past",
+		{
+			schema: {
+				tags: ["appointments"],
+				summary: "List the mocked customer's past guided fitting appointments",
+				response: {
+					200: {
+						type: "object",
+						required: ["appointments"],
+						properties: {
+							appointments: {
+								type: "array",
+								items: appointmentSummaryJsonSchema,
+							},
+						},
+					},
+					502: errorJsonSchema,
+				},
+			},
+		},
+		async (request, reply) => {
+			try {
+				const currentUser = await getActiveUser();
+				const result = await pool.query(
+					`
+						SELECT *
+						FROM appointments
+						WHERE customer_id = $1
+							AND (slot_start < now() OR status = 'completed')
+						ORDER BY slot_start DESC
+						LIMIT 25
+					`,
+					[currentUser.customerId],
+				);
+
+				return { appointments: result.rows.map(mapAppointment) };
+			} catch (error) {
+				request.log.error(error);
+				return reply
+					.code(502)
+					.send({ message: "Unable to load past appointments" });
 			}
 		},
 	);
@@ -975,6 +1048,7 @@ export async function registerRoutes(app: FastifyInstance) {
 						FROM appointments
 						WHERE customer_id = $1
 							AND slot_start >= now()
+							AND status = 'scheduled'
 						ORDER BY slot_start ASC
 						LIMIT 1
 					`,
@@ -1027,9 +1101,10 @@ export async function registerRoutes(app: FastifyInstance) {
 						INSERT INTO appointments (
 							id, customer_id, loyalty_id, customer_name, slot_start, slot_end,
 							occasion, focus_colors, avoid_colors, style_keywords, guidance,
-							muse_tag, assigned_stylist, order_history_summary, source_payload
+							session_notes, status, muse_tag, assigned_stylist,
+							order_history_summary, source_payload
 						)
-						VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+						VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, '', 'scheduled', $12, $13, $14, $15)
 						RETURNING *
 					`,
 					[
@@ -1097,6 +1172,7 @@ export async function registerRoutes(app: FastifyInstance) {
 						WHERE id = $2
 							AND customer_id = $3
 							AND slot_start >= now()
+							AND status = 'scheduled'
 						RETURNING *
 					`,
 					[input.guidance, appointmentId, currentUser.customerId],
@@ -1112,6 +1188,131 @@ export async function registerRoutes(app: FastifyInstance) {
 				return reply
 					.code(502)
 					.send({ message: "Unable to update appointment" });
+			}
+		},
+	);
+
+	app.patch(
+		"/api/appointments/:appointmentId/session-notes",
+		{
+			schema: {
+				tags: ["appointments"],
+				summary:
+					"Update associate session notes while an appointment is not completed",
+				params: appointmentIdParamsJsonSchema,
+				body: updateSessionNotesJsonSchema,
+				response: {
+					200: {
+						type: "object",
+						required: ["appointment"],
+						properties: {
+							appointment: appointmentSummaryJsonSchema,
+						},
+					},
+					404: errorJsonSchema,
+					409: errorJsonSchema,
+					502: errorJsonSchema,
+				},
+			},
+		},
+		async (request, reply) => {
+			const { appointmentId } = request.params as { appointmentId: string };
+			const input = request.body as { sessionNotes: string };
+
+			try {
+				const result = await pool.query(
+					`
+						UPDATE appointments
+						SET session_notes = $1
+						WHERE id = $2
+							AND status <> 'completed'
+						RETURNING *
+					`,
+					[input.sessionNotes, appointmentId],
+				);
+
+				if (!result.rows[0]) {
+					const existing = await pool.query(
+						"SELECT status FROM appointments WHERE id = $1",
+						[appointmentId],
+					);
+					if (existing.rows[0]?.status === "completed") {
+						return reply
+							.code(409)
+							.send({ message: "Completed appointments cannot be edited" });
+					}
+					return reply.code(404).send({ message: "Appointment not found" });
+				}
+
+				return { appointment: mapAppointment(result.rows[0]) };
+			} catch (error) {
+				request.log.error(error);
+				return reply
+					.code(502)
+					.send({ message: "Unable to update session notes" });
+			}
+		},
+	);
+
+	app.post(
+		"/api/appointments/:appointmentId/complete",
+		{
+			schema: {
+				tags: ["appointments"],
+				summary: "Mark an appointment session as completed",
+				params: appointmentIdParamsJsonSchema,
+				body: updateSessionNotesJsonSchema,
+				response: {
+					200: {
+						type: "object",
+						required: ["appointment"],
+						properties: {
+							appointment: appointmentSummaryJsonSchema,
+						},
+					},
+					404: errorJsonSchema,
+					409: errorJsonSchema,
+					502: errorJsonSchema,
+				},
+			},
+		},
+		async (request, reply) => {
+			const { appointmentId } = request.params as { appointmentId: string };
+			const input = request.body as { sessionNotes: string };
+
+			try {
+				const result = await pool.query(
+					`
+						UPDATE appointments
+						SET session_notes = $1,
+							status = 'completed',
+							completed_at = now()
+						WHERE id = $2
+							AND status <> 'completed'
+						RETURNING *
+					`,
+					[input.sessionNotes, appointmentId],
+				);
+
+				if (!result.rows[0]) {
+					const existing = await pool.query(
+						"SELECT status FROM appointments WHERE id = $1",
+						[appointmentId],
+					);
+					if (existing.rows[0]?.status === "completed") {
+						return reply
+							.code(409)
+							.send({ message: "Appointment is already completed" });
+					}
+					return reply.code(404).send({ message: "Appointment not found" });
+				}
+
+				return { appointment: mapAppointment(result.rows[0]) };
+			} catch (error) {
+				request.log.error(error);
+				return reply
+					.code(502)
+					.send({ message: "Unable to complete appointment" });
 			}
 		},
 	);
@@ -1143,6 +1344,7 @@ export async function registerRoutes(app: FastifyInstance) {
 						WHERE id = $1
 							AND customer_id = $2
 							AND slot_start >= now()
+							AND status = 'scheduled'
 					`,
 					[appointmentId, currentUser.customerId],
 				);

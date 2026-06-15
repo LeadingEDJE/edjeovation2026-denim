@@ -65,6 +65,10 @@ struct UpcomingAppointmentResponse: Codable {
     let appointment: Appointment?
 }
 
+struct AppointmentsResponse: Codable {
+    let appointments: [Appointment]
+}
+
 struct UpdateAppointmentRequest: Codable {
     let guidance: String
 }
@@ -81,9 +85,13 @@ struct Appointment: Codable, Identifiable {
     let avoidColors: String
     let styleKeywords: [String]
     let guidance: String
+    let sessionNotes: String
+    let status: String
     let museTag: String
     let assignedStylist: AppointmentStylist
     let orderHistorySummary: OrderHistorySummary
+    let suggestedProducts: [SuggestedProduct]
+    let completedAt: String?
     let createdAt: String
 }
 
@@ -98,4 +106,11 @@ struct OrderHistorySummary: Codable {
     let denimItems: Int
     let returnedItems: Int
     let preferredSizes: [String]
+}
+
+struct SuggestedProduct: Codable, Identifiable {
+    let productId: String?
+    let name: String?
+
+    var id: String { productId ?? name ?? "suggested-product" }
 }

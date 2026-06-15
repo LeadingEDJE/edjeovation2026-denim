@@ -28,6 +28,11 @@ final class APIClient: Sendable {
         return response.appointment
     }
 
+    func getPastAppointments() async throws -> [Appointment] {
+        let response: AppointmentsResponse = try await get(path: "/api/appointments/me/past")
+        return response.appointments
+    }
+
     func createAppointment(input: CreateAppointmentRequest) async throws -> AppointmentResponse {
         try await post(path: "/api/appointments", input: input)
     }
