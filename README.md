@@ -12,6 +12,12 @@ For setup and full-stack run instructions, start with [QUICKSTART.md](QUICKSTART
 - `infra/db`: PostgreSQL initialization SQL.
 - `infra/wiremock`: WireMock mappings for simulated third-party fit recommendations.
 
+## Documentation
+
+- `docs/requirements/`: Source requirements — the AnF denim fitting plan and reqs PDFs.
+- `docs/requirements-review.md`: Notes reviewing the requirements.
+- `docs/submission/`: Submission deliverables — project summary, architecture overview, pitch deck, market & impact statement, AI usage explanation, and the `demo/` walkthrough.
+
 ## Local Run
 
 1. Start the full local stack:
