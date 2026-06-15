@@ -1,30 +1,26 @@
 import { z } from "zod";
 
-export const fittingInputSchema = z.object({
-	customerName: z.string().min(1).max(120),
-	heightInches: z.number().int().min(48).max(90),
-	waistInches: z.number().min(20).max(70),
-	hipInches: z.number().min(28).max(80),
-	inseamInches: z.number().min(20).max(40),
-	fitPreference: z.enum(["skinny", "slim", "straight", "relaxed", "wide"]),
-	stretchPreference: z.enum(["rigid", "comfort-stretch", "high-stretch"]),
-});
+export type FitPreference = "skinny" | "slim" | "straight" | "relaxed" | "wide";
+export type StretchPreference = "rigid" | "comfort-stretch" | "high-stretch";
 
-export type FittingInput = z.infer<typeof fittingInputSchema>;
-
-export type FittingSession = FittingInput & {
-	id: string;
-	createdAt: string;
+export type CurrentUser = {
+	customerId: string;
+	loyaltyId: string;
+	displayName: string;
+	measurements: {
+		heightInches: number;
+		waistInches: number;
+		hipInches: number;
+		inseamInches: number;
+	};
+	preferences: {
+		fitPreference: FitPreference;
+		stretchPreference: StretchPreference;
+	};
 };
 
-export type DenimRecommendation = {
-	id: string;
-	sessionId: string;
-	styleName: string;
-	sizeLabel: string;
-	confidence: number;
-	rationale: string;
-	createdAt: string;
+export type UserList = {
+	users: CurrentUser[];
 };
 
 export type OrderHistoryScenario =
@@ -145,4 +141,51 @@ export type CatalogProduct = {
 	sizes: string[];
 	colors: string[];
 	scrapedAt: string;
+};
+
+export type MuseTag =
+	| "Clean Muse"
+	| "Romantic Muse"
+	| "Boyish Muse"
+	| "Statement Maker";
+
+export type AppointmentSlot = {
+	slotStart: string;
+	slotEnd: string;
+	date: string;
+	time: string;
+	availableStylistCount: number;
+};
+
+export type CreateAppointmentInput = {
+	slotStart: string;
+	occasion: string;
+	focusColors: string;
+	avoidColors: string;
+	styleKeywords: string[];
+	guidance?: string;
+	orderHistoryScenario?: OrderHistoryScenario;
+};
+
+export type Appointment = {
+	id: string;
+	customerId: string;
+	loyaltyId: string;
+	customerName: string;
+	slotStart: string;
+	slotEnd: string;
+	occasion: string;
+	focusColors: string;
+	avoidColors: string;
+	styleKeywords: string[];
+	guidance: string;
+	museTag: MuseTag;
+	assignedStylist: StylistProfile;
+	orderHistorySummary: {
+		totalOrders: number;
+		denimItems: number;
+		returnedItems: number;
+		preferredSizes: string[];
+	};
+	createdAt: string;
 };

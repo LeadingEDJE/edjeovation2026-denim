@@ -174,166 +174,52 @@ describe("GET /api/customers/:customerId/order-history", () => {
 	});
 });
 
-describe("GET /api/fitting-sessions/:id", () => {
-	const sessionId = "11111111-1111-4111-8111-111111111111";
-
-	function sessionRow() {
-		return {
-			id: sessionId,
-			customer_name: "Dana Rivera",
-			height_inches: 68,
-			waist_inches: 32,
-			hip_inches: 40,
-			inseam_inches: 30,
-			fit_preference: "slim",
-			stretch_preference: "comfort-stretch",
-			created_at: "2026-06-01T12:00:00.000Z",
-		};
-	}
-
-	it("returns 404 when the session does not exist", async () => {
-		(query as Mock).mockResolvedValueOnce({ rowCount: 0, rows: [] });
-		const res = await app.inject({
-			method: "GET",
-			url: `/api/fitting-sessions/${sessionId}`,
-		});
-		expect(res.statusCode).toBe(404);
-	});
-
-	it("returns the session with its recommendations", async () => {
+describe("GET /api/catalog", () => {
+	it("returns catalog products with totals", async () => {
 		(query as Mock)
-			.mockResolvedValueOnce({ rowCount: 1, rows: [sessionRow()] })
+			.mockResolvedValueOnce({ rows: [{ count: "1" }] })
 			.mockResolvedValueOnce({
-				rowCount: 1,
 				rows: [
 					{
-						id: "22222222-2222-4222-8222-222222222222",
-						session_id: sessionId,
-						style_name: "Curve Love",
-						size_label: "29",
-						confidence: 0.8,
-						rationale: "good",
-						created_at: "2026-06-01T12:05:00.000Z",
+						product_id: "sku-1",
+						source: "anf",
+						name: "High Rise Straight Jean",
+						category: "jeans",
+						product_url: "https://example.test/p/sku-1",
+						image_url: null,
+						description: "Straight jean",
+						price: 89,
+						currency: "USD",
+						fit: "straight",
+						rise: "high",
+						stretch: "comfort-stretch",
+						sizes: ["27", "28"],
+						colors: ["medium wash"],
+						scraped_at: "2026-06-01T12:00:00.000Z",
 					},
 				],
 			});
 
 		const res = await app.inject({
 			method: "GET",
-			url: `/api/fitting-sessions/${sessionId}`,
+			url: "/api/catalog?fit=straight&limit=10&offset=0",
 		});
 
 		expect(res.statusCode).toBe(200);
-		const body = res.json();
-		expect(body.session.customerName).toBe("Dana Rivera");
-		expect(body.recommendations).toHaveLength(1);
-		expect(body.recommendations[0].styleName).toBe("Curve Love");
-	});
-});
-
-describe("POST /api/fitting-sessions", () => {
-	const validBody = {
-		customerName: "Dana Rivera",
-		heightInches: 68,
-		waistInches: 32,
-		hipInches: 40,
-		inseamInches: 30,
-		fitPreference: "slim",
-		stretchPreference: "comfort-stretch",
-	};
-
-	it("returns 400 for an invalid body", async () => {
-		const res = await app.inject({
-			method: "POST",
-			url: "/api/fitting-sessions",
-			payload: { ...validBody, fitPreference: "bootcut" },
+		expect(res.json()).toMatchObject({
+			total: 1,
+			limit: 10,
+			offset: 0,
+			products: [{ productId: "sku-1", fit: "straight" }],
 		});
+	});
+
+	it("returns 400 for invalid catalog filters", async () => {
+		const res = await app.inject({
+			method: "GET",
+			url: "/api/catalog?fit=bootcut",
+		});
+
 		expect(res.statusCode).toBe(400);
-	});
-
-	it("creates a session and recommendation within a transaction", async () => {
-		const calls: string[] = [];
-		const clientQuery = vi.fn(async (sql: string) => {
-			calls.push(sql.trim().split(/\s+/)[0]);
-			if (sql.includes("INSERT INTO fitting_sessions")) {
-				return {
-					rows: [
-						{
-							id: "33333333-3333-4333-8333-333333333333",
-							customer_name: validBody.customerName,
-							height_inches: validBody.heightInches,
-							waist_inches: validBody.waistInches,
-							hip_inches: validBody.hipInches,
-							inseam_inches: validBody.inseamInches,
-							fit_preference: validBody.fitPreference,
-							stretch_preference: validBody.stretchPreference,
-							created_at: "2026-06-01T12:00:00.000Z",
-						},
-					],
-				};
-			}
-			if (sql.includes("INSERT INTO denim_recommendations")) {
-				return {
-					rows: [
-						{
-							id: "44444444-4444-4444-8444-444444444444",
-							session_id: "33333333-3333-4333-8333-333333333333",
-							style_name: "Curve Love",
-							size_label: "29",
-							confidence: 0.88,
-							rationale: "great match",
-							created_at: "2026-06-01T12:05:00.000Z",
-						},
-					],
-				};
-			}
-			return { rows: [] };
-		});
-		const release = vi.fn();
-		connect.mockResolvedValueOnce({ query: clientQuery, release });
-
-		fetchMock.mockResolvedValueOnce(
-			jsonResponse({
-				styleName: "Curve Love",
-				sizeLabel: "29",
-				confidence: 0.88,
-				rationale: "great match",
-			}),
-		);
-
-		const res = await app.inject({
-			method: "POST",
-			url: "/api/fitting-sessions",
-			payload: validBody,
-		});
-
-		expect(res.statusCode).toBe(201);
-		expect(res.json().recommendation.styleName).toBe("Curve Love");
-		expect(calls).toContain("BEGIN");
-		expect(calls).toContain("COMMIT");
-		expect(release).toHaveBeenCalledOnce();
-	});
-
-	it("rolls back and surfaces an error when the third-party call fails", async () => {
-		const clientQuery = vi.fn(async (sql: string) => {
-			if (sql.includes("INSERT INTO fitting_sessions")) {
-				return { rows: [{ id: "x" }] };
-			}
-			return { rows: [] };
-		});
-		const release = vi.fn();
-		connect.mockResolvedValueOnce({ query: clientQuery, release });
-
-		fetchMock.mockResolvedValueOnce(jsonResponse({}, 500));
-
-		const res = await app.inject({
-			method: "POST",
-			url: "/api/fitting-sessions",
-			payload: validBody,
-		});
-
-		expect(res.statusCode).toBe(500);
-		expect(clientQuery).toHaveBeenCalledWith("ROLLBACK");
-		expect(release).toHaveBeenCalledOnce();
 	});
 });

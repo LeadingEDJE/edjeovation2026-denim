@@ -3,24 +3,30 @@ import type { FastifyInstance } from "fastify";
 import { pool } from "./db.js";
 import {
 	fetchThirdPartyOrderHistory,
-	fetchThirdPartyRecommendation,
 	fetchThirdPartyStylist,
 	fetchThirdPartyStylistAvailability,
 	fetchThirdPartyStylists,
+	fetchThirdPartyUser,
+	fetchThirdPartyUsers,
 	ThirdPartyHttpError,
-	toRecommendation,
 } from "./recommendations.js";
 import {
+	type Appointment,
+	type AppointmentSlot,
 	type CatalogProduct,
 	catalogQuerySchema,
-	type DenimRecommendation,
-	type FittingInput,
-	type FittingSession,
-	fittingInputSchema,
+	type CreateAppointmentInput,
+	type CurrentUser,
+	type MuseTag,
+	type OrderHistory,
 	type OrderHistoryScenario,
+	type StylistAvailabilitySchedule,
 	type StylistAvailabilityStatus,
 	type StylistProfile,
+	type UserList,
 } from "./types.js";
+
+let activeUserId = "cust_avery_001";
 
 const fitPreferenceEnum = [
 	"skinny",
@@ -42,62 +48,92 @@ const orderHistoryScenarioEnum = [
 	"error",
 ] as const;
 const stylistAvailabilityEnum = ["available", "busy", "offline"] as const;
+const museTagEnum = [
+	"Clean Muse",
+	"Romantic Muse",
+	"Boyish Muse",
+	"Statement Maker",
+] as const;
+const styleKeywordEnum = [
+	"minimal",
+	"effortless",
+	"timeless essentials",
+	"feminine",
+	"soft",
+	"subtly dressed-up",
+	"preppy",
+	"relaxed",
+	"sporty",
+	"menswear-inspired",
+	"trend-forward",
+	"bold",
+	"boundary-pushing",
+] as const;
 
-const fittingInputJsonSchema = {
+const currentUserJsonSchema = {
 	type: "object",
 	required: [
-		"customerName",
-		"heightInches",
-		"waistInches",
-		"hipInches",
-		"inseamInches",
-		"fitPreference",
-		"stretchPreference",
+		"customerId",
+		"loyaltyId",
+		"displayName",
+		"measurements",
+		"preferences",
 	],
 	properties: {
-		customerName: { type: "string", minLength: 1, maxLength: 120 },
-		heightInches: { type: "integer", minimum: 48, maximum: 90 },
-		waistInches: { type: "number", minimum: 20, maximum: 70 },
-		hipInches: { type: "number", minimum: 28, maximum: 80 },
-		inseamInches: { type: "number", minimum: 20, maximum: 40 },
-		fitPreference: { type: "string", enum: fitPreferenceEnum },
-		stretchPreference: { type: "string", enum: stretchPreferenceEnum },
+		customerId: { type: "string" },
+		loyaltyId: { type: "string" },
+		displayName: { type: "string" },
+		measurements: {
+			type: "object",
+			required: [
+				"heightInches",
+				"waistInches",
+				"hipInches",
+				"inseamInches",
+			],
+			properties: {
+				heightInches: { type: "integer" },
+				waistInches: { type: "number" },
+				hipInches: { type: "number" },
+				inseamInches: { type: "number" },
+			},
+		},
+		preferences: {
+			type: "object",
+			required: ["fitPreference", "stretchPreference"],
+			properties: {
+				fitPreference: { type: "string", enum: fitPreferenceEnum },
+				stretchPreference: { type: "string", enum: stretchPreferenceEnum },
+			},
+		},
 	},
 } as const;
 
-const fittingSessionJsonSchema = {
-	allOf: [
-		fittingInputJsonSchema,
-		{
-			type: "object",
-			required: ["id", "createdAt"],
-			properties: {
-				id: { type: "string", format: "uuid" },
-				createdAt: { type: "string", format: "date-time" },
-			},
+const userListJsonSchema = {
+	type: "object",
+	required: ["users"],
+	properties: {
+		users: {
+			type: "array",
+			items: currentUserJsonSchema,
 		},
-	],
+	},
 } as const;
 
-const recommendationJsonSchema = {
+const activeUserJsonSchema = {
 	type: "object",
-	required: [
-		"id",
-		"sessionId",
-		"styleName",
-		"sizeLabel",
-		"confidence",
-		"rationale",
-		"createdAt",
-	],
+	required: ["activeUserId", "user"],
 	properties: {
-		id: { type: "string", format: "uuid" },
-		sessionId: { type: "string", format: "uuid" },
-		styleName: { type: "string" },
-		sizeLabel: { type: "string" },
-		confidence: { type: "number", minimum: 0, maximum: 1 },
-		rationale: { type: "string" },
-		createdAt: { type: "string", format: "date-time" },
+		activeUserId: { type: "string" },
+		user: currentUserJsonSchema,
+	},
+} as const;
+
+const setActiveUserJsonSchema = {
+	type: "object",
+	required: ["customerId"],
+	properties: {
+		customerId: { type: "string", minLength: 1 },
 	},
 } as const;
 
@@ -278,6 +314,120 @@ const stylistAvailabilityJsonSchema = {
 	},
 } as const;
 
+const appointmentSlotJsonSchema = {
+	type: "object",
+	required: [
+		"slotStart",
+		"slotEnd",
+		"date",
+		"time",
+		"availableStylistCount",
+	],
+	properties: {
+		slotStart: { type: "string", format: "date-time" },
+		slotEnd: { type: "string", format: "date-time" },
+		date: { type: "string", format: "date" },
+		time: { type: "string" },
+		availableStylistCount: { type: "integer", minimum: 1 },
+	},
+} as const;
+
+const createAppointmentJsonSchema = {
+	type: "object",
+	required: [
+		"slotStart",
+		"occasion",
+		"focusColors",
+		"avoidColors",
+		"styleKeywords",
+	],
+	properties: {
+		slotStart: { type: "string", format: "date-time" },
+		occasion: { type: "string", minLength: 1 },
+		focusColors: { type: "string" },
+		avoidColors: { type: "string" },
+		styleKeywords: {
+			type: "array",
+			minItems: 1,
+			items: { type: "string", enum: styleKeywordEnum },
+		},
+		guidance: { type: "string" },
+		orderHistoryScenario: {
+			type: "string",
+			enum: orderHistoryScenarioEnum,
+			default: "standard",
+		},
+	},
+} as const;
+
+const updateAppointmentJsonSchema = {
+	type: "object",
+	required: ["guidance"],
+	properties: {
+		guidance: { type: "string", maxLength: 1000 },
+	},
+} as const;
+
+const appointmentIdParamsJsonSchema = {
+	type: "object",
+	required: ["appointmentId"],
+	properties: {
+		appointmentId: { type: "string", format: "uuid" },
+	},
+} as const;
+
+const appointmentSummaryJsonSchema = {
+	type: "object",
+	required: [
+		"id",
+		"customerId",
+		"loyaltyId",
+		"customerName",
+		"slotStart",
+		"slotEnd",
+		"occasion",
+		"focusColors",
+		"avoidColors",
+		"styleKeywords",
+		"guidance",
+		"museTag",
+		"assignedStylist",
+		"orderHistorySummary",
+		"createdAt",
+	],
+	properties: {
+		id: { type: "string", format: "uuid" },
+		customerId: { type: "string" },
+		loyaltyId: { type: "string" },
+		customerName: { type: "string" },
+		slotStart: { type: "string", format: "date-time" },
+		slotEnd: { type: "string", format: "date-time" },
+		occasion: { type: "string" },
+		focusColors: { type: "string" },
+		avoidColors: { type: "string" },
+		styleKeywords: { type: "array", items: { type: "string" } },
+		guidance: { type: "string" },
+		museTag: { type: "string", enum: museTagEnum },
+		assignedStylist: stylistJsonSchema,
+		orderHistorySummary: {
+			type: "object",
+			required: [
+				"totalOrders",
+				"denimItems",
+				"returnedItems",
+				"preferredSizes",
+			],
+			properties: {
+				totalOrders: { type: "integer" },
+				denimItems: { type: "integer" },
+				returnedItems: { type: "integer" },
+				preferredSizes: { type: "array", items: { type: "string" } },
+			},
+		},
+		createdAt: { type: "string", format: "date-time" },
+	},
+} as const;
+
 function filterStylists(
 	stylists: StylistProfile[],
 	filters: {
@@ -301,32 +451,165 @@ function filterStylists(
 	});
 }
 
-function mapSession(row: Record<string, unknown>): FittingSession {
+function addOneHour(isoDateTime: string) {
+	const date = new Date(isoDateTime);
+	date.setHours(date.getHours() + 1);
+	return date.toISOString();
+}
+
+function normalizeSlotKey(value: string) {
+	return new Date(value).toISOString();
+}
+
+function createAppointmentSlots(
+	availability: StylistAvailabilitySchedule,
+): AppointmentSlot[] {
+	const now = new Date();
+
+	return availability.days.flatMap((day) => {
+		if (!day.storeOpen || day.scheduledStylists.length === 0) {
+			return [];
+		}
+
+		return [11, 12, 13, 14, 15, 16, 17, 18].flatMap((hour) => {
+			const hourLabel = String(hour).padStart(2, "0");
+			const slotStart = `${day.date}T${hourLabel}:00:00-04:00`;
+
+			if (new Date(slotStart) <= now) {
+				return [];
+			}
+
+			return [
+				{
+					slotStart,
+					slotEnd: addOneHour(slotStart),
+					date: day.date,
+					time: `${hourLabel}:00`,
+					availableStylistCount: day.scheduledStylists.length,
+				},
+			];
+		});
+	});
+}
+
+function findAvailabilityDayForSlot(
+	availability: StylistAvailabilitySchedule,
+	slotStart: string,
+) {
+	const requested = new Date(slotStart);
+	return availability.days.find((day) =>
+		day.scheduledStylists.some((shift) => {
+			const shiftStart = new Date(shift.shiftStart);
+			const shiftEnd = new Date(shift.shiftEnd);
+			return requested >= shiftStart && requested < shiftEnd;
+		}),
+	);
+}
+
+function mapMuseTag(styleKeywords: string[]): MuseTag {
+	const keywordSet = new Set(styleKeywords);
+	const mapping: Array<{ tag: MuseTag; keywords: string[] }> = [
+		{
+			tag: "Clean Muse",
+			keywords: ["minimal", "effortless", "timeless essentials"],
+		},
+		{
+			tag: "Romantic Muse",
+			keywords: ["feminine", "soft", "subtly dressed-up"],
+		},
+		{
+			tag: "Boyish Muse",
+			keywords: ["preppy", "relaxed", "sporty", "menswear-inspired"],
+		},
+		{
+			tag: "Statement Maker",
+			keywords: ["trend-forward", "bold", "boundary-pushing"],
+		},
+	];
+
+	const scores = mapping.map(({ tag, keywords }) => ({
+		tag,
+		score: keywords.filter((keyword) => keywordSet.has(keyword)).length,
+	}));
+
+	return scores.sort((a, b) => b.score - a.score)[0]?.tag ?? "Clean Muse";
+}
+
+function summarizeOrderHistory(orderHistory: OrderHistory) {
+	const items = orderHistory.orders.flatMap((order) => order.items);
+	const denimItems = items.filter((item) => item.category === "denim");
+	const returnedItems = items.filter((item) => !item.kept || item.returnReason);
+	const preferredSizes = Array.from(
+		new Set(denimItems.filter((item) => item.kept).map((item) => item.sizeLabel)),
+	);
+
+	return {
+		totalOrders: orderHistory.orders.length,
+		denimItems: denimItems.length,
+		returnedItems: returnedItems.length,
+		preferredSizes,
+	};
+}
+
+function assignStylist(
+	scheduledStylistIds: string[],
+	stylists: StylistProfile[],
+	museTag: MuseTag,
+) {
+	const museSpecialtyHints: Record<MuseTag, string[]> = {
+		"Clean Muse": ["straight-leg-denim", "fit-troubleshooting"],
+		"Romantic Muse": ["petite-proportions", "inseam-selection"],
+		"Boyish Muse": ["athletic-builds", "relaxed-denim", "mobility-comfort"],
+		"Statement Maker": ["trend-styling", "wide-leg-denim", "outfit-building"],
+	};
+
+	const scheduledStylists = scheduledStylistIds
+		.map((id) => stylists.find((stylist) => stylist.id === id))
+		.filter((stylist): stylist is StylistProfile => Boolean(stylist));
+
+	return scheduledStylists
+		.map((stylist, index) => ({
+			stylist,
+			index,
+			score: museSpecialtyHints[museTag].filter((hint) =>
+				stylist.specialties.includes(hint),
+			).length,
+		}))
+		.sort((a, b) => b.score - a.score || a.index - b.index)[0]?.stylist;
+}
+
+function parseJsonField<T>(value: unknown): T {
+	return typeof value === "string" ? JSON.parse(value) : (value as T);
+}
+
+function mapAppointment(row: Record<string, unknown>): Appointment {
 	return {
 		id: String(row.id),
+		customerId: String(row.customer_id),
+		loyaltyId: String(row.loyalty_id),
 		customerName: String(row.customer_name),
-		heightInches: Number(row.height_inches),
-		waistInches: Number(row.waist_inches),
-		hipInches: Number(row.hip_inches),
-		inseamInches: Number(row.inseam_inches),
-		fitPreference: String(row.fit_preference) as FittingInput["fitPreference"],
-		stretchPreference: String(
-			row.stretch_preference,
-		) as FittingInput["stretchPreference"],
+		slotStart: new Date(String(row.slot_start)).toISOString(),
+		slotEnd: new Date(String(row.slot_end)).toISOString(),
+		occasion: String(row.occasion),
+		focusColors: String(row.focus_colors),
+		avoidColors: String(row.avoid_colors),
+		styleKeywords: parseJsonField<string[]>(row.style_keywords),
+		guidance: String(row.guidance),
+		museTag: String(row.muse_tag) as MuseTag,
+		assignedStylist: parseJsonField<StylistProfile>(row.assigned_stylist),
+		orderHistorySummary: parseJsonField<Appointment["orderHistorySummary"]>(
+			row.order_history_summary,
+		),
 		createdAt: new Date(String(row.created_at)).toISOString(),
 	};
 }
 
-function mapRecommendation(row: Record<string, unknown>): DenimRecommendation {
-	return {
-		id: String(row.id),
-		sessionId: String(row.session_id),
-		styleName: String(row.style_name),
-		sizeLabel: String(row.size_label),
-		confidence: Number(row.confidence),
-		rationale: String(row.rationale),
-		createdAt: new Date(String(row.created_at)).toISOString(),
-	};
+async function getActiveUser() {
+	return fetchThirdPartyUser(activeUserId);
+}
+
+function userExists(users: UserList, customerId: string) {
+	return users.users.some((user) => user.customerId === customerId);
 }
 
 function mapCatalogProduct(row: Record<string, unknown>): CatalogProduct {
@@ -440,19 +723,156 @@ export async function registerRoutes(app: FastifyInstance) {
 	});
 
 	app.get(
-		"/api/fitting-sessions",
+		"/api/admin/users",
 		{
 			schema: {
-				tags: ["fitting-sessions"],
-				summary: "List recent fitting sessions",
+				tags: ["admin"],
+				summary: "List mock customers available for local testing",
+				response: {
+					200: userListJsonSchema,
+					502: errorJsonSchema,
+				},
+			},
+		},
+		async (request, reply) => {
+			try {
+				return await fetchThirdPartyUsers();
+			} catch (error) {
+				request.log.error(error);
+				return reply.code(502).send({ message: "Unable to load mock users" });
+			}
+		},
+	);
+
+	app.get(
+		"/api/admin/active-user",
+		{
+			schema: {
+				tags: ["admin"],
+				summary: "Get the active mock customer",
+				response: {
+					200: activeUserJsonSchema,
+					502: errorJsonSchema,
+				},
+			},
+		},
+		async (request, reply) => {
+			try {
+				const user = await getActiveUser();
+				return { activeUserId, user };
+			} catch (error) {
+				request.log.error(error);
+				return reply
+					.code(502)
+					.send({ message: "Unable to load active mock user" });
+			}
+		},
+	);
+
+	app.put(
+		"/api/admin/active-user",
+		{
+			schema: {
+				tags: ["admin"],
+				summary: "Set the active mock customer",
+				body: setActiveUserJsonSchema,
+				response: {
+					200: activeUserJsonSchema,
+					404: errorJsonSchema,
+					502: errorJsonSchema,
+				},
+			},
+		},
+		async (request, reply) => {
+			const input = request.body as { customerId: string };
+
+			try {
+				const users = await fetchThirdPartyUsers();
+				if (!userExists(users, input.customerId)) {
+					return reply.code(404).send({ message: "Mock user not found" });
+				}
+
+				activeUserId = input.customerId;
+				const user = await getActiveUser();
+				return { activeUserId, user };
+			} catch (error) {
+				request.log.error(error);
+				return reply
+					.code(502)
+					.send({ message: "Unable to set active mock user" });
+			}
+		},
+	);
+
+	app.get(
+		"/api/me",
+		{
+			schema: {
+				tags: ["user"],
+				summary: "Get the mocked logged-in loyalty customer",
+				response: {
+					200: currentUserJsonSchema,
+					502: errorJsonSchema,
+				},
+			},
+		},
+		async (request, reply) => {
+			try {
+				return await getActiveUser();
+			} catch (error) {
+				request.log.error(error);
+				return reply
+					.code(502)
+					.send({ message: "Unable to load third-party current user" });
+			}
+		},
+	);
+
+	app.get(
+		"/api/appointments/slots",
+		{
+			schema: {
+				tags: ["appointments"],
+				summary: "List bookable guided fitting appointment slots",
 				response: {
 					200: {
 						type: "object",
-						required: ["sessions"],
+						required: ["slots"],
 						properties: {
-							sessions: {
+							slots: { type: "array", items: appointmentSlotJsonSchema },
+						},
+					},
+					502: errorJsonSchema,
+				},
+			},
+		},
+		async (request, reply) => {
+			try {
+				const availability = await fetchThirdPartyStylistAvailability();
+				return { slots: createAppointmentSlots(availability) };
+			} catch (error) {
+				request.log.error(error);
+				return reply
+					.code(502)
+					.send({ message: "Unable to load third-party appointment slots" });
+			}
+		},
+	);
+
+	app.get(
+		"/api/appointments",
+		{
+			schema: {
+				tags: ["appointments"],
+				summary: "List booked guided fitting appointments",
+				response: {
+					200: {
+						type: "object",
+						required: ["appointments"],
+						properties: {
+							appointments: {
 								type: "array",
-								items: fittingSessionJsonSchema,
+								items: appointmentSummaryJsonSchema,
 							},
 						},
 					},
@@ -461,13 +881,283 @@ export async function registerRoutes(app: FastifyInstance) {
 		},
 		async () => {
 			const result = await pool.query(`
-      SELECT *
-      FROM fitting_sessions
-      ORDER BY created_at DESC
-      LIMIT 50
-    `);
+				SELECT *
+				FROM appointments
+				ORDER BY slot_start ASC, created_at DESC
+				LIMIT 100
+			`);
 
-			return { sessions: result.rows.map(mapSession) };
+			return { appointments: result.rows.map(mapAppointment) };
+		},
+	);
+
+	app.get(
+		"/api/appointments/me/upcoming",
+		{
+			schema: {
+				tags: ["appointments"],
+				summary: "Get the mocked customer's upcoming guided fitting appointment",
+				response: {
+					200: {
+						type: "object",
+						required: ["appointment"],
+						properties: {
+							appointment: {
+								anyOf: [appointmentSummaryJsonSchema, { type: "null" }],
+							},
+						},
+					},
+					502: errorJsonSchema,
+				},
+			},
+		},
+		async (request, reply) => {
+			try {
+				const currentUser = await getActiveUser();
+				const result = await pool.query(
+					`
+						SELECT *
+						FROM appointments
+						WHERE customer_id = $1
+							AND slot_start >= now()
+						ORDER BY slot_start ASC
+						LIMIT 1
+					`,
+					[currentUser.customerId],
+				);
+
+				return {
+					appointment: result.rows[0] ? mapAppointment(result.rows[0]) : null,
+				};
+			} catch (error) {
+				request.log.error(error);
+				return reply
+					.code(502)
+					.send({ message: "Unable to load upcoming appointment" });
+			}
+		},
+	);
+
+	app.post(
+		"/api/appointments",
+		{
+			schema: {
+				tags: ["appointments"],
+				summary: "Book a guided fitting appointment",
+				body: createAppointmentJsonSchema,
+				response: {
+					201: {
+						type: "object",
+						required: ["appointment"],
+						properties: {
+							appointment: appointmentSummaryJsonSchema,
+						},
+					},
+					409: errorJsonSchema,
+					502: errorJsonSchema,
+				},
+			},
+		},
+		async (request, reply) => {
+			const input = request.body as CreateAppointmentInput;
+			const appointmentId = randomUUID();
+
+			try {
+				const [currentUser, availability, stylistList] = await Promise.all([
+					getActiveUser(),
+					fetchThirdPartyStylistAvailability(),
+					fetchThirdPartyStylists(),
+				]);
+
+				const existingAppointment = await pool.query(
+					`
+						SELECT id
+						FROM appointments
+						WHERE customer_id = $1
+							AND slot_start >= now()
+						ORDER BY slot_start ASC
+						LIMIT 1
+					`,
+					[currentUser.customerId],
+				);
+
+				if (existingAppointment.rowCount && existingAppointment.rowCount > 0) {
+					return reply
+						.code(409)
+						.send({ message: "Customer already has an upcoming appointment" });
+				}
+
+				const slots = createAppointmentSlots(availability);
+				const selectedSlot = slots.find(
+					(slot) =>
+						normalizeSlotKey(slot.slotStart) === normalizeSlotKey(input.slotStart),
+				);
+
+				if (!selectedSlot) {
+					return reply.code(409).send({ message: "Appointment slot is no longer available" });
+				}
+
+				const availabilityDay = findAvailabilityDayForSlot(
+					availability,
+					selectedSlot.slotStart,
+				);
+				if (!availabilityDay) {
+					return reply.code(409).send({ message: "Appointment slot is no longer available" });
+				}
+
+				const museTag = mapMuseTag(input.styleKeywords);
+				const assignedStylist = assignStylist(
+					availabilityDay.scheduledStylists.map((stylist) => stylist.stylistId),
+					stylistList.stylists,
+					museTag,
+				);
+
+				if (!assignedStylist) {
+					return reply.code(409).send({ message: "No stylist is available for the selected slot" });
+				}
+
+				const orderHistory = await fetchThirdPartyOrderHistory(
+					currentUser.customerId,
+					input.orderHistoryScenario ?? "standard",
+				);
+				const orderHistorySummary = summarizeOrderHistory(orderHistory);
+
+				const insertResult = await pool.query(
+					`
+						INSERT INTO appointments (
+							id, customer_id, loyalty_id, customer_name, slot_start, slot_end,
+							occasion, focus_colors, avoid_colors, style_keywords, guidance,
+							muse_tag, assigned_stylist, order_history_summary, source_payload
+						)
+						VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+						RETURNING *
+					`,
+					[
+						appointmentId,
+						currentUser.customerId,
+						currentUser.loyaltyId,
+						currentUser.displayName,
+						new Date(selectedSlot.slotStart).toISOString(),
+						new Date(selectedSlot.slotEnd).toISOString(),
+						input.occasion,
+						input.focusColors,
+						input.avoidColors,
+						JSON.stringify(input.styleKeywords),
+						input.guidance ?? "",
+						museTag,
+						JSON.stringify(assignedStylist),
+						JSON.stringify(orderHistorySummary),
+						JSON.stringify({ input, currentUser, orderHistory }),
+					],
+				);
+
+				return reply.code(201).send({
+					appointment: mapAppointment(insertResult.rows[0]),
+				});
+			} catch (error) {
+				request.log.error(error);
+				return reply
+					.code(502)
+					.send({ message: "Unable to book guided fitting appointment" });
+			}
+		},
+	);
+
+	app.patch(
+		"/api/appointments/:appointmentId",
+		{
+			schema: {
+				tags: ["appointments"],
+				summary: "Update the mocked customer's appointment guidance",
+				params: appointmentIdParamsJsonSchema,
+				body: updateAppointmentJsonSchema,
+				response: {
+					200: {
+						type: "object",
+						required: ["appointment"],
+						properties: {
+							appointment: appointmentSummaryJsonSchema,
+						},
+					},
+					404: errorJsonSchema,
+					502: errorJsonSchema,
+				},
+			},
+		},
+		async (request, reply) => {
+			const { appointmentId } = request.params as { appointmentId: string };
+			const input = request.body as { guidance: string };
+
+			try {
+				const currentUser = await getActiveUser();
+				const result = await pool.query(
+					`
+						UPDATE appointments
+						SET guidance = $1
+						WHERE id = $2
+							AND customer_id = $3
+							AND slot_start >= now()
+						RETURNING *
+					`,
+					[input.guidance, appointmentId, currentUser.customerId],
+				);
+
+				if (!result.rows[0]) {
+					return reply.code(404).send({ message: "Appointment not found" });
+				}
+
+				return { appointment: mapAppointment(result.rows[0]) };
+			} catch (error) {
+				request.log.error(error);
+				return reply
+					.code(502)
+					.send({ message: "Unable to update appointment" });
+			}
+		},
+	);
+
+	app.delete(
+		"/api/appointments/:appointmentId",
+		{
+			schema: {
+				tags: ["appointments"],
+				summary: "Cancel the mocked customer's upcoming appointment",
+				params: appointmentIdParamsJsonSchema,
+				response: {
+					204: {
+						type: "null",
+					},
+					404: errorJsonSchema,
+					502: errorJsonSchema,
+				},
+			},
+		},
+		async (request, reply) => {
+			const { appointmentId } = request.params as { appointmentId: string };
+
+			try {
+				const currentUser = await getActiveUser();
+				const result = await pool.query(
+					`
+						DELETE FROM appointments
+						WHERE id = $1
+							AND customer_id = $2
+							AND slot_start >= now()
+					`,
+					[appointmentId, currentUser.customerId],
+				);
+
+				if (!result.rowCount) {
+					return reply.code(404).send({ message: "Appointment not found" });
+				}
+
+				return reply.code(204).send();
+			} catch (error) {
+				request.log.error(error);
+				return reply
+					.code(502)
+					.send({ message: "Unable to cancel appointment" });
+			}
 		},
 	);
 
@@ -628,156 +1318,4 @@ export async function registerRoutes(app: FastifyInstance) {
 		},
 	);
 
-	app.get(
-		"/api/fitting-sessions/:id",
-		{
-			schema: {
-				tags: ["fitting-sessions"],
-				summary: "Get a fitting session and its recommendations",
-				params: {
-					type: "object",
-					required: ["id"],
-					properties: {
-						id: { type: "string", format: "uuid" },
-					},
-				},
-				response: {
-					200: {
-						type: "object",
-						required: ["session", "recommendations"],
-						properties: {
-							session: fittingSessionJsonSchema,
-							recommendations: {
-								type: "array",
-								items: recommendationJsonSchema,
-							},
-						},
-					},
-					404: errorJsonSchema,
-				},
-			},
-		},
-		async (request, reply) => {
-			const { id } = request.params as { id: string };
-			const session = await pool.query(
-				"SELECT * FROM fitting_sessions WHERE id = $1",
-				[id],
-			);
-
-			if (session.rowCount === 0) {
-				return reply.code(404).send({ message: "Fitting session not found" });
-			}
-
-			const recommendations = await pool.query(
-				"SELECT * FROM denim_recommendations WHERE session_id = $1 ORDER BY created_at DESC",
-				[id],
-			);
-
-			return {
-				session: mapSession(session.rows[0]),
-				recommendations: recommendations.rows.map(mapRecommendation),
-			};
-		},
-	);
-
-	app.post(
-		"/api/fitting-sessions",
-		{
-			schema: {
-				tags: ["fitting-sessions"],
-				summary: "Create a fitting session and recommendation",
-				body: fittingInputJsonSchema,
-				response: {
-					201: {
-						type: "object",
-						required: ["session", "recommendation"],
-						properties: {
-							session: fittingSessionJsonSchema,
-							recommendation: recommendationJsonSchema,
-						},
-					},
-					400: {
-						type: "object",
-						required: ["message"],
-						properties: {
-							message: { type: "string" },
-							issues: { type: "array" },
-						},
-					},
-				},
-			},
-		},
-		async (request, reply) => {
-			const parsed = fittingInputSchema.safeParse(request.body);
-
-			if (!parsed.success) {
-				return reply.code(400).send({
-					message: "Invalid fitting input",
-					issues: parsed.error.issues,
-				});
-			}
-
-			const input = parsed.data;
-			const sessionId = randomUUID();
-			const client = await pool.connect();
-
-			try {
-				await client.query("BEGIN");
-				const sessionResult = await client.query(
-					`
-          INSERT INTO fitting_sessions (
-            id, customer_name, height_inches, waist_inches, hip_inches,
-            inseam_inches, fit_preference, stretch_preference
-          )
-          VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-          RETURNING *
-        `,
-					[
-						sessionId,
-						input.customerName,
-						input.heightInches,
-						input.waistInches,
-						input.hipInches,
-						input.inseamInches,
-						input.fitPreference,
-						input.stretchPreference,
-					],
-				);
-
-				const thirdParty = await fetchThirdPartyRecommendation(input);
-				const recommendation = toRecommendation(sessionId, thirdParty);
-
-				const recommendationResult = await client.query(
-					`
-          INSERT INTO denim_recommendations (
-            id, session_id, style_name, size_label, confidence, rationale, source_payload
-          )
-          VALUES ($1, $2, $3, $4, $5, $6, $7)
-          RETURNING *
-        `,
-					[
-						recommendation.id,
-						sessionId,
-						recommendation.styleName,
-						recommendation.sizeLabel,
-						recommendation.confidence,
-						recommendation.rationale,
-						JSON.stringify(thirdParty),
-					],
-				);
-
-				await client.query("COMMIT");
-
-				return reply.code(201).send({
-					session: mapSession(sessionResult.rows[0]),
-					recommendation: mapRecommendation(recommendationResult.rows[0]),
-				});
-			} catch (error) {
-				await client.query("ROLLBACK");
-				throw error;
-			} finally {
-				client.release();
-			}
-		},
-	);
 }

@@ -6,12 +6,12 @@ Use this file as the primary setup and run guide for the local Personalized Deni
 
 The local stack has four Docker Compose services:
 
-- `web`: React/Vite web UI at `http://localhost:5173`
+- `web`: React/Vite web dashboard at `http://localhost:5173`
 - `api`: Fastify/TypeScript API at `http://localhost:4000`
-- `postgres`: PostgreSQL database for fitting sessions and recommendations
-- `wiremock`: simulated third-party fit recommendation API at `http://localhost:8080`
+- `postgres`: PostgreSQL database for guided fitting appointments
+- `wiremock`: simulated third-party APIs at `http://localhost:8080`
 
-The iOS app is a SwiftUI project that runs separately through Xcode and talks to the Compose-hosted API at `http://localhost:4000`.
+The iOS app is a SwiftUI guided fitting journey that runs separately through Xcode and talks to the Compose-hosted API at `http://localhost:4000`.
 
 ## Prerequisites
 
@@ -65,24 +65,6 @@ Open the interactive API docs in a browser:
 http://localhost:4000/docs
 ```
 
-Create a sample fitting session:
-
-```sh
-curl -X POST http://localhost:4000/api/fitting-sessions \
-  -H 'content-type: application/json' \
-  -d '{
-    "customerName": "Avery",
-    "heightInches": 67,
-    "waistInches": 29,
-    "hipInches": 39,
-    "inseamInches": 30,
-    "fitPreference": "straight",
-    "stretchPreference": "comfort-stretch"
-  }'
-```
-
-Expected result: a JSON response with a `session` and `recommendation`, including a size like `29W x 30L`.
-
 Load mocked third-party order history through the API:
 
 ```sh
@@ -114,6 +96,78 @@ curl 'http://localhost:4000/api/stylists?fit=wide&availability=available'
 
 The mocked stylist availability schedule is rendered by WireMock from the current request date through 9 days after the current date. All stylists are assigned to the same store, with scheduled shifts only between `11:00` and `19:00` on Monday through Thursday.
 
+Load the mocked logged-in loyalty customer:
+
+```sh
+curl 'http://localhost:4000/api/me'
+```
+
+List available mock customers and switch the active one:
+
+```sh
+curl 'http://localhost:4000/api/admin/users'
+curl 'http://localhost:4000/api/admin/active-user'
+curl -X PUT http://localhost:4000/api/admin/active-user \
+  -H 'content-type: application/json' \
+  -d '{"customerId":"cust_jordan_002"}'
+```
+
+This is an admin-only local testing shortcut, not authentication. The iOS app has an Admin screen that calls these same endpoints.
+
+Load bookable guided fitting appointment slots:
+
+```sh
+curl 'http://localhost:4000/api/appointments/slots'
+```
+
+Book a guided fitting appointment. First copy one `slotStart` value from `/api/appointments/slots`, then use it in the payload:
+
+```sh
+SLOT_START="<paste a slotStart value here>"
+
+curl -X POST http://localhost:4000/api/appointments \
+  -H 'content-type: application/json' \
+  -d '{
+    "slotStart": "'"$SLOT_START"'",
+    "occasion": "Weekend dinner",
+    "focusColors": "dark wash, white, navy",
+    "avoidColors": "neon",
+    "styleKeywords": ["minimal", "effortless"],
+    "guidance": "Prefers easy layers and a clean straight-leg fit.",
+    "orderHistoryScenario": "standard"
+  }'
+```
+
+Expected result: a JSON response with an `appointment`, assigned stylist, mapped `museTag`, and summarized order-history signals.
+
+List booked guided fitting appointments:
+
+```sh
+curl 'http://localhost:4000/api/appointments'
+```
+
+Load the mocked customer's upcoming appointment:
+
+```sh
+curl 'http://localhost:4000/api/appointments/me/upcoming'
+```
+
+Update the free-form stylist note for an upcoming appointment:
+
+```sh
+curl -X PATCH "http://localhost:4000/api/appointments/<appointment-id>" \
+  -H 'content-type: application/json' \
+  -d '{"guidance":"Prefers easy layers and wants to avoid low-rise denim."}'
+```
+
+Cancel an upcoming appointment:
+
+```sh
+curl -X DELETE "http://localhost:4000/api/appointments/<appointment-id>"
+```
+
+The API allows only one upcoming appointment per mocked customer. The web dashboard shows booked appointment prep data. The iOS app is the primary user flow for creating and managing guided fitting appointments.
+
 ## Daily Run Commands
 
 Start or rebuild everything:
@@ -140,7 +194,7 @@ Stop containers and remove the local database volume:
 docker compose down -v
 ```
 
-Use `down -v` only when you want to reset all local fitting-session data.
+Use `down -v` only when you want to reset all local appointment data.
 
 ## Local Type Checks
 
@@ -172,6 +226,8 @@ npm run build
    ```
 
 3. Run the `DenimFit` scheme in an iOS simulator.
+
+The SwiftUI app loads the mocked loyalty customer, walks through a lightweight fitting questionnaire, lets the user choose a WireMock-backed appointment slot, and posts the booking to the API.
 
 The SwiftUI app is configured to call `http://localhost:4000`, which maps to the API container from the simulator.
 
@@ -219,11 +275,11 @@ apps/ios/DenimFit/DenimFit.xcodeproj
 
 | Service | Compose name | Host URL | Purpose |
 | --- | --- | --- | --- |
-| Web UI | `web` | `http://localhost:5173` | Fitting-session form and recommendation display |
+| Web UI | `web` | `http://localhost:5173` | Appointment prep dashboard |
 | API | `api` | `http://localhost:4000` | Shared API for web and iOS |
 | API docs | `api` | `http://localhost:4000/docs` | Interactive Swagger UI |
 | PostgreSQL | `postgres` | `localhost:5432` | Data storage |
-| WireMock | `wiremock` | `http://localhost:8080` | Mock third-party recommendation service |
+| WireMock | `wiremock` | `http://localhost:8080` | Mock third-party customer, order-history, stylist, and availability services |
 
 Database defaults:
 
@@ -239,8 +295,8 @@ Database defaults:
 - `apps/web`: React web UI source and Dockerfile
 - `apps/ios/DenimFit`: SwiftUI iOS project
 - `infra/db/init.sql`: database schema
-- `infra/wiremock/mappings`: mocked third-party recommendation, order-history, and stylist endpoints
-- `infra/wiremock/__files`: larger WireMock response payloads, including stylist profile data
+- `infra/wiremock/mappings`: mocked third-party customer, order-history, stylist, and availability endpoints
+- `infra/wiremock/__files`: larger WireMock response payloads, including current customer and stylist profile data
 - `docs/requirements-review.md`: open product and requirements questions
 
 ## Troubleshooting
@@ -260,13 +316,7 @@ docker compose up -d --build
 
 This removes the local PostgreSQL volume and recreates the schema from `infra/db/init.sql`.
 
-If WireMock recommendations are not changing, check the mapping file:
-
-```text
-infra/wiremock/mappings/fit-recommendation.json
-```
-
-Then rebuild/restart:
+If WireMock responses are not changing, rebuild/restart:
 
 ```sh
 docker compose up -d --build

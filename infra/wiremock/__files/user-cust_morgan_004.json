@@ -1,0 +1,17 @@
+{
+	"user": {
+		"customerId": "cust_morgan_004",
+		"loyaltyId": "anf-loyalty-10004",
+		"displayName": "Morgan",
+		"measurements": {
+			"heightInches": 72,
+			"waistInches": 34,
+			"hipInches": 42,
+			"inseamInches": 34
+		},
+		"preferences": {
+			"fitPreference": "wide",
+			"stretchPreference": "comfort-stretch"
+		}
+	}
+}

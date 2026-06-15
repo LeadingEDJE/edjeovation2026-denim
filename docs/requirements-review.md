@@ -5,28 +5,28 @@ The client PDF could not be text-extracted with the tools available in this envi
 ## Covered In Scaffold
 
 - iOS SwiftUI application scaffold for simulator-based work in Xcode.
-- Web UI for creating fitting sessions and viewing recommendations.
+- Web UI for reviewing guided appointment prep data.
 - API shared by the web UI and iOS app.
-- PostgreSQL persistence for fitting sessions and recommendations.
-- WireMock simulation of a third-party recommendation service.
+- PostgreSQL persistence for guided fitting appointments.
+- WireMock simulation of third-party customer, order-history, stylist, and availability services.
 - Docker Compose local orchestration for the web UI, API, PostgreSQL, and WireMock.
 
 ## Likely Missing Or Needs Product Decisions
 
 - Authentication and user identity model.
 - Customer consent and privacy handling for body measurements.
-- Data retention policy for measurements and recommendations.
+- Data retention policy for appointment intake answers, order-history summaries, and stylist prep data.
 - Size-system rules by brand, region, gender/category, and denim collection.
 - Inventory availability and store/ecommerce handoff.
 - Fit feedback loop after purchase or try-on.
-- Admin controls for recommendation rules and third-party fallbacks.
+- Admin controls for stylist assignment rules and third-party fallbacks.
 - Analytics events and conversion metrics.
 - Accessibility requirements for web and iOS.
 - Error-state copy and support flows when the third-party service is unavailable.
 
 ## Open Questions
 
-1. What third-party API is WireMock replacing: sizing engine, customer profile, inventory, recommendations, or all of these?
+1. What third-party API is WireMock replacing: customer profile, order history, stylist scheduling, inventory, or all of these?
 2. What customer data can be stored, and for how long?
 3. Does the experience require account login, anonymous sessions, or both?
-4. Are recommendations expected to return one best size, multiple ranked products, or a complete outfit/cart?
+4. Should appointment prep eventually include inventory picks, outfit recommendations, or a complete reserved rack/cart?

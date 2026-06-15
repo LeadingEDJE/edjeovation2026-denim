@@ -1,0 +1,17 @@
+{
+	"user": {
+		"customerId": "cust_taylor_005",
+		"loyaltyId": "anf-loyalty-10005",
+		"displayName": "Taylor",
+		"measurements": {
+			"heightInches": 66,
+			"waistInches": 30,
+			"hipInches": 41,
+			"inseamInches": 30
+		},
+		"preferences": {
+			"fitPreference": "skinny",
+			"stretchPreference": "high-stretch"
+		}
+	}
+}

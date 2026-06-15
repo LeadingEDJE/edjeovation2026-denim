@@ -1,0 +1,17 @@
+{
+	"user": {
+		"customerId": "cust_riley_003",
+		"loyaltyId": "anf-loyalty-10003",
+		"displayName": "Riley",
+		"measurements": {
+			"heightInches": 64,
+			"waistInches": 26,
+			"hipInches": 36,
+			"inseamInches": 28
+		},
+		"preferences": {
+			"fitPreference": "slim",
+			"stretchPreference": "high-stretch"
+		}
+	}
+}
