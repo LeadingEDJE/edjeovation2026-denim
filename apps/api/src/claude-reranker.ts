@@ -21,21 +21,34 @@ export type RerankResult = {
 	rankings: RankedRecommendation[];
 };
 
+// Appointment-derived style context the re-ranker weighs qualitatively.
+export type StyleContext = {
+	occasion?: string;
+	focusColors?: string;
+	avoidColors?: string;
+	styleKeywords?: string[];
+	museTag?: string;
+	preferredSizes?: string[];
+};
+
 // Stable across all requests → safe to mark for prompt caching. The volatile
 // parts (customer profile, candidate list) go in the user turn.
-const SYSTEM_PROMPT = `You are a denim fit specialist for Abercrombie's women's fitting experience.
-You receive a customer's fitting profile and a shortlist of candidate jeans that a
-rule-based scorer already pre-selected. Re-rank the candidates from best to worst fit
-for THIS customer, considering their fit preference, stretch preference, waist and
-inseam measurements, and the product's fit, rise, stretch, available sizes, and
-description.
+const SYSTEM_PROMPT = `You are a denim fit specialist prepping a stylist for an Abercrombie women's
+appointment. You receive the customer's fit profile, the appointment's style context
+(occasion, focus/avoid colors, style keywords, muse tag, and the sizes they've kept
+before), and a shortlist of candidate jeans a rule-based scorer pre-selected. Re-rank
+the candidates from best to worst for THIS appointment, weighing fit/stretch/size
+match together with how well each product suits the occasion, requested colors, and
+style direction.
 
 Rules:
 - Only rank products from the provided candidate list; never invent products.
 - Use each product's exact productId in your output.
-- Write a concise, specific rationale (one or two sentences) per product that
-  references the customer's measurements or preferences.
-- Lead with the strongest match. Include every candidate you are given.`;
+- Write a concise, specific rationale (one or two sentences) per product that ties it
+  to the customer's measurements/preferences AND the appointment's occasion, colors,
+  or style direction.
+- Favor focus colors and avoid the colors to skip. Lead with the strongest match.
+  Include every candidate you are given.`;
 
 const OUTPUT_SCHEMA = {
 	type: "object",
@@ -76,6 +89,7 @@ function candidateLine(c: ScoredCandidate): string {
 
 function buildUserPrompt(
 	input: FitProfile,
+	style: StyleContext,
 	shortlist: ScoredCandidate[],
 	topN: number,
 ): string {
@@ -86,11 +100,27 @@ function buildUserPrompt(
 		`stretchPreference: ${input.stretchPreference}`,
 	].join(", ");
 
+	const styleLines = [
+		style.occasion ? `occasion: ${style.occasion}` : null,
+		style.focusColors ? `focus colors: ${style.focusColors}` : null,
+		style.avoidColors ? `avoid colors: ${style.avoidColors}` : null,
+		style.styleKeywords?.length
+			? `style keywords: ${style.styleKeywords.join(", ")}`
+			: null,
+		style.museTag ? `muse tag: ${style.museTag}` : null,
+		style.preferredSizes?.length
+			? `previously kept sizes: ${style.preferredSizes.join(", ")}`
+			: null,
+	]
+		.filter(Boolean)
+		.join(", ");
+
 	const candidates = shortlist
 		.map((c, i) => `${i + 1}. ${candidateLine(c)}`)
 		.join("\n");
 
 	return `Customer profile: ${profile}
+Appointment style context: ${styleLines || "none provided"}
 
 Candidate jeans (pre-scored shortlist):
 ${candidates}
@@ -101,6 +131,7 @@ Return the best ${topN} candidates, ranked 1 (best) to ${topN}, with a rationale
 /** Re-rank the shortlist with Claude, or fall back to the rule-based order. */
 export async function rerank(
 	input: FitProfile,
+	style: StyleContext,
 	shortlist: ScoredCandidate[],
 	topN = 5,
 ): Promise<RerankResult> {
@@ -126,7 +157,10 @@ export async function rerank(
 				},
 			],
 			messages: [
-				{ role: "user", content: buildUserPrompt(input, shortlist, topN) },
+				{
+					role: "user",
+					content: buildUserPrompt(input, style, shortlist, topN),
+				},
 			],
 		});
 

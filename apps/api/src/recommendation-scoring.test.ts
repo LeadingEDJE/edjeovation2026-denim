@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
 	type FitProfile,
+	parseColors,
 	rankCandidates,
 	scoreProduct,
 	targetLength,
@@ -85,6 +86,49 @@ describe("scoreProduct", () => {
 			product({ fit: "straight", sizes: ["40"] }),
 		).score;
 		expect(withSize).toBeGreaterThan(withoutSize);
+	});
+});
+
+describe("parseColors", () => {
+	it("splits free-text color strings into normalized tokens", () => {
+		expect(parseColors("indigo, black")).toEqual(["indigo", "black"]);
+		expect(parseColors("light wash and ecru")).toEqual([
+			"light",
+			"wash",
+			"ecru",
+		]);
+		expect(parseColors("")).toEqual([]);
+	});
+});
+
+describe("color scoring", () => {
+	const base = product({
+		fit: "straight",
+		stretch: "comfort-stretch",
+		colors: ["indigo", "medium wash", "no fade black"],
+	});
+
+	it("rewards a focus-color match and penalizes an avoid-color match", () => {
+		const neutral = scoreProduct(input, base).score;
+		const focus = scoreProduct(
+			{ ...input, focusColors: ["indigo"] },
+			base,
+		).score;
+		const avoid = scoreProduct(
+			{ ...input, avoidColors: ["black"] },
+			base,
+		).score;
+		expect(focus).toBeGreaterThan(neutral);
+		expect(avoid).toBeLessThan(neutral);
+	});
+
+	it("ignores colors that are neither focus nor avoid", () => {
+		const neutral = scoreProduct(input, base).score;
+		const unrelated = scoreProduct(
+			{ ...input, focusColors: ["lavender"], avoidColors: ["olive"] },
+			base,
+		).score;
+		expect(unrelated).toBeCloseTo(neutral, 5);
 	});
 });
 

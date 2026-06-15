@@ -1,6 +1,12 @@
 import { randomUUID } from "node:crypto";
 import type { FastifyInstance } from "fastify";
+import { rerank, type StyleContext } from "./claude-reranker.js";
 import { pool } from "./db.js";
+import {
+	parseColors,
+	type RecommendationContext,
+	rankCandidates,
+} from "./recommendation-scoring.js";
 import {
 	fetchThirdPartyOrderHistory,
 	fetchThirdPartyStylist,
@@ -1157,6 +1163,79 @@ export async function registerRoutes(app: FastifyInstance) {
 					.code(502)
 					.send({ message: "Unable to cancel appointment" });
 			}
+		},
+	);
+
+	// Hybrid catalog recommendations for a specific appointment: rule-based
+	// scoring (fit/stretch/size + focus/avoid colors) shortlists denim, then
+	// Claude re-ranks with the appointment's occasion/style/muse context.
+	app.get(
+		"/api/appointments/:appointmentId/recommendations",
+		async (request, reply) => {
+			const { appointmentId } = request.params as { appointmentId: string };
+
+			const appointmentResult = await pool.query(
+				"SELECT * FROM appointments WHERE id = $1",
+				[appointmentId],
+			);
+			if (!appointmentResult.rowCount) {
+				return reply.code(404).send({ message: "Appointment not found" });
+			}
+			const appointment = mapAppointment(appointmentResult.rows[0]);
+
+			let customer: CurrentUser;
+			try {
+				customer = await fetchThirdPartyUser(appointment.customerId);
+			} catch (error) {
+				request.log.error(error);
+				return reply
+					.code(502)
+					.send({ message: "Unable to load customer profile" });
+			}
+
+			const context: RecommendationContext = {
+				waistInches: customer.measurements.waistInches,
+				inseamInches: customer.measurements.inseamInches,
+				fitPreference: customer.preferences.fitPreference,
+				stretchPreference: customer.preferences.stretchPreference,
+				focusColors: parseColors(appointment.focusColors),
+				avoidColors: parseColors(appointment.avoidColors),
+			};
+
+			const catalogResult = await pool.query(
+				"SELECT * FROM catalog_products WHERE fit IS NOT NULL",
+			);
+			const candidates = catalogResult.rows.map(mapCatalogProduct);
+			const shortlist = rankCandidates(context, candidates, 10);
+
+			const style: StyleContext = {
+				occasion: appointment.occasion,
+				focusColors: appointment.focusColors,
+				avoidColors: appointment.avoidColors,
+				styleKeywords: appointment.styleKeywords,
+				museTag: appointment.museTag,
+				preferredSizes: appointment.orderHistorySummary.preferredSizes,
+			};
+			const reranked = await rerank(context, style, shortlist, 5);
+
+			const byId = new Map(shortlist.map((c) => [c.product.productId, c]));
+			const recommendations = reranked.rankings.map((r) => {
+				const scored = byId.get(r.productId);
+				return {
+					rank: r.rank,
+					rationale: r.rationale,
+					score: scored ? Number(scored.score.toFixed(3)) : null,
+					product: scored?.product ?? null,
+				};
+			});
+
+			return {
+				appointmentId,
+				engine: reranked.engine,
+				summary: reranked.summary,
+				candidatesConsidered: candidates.length,
+				recommendations,
+			};
 		},
 	);
 

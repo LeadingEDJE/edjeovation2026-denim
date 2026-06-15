@@ -1,7 +1,12 @@
-import { CalendarClock, RefreshCw } from "lucide-react";
+import { CalendarClock, RefreshCw, Sparkles } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
-import { type Appointment, listAppointments } from "./api";
+import {
+	type Appointment,
+	type AppointmentRecommendations,
+	getAppointmentRecommendations,
+	listAppointments,
+} from "./api";
 import "./styles.css";
 
 function App() {
@@ -65,37 +70,7 @@ function App() {
 					</div>
 					<div className="appointmentList">
 						{appointments.map((appointment) => (
-							<article className="appointmentRow" key={appointment.id}>
-								<div className="appointmentHeading">
-									<div>
-										<strong>{appointment.customerName}</strong>
-										<span>
-											{new Date(appointment.slotStart).toLocaleString()} with{" "}
-											{appointment.assignedStylist.displayName}
-										</span>
-									</div>
-									<span className="stylistTitle">
-										{appointment.assignedStylist.title}
-									</span>
-								</div>
-								<div className="prepTags">
-									<span>{appointment.museTag}</span>
-									<span>{appointment.occasion}</span>
-								</div>
-								<p>
-									Focus: {appointment.focusColors || "None specified"} / Avoid:{" "}
-									{appointment.avoidColors || "None specified"}
-								</p>
-								<p>Style signals: {appointment.styleKeywords.join(", ")}</p>
-								<p>
-									Order signal: {appointment.orderHistorySummary.denimItems}{" "}
-									denim items, {appointment.orderHistorySummary.returnedItems}{" "}
-									returns, preferred sizes{" "}
-									{appointment.orderHistorySummary.preferredSizes.join(", ") ||
-										"unknown"}
-								</p>
-								{appointment.guidance ? <p>{appointment.guidance}</p> : null}
-							</article>
+							<AppointmentCard key={appointment.id} appointment={appointment} />
 						))}
 						{appointments.length === 0 ? (
 							<p className="empty">No guided appointments yet.</p>
@@ -104,6 +79,107 @@ function App() {
 				</section>
 			</section>
 		</main>
+	);
+}
+
+function AppointmentCard({ appointment }: { appointment: Appointment }) {
+	const [recs, setRecs] = useState<AppointmentRecommendations | null>(null);
+	const [loading, setLoading] = useState(false);
+	const [error, setError] = useState<string | null>(null);
+
+	async function loadSuggestions() {
+		setLoading(true);
+		setError(null);
+		try {
+			setRecs(await getAppointmentRecommendations(appointment.id));
+		} catch (err) {
+			setError(
+				err instanceof Error ? err.message : "Unable to load suggestions",
+			);
+		} finally {
+			setLoading(false);
+		}
+	}
+
+	return (
+		<article className="appointmentRow">
+			<div className="appointmentHeading">
+				<div>
+					<strong>{appointment.customerName}</strong>
+					<span>
+						{new Date(appointment.slotStart).toLocaleString()} with{" "}
+						{appointment.assignedStylist.displayName}
+					</span>
+				</div>
+				<span className="stylistTitle">
+					{appointment.assignedStylist.title}
+				</span>
+			</div>
+			<div className="prepTags">
+				<span>{appointment.museTag}</span>
+				<span>{appointment.occasion}</span>
+			</div>
+			<p>
+				Focus: {appointment.focusColors || "None specified"} / Avoid:{" "}
+				{appointment.avoidColors || "None specified"}
+			</p>
+			<p>Style signals: {appointment.styleKeywords.join(", ")}</p>
+			<p>
+				Order signal: {appointment.orderHistorySummary.denimItems} denim items,{" "}
+				{appointment.orderHistorySummary.returnedItems} returns, preferred sizes{" "}
+				{appointment.orderHistorySummary.preferredSizes.join(", ") || "unknown"}
+			</p>
+			{appointment.guidance ? <p>{appointment.guidance}</p> : null}
+
+			<div className="suggestions">
+				<div className="suggestionsHeader">
+					<Sparkles size={14} />
+					<span>Suggested denim</span>
+					{recs ? (
+						<span className={`engineBadge ${recs.engine}`}>
+							{recs.engine === "claude" ? "Claude re-ranked" : "Rule-based"}
+						</span>
+					) : null}
+				</div>
+				{recs ? (
+					<>
+						<p className="suggestionSummary">{recs.summary}</p>
+						<ol className="suggestionList">
+							{recs.recommendations.map((rec) => (
+								<li key={rec.rank}>
+									<a
+										href={rec.product?.productUrl}
+										target="_blank"
+										rel="noreferrer"
+									>
+										{rec.product?.name ?? "Unknown product"}
+									</a>
+									<small>
+										{[rec.product?.fit, rec.product?.rise, rec.product?.stretch]
+											.filter(Boolean)
+											.join(" · ")}
+										{rec.product?.price != null
+											? ` · $${rec.product.price}`
+											: ""}
+									</small>
+									<p>{rec.rationale}</p>
+								</li>
+							))}
+						</ol>
+					</>
+				) : (
+					<button
+						type="button"
+						className="suggestButton"
+						onClick={loadSuggestions}
+						disabled={loading}
+					>
+						{loading ? "Finding denim…" : "Suggest denim"}
+					</button>
+				)}
+				{error ? <p className="empty">{error}</p> : null}
+			</div>
+		</article>
 	);
 }
 

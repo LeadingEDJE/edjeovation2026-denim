@@ -17,11 +17,36 @@ export type FitProfile = {
 	stretchPreference: "rigid" | "comfort-stretch" | "high-stretch";
 };
 
+// Fit profile plus the appointment's color context. Color fields are optional
+// so a bare FitProfile still scores (fit/stretch/size only).
+export type RecommendationContext = FitProfile & {
+	focusColors?: string[];
+	avoidColors?: string[];
+};
+
 export type ScoredCandidate = {
 	product: CatalogProduct;
 	score: number; // 0..1
 	reasons: string[];
 };
+
+/** Split a free-text color string ("indigo, black") into normalized tokens. */
+export function parseColors(text: string): string[] {
+	return Array.from(
+		new Set(
+			text
+				.toLowerCase()
+				.split(/[\s,/&]+|\band\b/)
+				.map((t) => t.trim())
+				.filter((t) => t.length >= 3),
+		),
+	);
+}
+
+function colorMatches(productColors: string[], tokens: string[]): boolean {
+	const lower = productColors.map((c) => c.toLowerCase());
+	return tokens.some((t) => lower.some((c) => c.includes(t)));
+}
 
 // Fits one step away on the skinny→wide spectrum still partially satisfy a
 // preference (e.g. someone who wants "straight" is often happy in "slim").
@@ -40,6 +65,8 @@ const WEIGHTS = {
 	stretchOther: 0.05,
 	waistAvailable: 0.2,
 	lengthAvailable: 0.1,
+	colorFocus: 0.12,
+	colorAvoid: 0.3, // penalty
 };
 
 /** A&F jean waist sizes are labeled in inches, so round the body measurement. */
@@ -57,7 +84,7 @@ export function targetLength(
 }
 
 export function scoreProduct(
-	input: FitProfile,
+	input: RecommendationContext,
 	product: CatalogProduct,
 ): ScoredCandidate {
 	let score = 0;
@@ -94,12 +121,27 @@ export function scoreProduct(
 		reasons.push(`Offered in ${length} length for your inseam`);
 	}
 
-	return { product, score: Math.min(1, score), reasons };
+	if (
+		input.focusColors?.length &&
+		colorMatches(product.colors, input.focusColors)
+	) {
+		score += WEIGHTS.colorFocus;
+		reasons.push("Comes in one of the requested focus colors");
+	}
+	if (
+		input.avoidColors?.length &&
+		colorMatches(product.colors, input.avoidColors)
+	) {
+		score -= WEIGHTS.colorAvoid;
+		reasons.push("Note: also offered in a color to avoid");
+	}
+
+	return { product, score: Math.max(0, Math.min(1, score)), reasons };
 }
 
 /** Score every candidate and return the top `limit`, highest score first. */
 export function rankCandidates(
-	input: FitProfile,
+	input: RecommendationContext,
 	products: CatalogProduct[],
 	limit = 10,
 ): ScoredCandidate[] {
