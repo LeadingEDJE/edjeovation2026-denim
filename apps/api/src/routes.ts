@@ -4,6 +4,66 @@ import { pool } from "./db.js";
 import { fetchThirdPartyRecommendation, toRecommendation } from "./recommendations.js";
 import { fittingInputSchema, type DenimRecommendation, type FittingInput, type FittingSession } from "./types.js";
 
+const fitPreferenceEnum = ["skinny", "slim", "straight", "relaxed", "wide"] as const;
+const stretchPreferenceEnum = ["rigid", "comfort-stretch", "high-stretch"] as const;
+
+const fittingInputJsonSchema = {
+  type: "object",
+  required: [
+    "customerName",
+    "heightInches",
+    "waistInches",
+    "hipInches",
+    "inseamInches",
+    "fitPreference",
+    "stretchPreference"
+  ],
+  properties: {
+    customerName: { type: "string", minLength: 1, maxLength: 120 },
+    heightInches: { type: "integer", minimum: 48, maximum: 90 },
+    waistInches: { type: "number", minimum: 20, maximum: 70 },
+    hipInches: { type: "number", minimum: 28, maximum: 80 },
+    inseamInches: { type: "number", minimum: 20, maximum: 40 },
+    fitPreference: { type: "string", enum: fitPreferenceEnum },
+    stretchPreference: { type: "string", enum: stretchPreferenceEnum }
+  }
+} as const;
+
+const fittingSessionJsonSchema = {
+  allOf: [
+    fittingInputJsonSchema,
+    {
+      type: "object",
+      required: ["id", "createdAt"],
+      properties: {
+        id: { type: "string", format: "uuid" },
+        createdAt: { type: "string", format: "date-time" }
+      }
+    }
+  ]
+} as const;
+
+const recommendationJsonSchema = {
+  type: "object",
+  required: ["id", "sessionId", "styleName", "sizeLabel", "confidence", "rationale", "createdAt"],
+  properties: {
+    id: { type: "string", format: "uuid" },
+    sessionId: { type: "string", format: "uuid" },
+    styleName: { type: "string" },
+    sizeLabel: { type: "string" },
+    confidence: { type: "number", minimum: 0, maximum: 1 },
+    rationale: { type: "string" },
+    createdAt: { type: "string", format: "date-time" }
+  }
+} as const;
+
+const errorJsonSchema = {
+  type: "object",
+  properties: {
+    message: { type: "string" }
+  }
+} as const;
+
 function mapSession(row: Record<string, unknown>): FittingSession {
   return {
     id: String(row.id),
@@ -31,9 +91,44 @@ function mapRecommendation(row: Record<string, unknown>): DenimRecommendation {
 }
 
 export async function registerRoutes(app: FastifyInstance) {
-  app.get("/health", async () => ({ ok: true }));
+  app.get(
+    "/health",
+    {
+      schema: {
+        tags: ["health"],
+        summary: "Check API health",
+        response: {
+          200: {
+            type: "object",
+            required: ["ok"],
+            properties: {
+              ok: { type: "boolean" }
+            }
+          }
+        }
+      }
+    },
+    async () => ({ ok: true })
+  );
 
-  app.get("/api/fitting-sessions", async () => {
+  app.get("/api/fitting-sessions", {
+    schema: {
+      tags: ["fitting-sessions"],
+      summary: "List recent fitting sessions",
+      response: {
+        200: {
+          type: "object",
+          required: ["sessions"],
+          properties: {
+            sessions: {
+              type: "array",
+              items: fittingSessionJsonSchema
+            }
+          }
+        }
+      }
+    }
+  }, async () => {
     const result = await pool.query(`
       SELECT *
       FROM fitting_sessions
@@ -44,7 +139,33 @@ export async function registerRoutes(app: FastifyInstance) {
     return { sessions: result.rows.map(mapSession) };
   });
 
-  app.get("/api/fitting-sessions/:id", async (request, reply) => {
+  app.get("/api/fitting-sessions/:id", {
+    schema: {
+      tags: ["fitting-sessions"],
+      summary: "Get a fitting session and its recommendations",
+      params: {
+        type: "object",
+        required: ["id"],
+        properties: {
+          id: { type: "string", format: "uuid" }
+        }
+      },
+      response: {
+        200: {
+          type: "object",
+          required: ["session", "recommendations"],
+          properties: {
+            session: fittingSessionJsonSchema,
+            recommendations: {
+              type: "array",
+              items: recommendationJsonSchema
+            }
+          }
+        },
+        404: errorJsonSchema
+      }
+    }
+  }, async (request, reply) => {
     const { id } = request.params as { id: string };
     const session = await pool.query("SELECT * FROM fitting_sessions WHERE id = $1", [id]);
 
@@ -63,7 +184,31 @@ export async function registerRoutes(app: FastifyInstance) {
     };
   });
 
-  app.post("/api/fitting-sessions", async (request, reply) => {
+  app.post("/api/fitting-sessions", {
+    schema: {
+      tags: ["fitting-sessions"],
+      summary: "Create a fitting session and recommendation",
+      body: fittingInputJsonSchema,
+      response: {
+        201: {
+          type: "object",
+          required: ["session", "recommendation"],
+          properties: {
+            session: fittingSessionJsonSchema,
+            recommendation: recommendationJsonSchema
+          }
+        },
+        400: {
+          type: "object",
+          required: ["message"],
+          properties: {
+            message: { type: "string" },
+            issues: { type: "array" }
+          }
+        }
+      }
+    }
+  }, async (request, reply) => {
     const parsed = fittingInputSchema.safeParse(request.body);
 
     if (!parsed.success) {

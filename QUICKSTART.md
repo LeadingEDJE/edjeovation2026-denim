@@ -33,6 +33,8 @@ Then open:
 
 - Web UI: `http://localhost:5173`
 - API health: `http://localhost:4000/health`
+- API docs: `http://localhost:4000/docs`
+- OpenAPI spec: `http://localhost:4000/openapi.json`
 - WireMock admin: `http://localhost:8080/__admin`
 
 The API container runs the database migration automatically on startup.
@@ -176,6 +178,7 @@ apps/ios/DenimFit/DenimFit.xcodeproj
 | --- | --- | --- | --- |
 | Web UI | `web` | `http://localhost:5173` | Fitting-session form and recommendation display |
 | API | `api` | `http://localhost:4000` | Shared API for web and iOS |
+| API docs | `api` | `http://localhost:4000/docs` | Interactive Swagger UI |
 | PostgreSQL | `postgres` | `localhost:5432` | Data storage |
 | WireMock | `wiremock` | `http://localhost:8080` | Mock third-party recommendation service |
 
@@ -189,6 +192,7 @@ Database defaults:
 
 - `docker-compose.yml`: full local stack definition
 - `apps/api`: TypeScript API source and Dockerfile
+- `apps/api/src/routes.ts`: API routes and OpenAPI route schemas
 - `apps/web`: React web UI source and Dockerfile
 - `apps/ios/DenimFit`: SwiftUI iOS project
 - `infra/db/init.sql`: database schema
