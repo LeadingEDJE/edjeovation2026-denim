@@ -188,8 +188,12 @@ export async function rerank(
 
 		if (rankings.length === 0) return fallback(shortlist, topN);
 		return { engine: "claude", summary: parsed.summary, rankings };
-	} catch {
-		// Any SDK/parse/validation failure degrades gracefully to the rule-based order.
+	} catch (err) {
+		// Any SDK/parse/validation failure degrades gracefully to the rule-based
+		// order — but log why, so a bad key / model can be diagnosed.
+		console.warn(
+			`Claude re-rank failed, using rule-based fallback: ${(err as Error).message}`,
+		);
 		return fallback(shortlist, topN);
 	}
 }
