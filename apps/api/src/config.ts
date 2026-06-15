@@ -8,5 +8,8 @@ export const config = {
 	// Catalog-backed recommendation engine. When ANTHROPIC_API_KEY is unset the
 	// engine falls back to the rule-based ranking, so the endpoint works offline.
 	anthropicApiKey: process.env.ANTHROPIC_API_KEY ?? "",
-	recommenderModel: process.env.RECOMMENDER_MODEL ?? "claude-opus-4-8",
+	// Optional: point the Anthropic SDK at a compatible proxy (e.g. a LiteLLM
+	// gateway). Empty string → the SDK's default api.anthropic.com.
+	anthropicBaseUrl: process.env.ANTHROPIC_BASE_URL ?? "",
+	recommenderModel: process.env.RECOMMENDER_MODEL || "claude-opus-4-8",
 };

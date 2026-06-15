@@ -1,4 +1,4 @@
-import { ArrowLeft, CheckCircle2, Save } from "lucide-react";
+import { ArrowLeft, CheckCircle2, Save, Sparkles } from "lucide-react";
 import type { Appointment } from "../api";
 import { formatAppointmentDateTime, statusLabel } from "../formatters";
 
@@ -13,6 +13,7 @@ type AppointmentDetailProps = {
 	onSessionNoteChange: (appointmentId: string, value: string) => void;
 	onSaveNotes: (appointment: Appointment) => void;
 	onCompleteSession: (appointment: Appointment) => void;
+	onRegenerate: (appointment: Appointment) => void;
 };
 
 export function AppointmentDetail({
@@ -23,6 +24,7 @@ export function AppointmentDetail({
 	onSessionNoteChange,
 	onSaveNotes,
 	onCompleteSession,
+	onRegenerate,
 }: AppointmentDetailProps) {
 	const canEdit = appointment.status === "scheduled" && !isLoading;
 
@@ -105,7 +107,11 @@ export function AppointmentDetail({
 					/>
 				</DetailSection>
 
-				<SuggestedProducts appointment={appointment} />
+				<SuggestedProducts
+					appointment={appointment}
+					canEdit={canEdit}
+					onRegenerate={onRegenerate}
+				/>
 			</div>
 
 			<section className="mt-4 grid gap-2">
@@ -174,14 +180,33 @@ function DetailItem({ label, value }: { label: string; value: string }) {
 	);
 }
 
-function SuggestedProducts({ appointment }: { appointment: Appointment }) {
+function SuggestedProducts({
+	appointment,
+	canEdit,
+	onRegenerate,
+}: {
+	appointment: Appointment;
+	canEdit: boolean;
+	onRegenerate: (appointment: Appointment) => void;
+}) {
 	return (
 		<section className="grid gap-3 rounded-lg border border-suggestline border-dashed bg-suggest p-3">
-			<div className="flex items-center justify-between">
+			<div className="flex items-center justify-between gap-2">
 				<h3 className="font-semibold text-base">Suggested products</h3>
-				<span className="min-w-[24px] rounded-full bg-ink px-2 py-0.5 text-center font-extrabold text-[0.78rem] text-white">
-					{appointment.suggestedProducts.length}
-				</span>
+				<div className="flex items-center gap-2">
+					<button
+						type="button"
+						className={`${buttonBase} border border-control bg-surface text-[0.8rem] text-ink transition-colors hover:bg-canvas`}
+						onClick={() => onRegenerate(appointment)}
+						disabled={!canEdit}
+					>
+						<Sparkles size={14} />
+						Regenerate
+					</button>
+					<span className="min-w-[24px] rounded-full bg-ink px-2 py-0.5 text-center font-extrabold text-[0.78rem] text-white">
+						{appointment.suggestedProducts.length}
+					</span>
+				</div>
 			</div>
 			{appointment.suggestedProducts.length === 0 ? (
 				<p className="text-[0.9rem] text-muted">
