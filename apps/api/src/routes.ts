@@ -14,8 +14,8 @@ import {
 	type Appointment,
 	type AppointmentSlot,
 	type CatalogProduct,
-	catalogQuerySchema,
 	type CreateAppointmentInput,
+	catalogQuerySchema,
 	type MuseTag,
 	type OrderHistory,
 	type OrderHistoryScenario,
@@ -85,12 +85,7 @@ const currentUserJsonSchema = {
 		displayName: { type: "string" },
 		measurements: {
 			type: "object",
-			required: [
-				"heightInches",
-				"waistInches",
-				"hipInches",
-				"inseamInches",
-			],
+			required: ["heightInches", "waistInches", "hipInches", "inseamInches"],
 			properties: {
 				heightInches: { type: "integer" },
 				waistInches: { type: "number" },
@@ -316,13 +311,7 @@ const stylistAvailabilityJsonSchema = {
 
 const appointmentSlotJsonSchema = {
 	type: "object",
-	required: [
-		"slotStart",
-		"slotEnd",
-		"date",
-		"time",
-		"availableStylistCount",
-	],
+	required: ["slotStart", "slotEnd", "date", "time", "availableStylistCount"],
 	properties: {
 		slotStart: { type: "string", format: "date-time" },
 		slotEnd: { type: "string", format: "date-time" },
@@ -558,7 +547,9 @@ function summarizeOrderHistory(orderHistory: OrderHistory) {
 	const denimItems = items.filter((item) => item.category === "denim");
 	const returnedItems = items.filter((item) => !item.kept || item.returnReason);
 	const preferredSizes = Array.from(
-		new Set(denimItems.filter((item) => item.kept).map((item) => item.sizeLabel)),
+		new Set(
+			denimItems.filter((item) => item.kept).map((item) => item.sizeLabel),
+		),
 	);
 
 	return {
@@ -922,7 +913,8 @@ export async function registerRoutes(app: FastifyInstance) {
 		{
 			schema: {
 				tags: ["appointments"],
-				summary: "Get the mocked customer's upcoming guided fitting appointment",
+				summary:
+					"Get the mocked customer's upcoming guided fitting appointment",
 				response: {
 					200: {
 						type: "object",
@@ -1064,11 +1056,14 @@ export async function registerRoutes(app: FastifyInstance) {
 				const slots = createAppointmentSlots(availability);
 				const selectedSlot = slots.find(
 					(slot) =>
-						normalizeSlotKey(slot.slotStart) === normalizeSlotKey(input.slotStart),
+						normalizeSlotKey(slot.slotStart) ===
+						normalizeSlotKey(input.slotStart),
 				);
 
 				if (!selectedSlot) {
-					return reply.code(409).send({ message: "Appointment slot is no longer available" });
+					return reply
+						.code(409)
+						.send({ message: "Appointment slot is no longer available" });
 				}
 
 				const availabilityDay = findAvailabilityDayForSlot(
@@ -1076,7 +1071,9 @@ export async function registerRoutes(app: FastifyInstance) {
 					selectedSlot.slotStart,
 				);
 				if (!availabilityDay) {
-					return reply.code(409).send({ message: "Appointment slot is no longer available" });
+					return reply
+						.code(409)
+						.send({ message: "Appointment slot is no longer available" });
 				}
 
 				const museTag = mapMuseTag(input.styleKeywords);
@@ -1087,7 +1084,9 @@ export async function registerRoutes(app: FastifyInstance) {
 				);
 
 				if (!assignedStylist) {
-					return reply.code(409).send({ message: "No stylist is available for the selected slot" });
+					return reply
+						.code(409)
+						.send({ message: "No stylist is available for the selected slot" });
 				}
 
 				const orderHistory = await fetchThirdPartyOrderHistory(
@@ -1519,5 +1518,4 @@ export async function registerRoutes(app: FastifyInstance) {
 			}
 		},
 	);
-
 }
