@@ -8,6 +8,8 @@ dist/
 DerivedData/
 *.xcuserstate
 .idea/
-.vscode/
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
 apps/ios/DenimFit/DenimFit.xcodeproj/project.xcworkspace/contents.xcworkspacedata
 apps/ios/DenimFit/DenimFit.xcodeproj/xcuserdata/
