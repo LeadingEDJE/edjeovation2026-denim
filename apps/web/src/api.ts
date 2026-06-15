@@ -26,6 +26,38 @@ export type DenimRecommendation = {
 	createdAt: string;
 };
 
+export type CatalogProduct = {
+	productId: string;
+	source: string;
+	name: string;
+	category: string | null;
+	productUrl: string;
+	imageUrl: string | null;
+	description: string | null;
+	price: number | null;
+	currency: string | null;
+	fit: string | null;
+	rise: string | null;
+	stretch: string | null;
+	sizes: string[];
+	colors: string[];
+	scrapedAt: string;
+};
+
+export type RankedRecommendation = {
+	rank: number;
+	rationale: string;
+	score: number | null;
+	product: CatalogProduct | null;
+};
+
+export type CatalogRecommendations = {
+	engine: "claude" | "rule-based";
+	summary: string;
+	candidatesConsidered: number;
+	recommendations: RankedRecommendation[];
+};
+
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:4000";
 
 export async function listSessions(): Promise<FittingSession[]> {
@@ -51,6 +83,22 @@ export async function createSession(input: FittingInput): Promise<{
 
 	if (!response.ok) {
 		throw new Error("Could not create fitting session");
+	}
+
+	return response.json();
+}
+
+export async function getCatalogRecommendations(
+	input: FittingInput,
+): Promise<CatalogRecommendations> {
+	const response = await fetch(`${apiBaseUrl}/api/recommendations`, {
+		method: "POST",
+		headers: { "content-type": "application/json" },
+		body: JSON.stringify(input),
+	});
+
+	if (!response.ok) {
+		throw new Error("Could not load catalog recommendations");
 	}
 
 	return response.json();

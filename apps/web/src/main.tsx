@@ -1,12 +1,14 @@
-import { RefreshCw, Ruler, Send } from "lucide-react";
+import { RefreshCw, Ruler, Send, Sparkles } from "lucide-react";
 import type React from "react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { createRoot } from "react-dom/client";
 import {
+	type CatalogRecommendations,
 	createSession,
 	type DenimRecommendation,
 	type FittingInput,
 	type FittingSession,
+	getCatalogRecommendations,
 	listSessions,
 } from "./api";
 import "./styles.css";
@@ -26,6 +28,7 @@ function App() {
 	const [input, setInput] = useState<FittingInput>(initialInput);
 	const [recommendation, setRecommendation] =
 		useState<DenimRecommendation | null>(null);
+	const [catalog, setCatalog] = useState<CatalogRecommendations | null>(null);
 	const [status, setStatus] = useState("Ready");
 	const [isLoading, setIsLoading] = useState(false);
 
@@ -49,10 +52,15 @@ function App() {
 		event.preventDefault();
 		setIsLoading(true);
 		try {
-			const result = await createSession(input);
+			// Existing WireMock-backed session + the catalog-backed engine in parallel.
+			const [result, catalogResult] = await Promise.all([
+				createSession(input),
+				getCatalogRecommendations(input),
+			]);
 			setRecommendation(result.recommendation);
+			setCatalog(catalogResult);
 			setSessions((current) => [result.session, ...current]);
-			setStatus("Recommendation created");
+			setStatus(`Recommendation created · ${catalogResult.engine} engine`);
 		} catch (error) {
 			setStatus(
 				error instanceof Error
@@ -185,6 +193,64 @@ function App() {
 					) : (
 						<p className="empty">
 							Create a fitting session to see a WireMock-backed recommendation.
+						</p>
+					)}
+				</section>
+
+				<section className="panel catalogPanel">
+					<div className="panelHeader">
+						<Sparkles size={18} />
+						<h2>Catalog matches</h2>
+						{catalog ? (
+							<span className={`engineBadge ${catalog.engine}`}>
+								{catalog.engine === "claude"
+									? "Claude re-ranked"
+									: "Rule-based"}
+							</span>
+						) : null}
+					</div>
+					{catalog ? (
+						<>
+							<p className="catalogSummary">{catalog.summary}</p>
+							<div className="catalogList">
+								{catalog.recommendations.map((rec) => (
+									<article className="catalogMatch" key={rec.rank}>
+										<span className="rank">#{rec.rank}</span>
+										<div className="matchBody">
+											<a
+												href={rec.product?.productUrl}
+												target="_blank"
+												rel="noreferrer"
+											>
+												{rec.product?.name ?? "Unknown product"}
+											</a>
+											<small className="matchMeta">
+												{[
+													rec.product?.fit,
+													rec.product?.rise,
+													rec.product?.stretch,
+												]
+													.filter(Boolean)
+													.join(" · ")}
+												{rec.product?.price != null
+													? ` · $${rec.product.price}`
+													: ""}
+											</small>
+											<p className="matchRationale">{rec.rationale}</p>
+										</div>
+										{rec.score != null ? (
+											<span className="matchScore">{rec.score.toFixed(2)}</span>
+										) : null}
+									</article>
+								))}
+							</div>
+							<small className="catalogFootnote">
+								{catalog.candidatesConsidered} catalog items considered
+							</small>
+						</>
+					) : (
+						<p className="empty">
+							Create a fitting session to see catalog-backed matches.
 						</p>
 					)}
 				</section>

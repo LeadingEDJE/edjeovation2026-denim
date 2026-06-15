@@ -195,6 +195,88 @@ meter {
 	color: #6c7480;
 }
 
+.engineBadge {
+	border-radius: 999px;
+	font-size: 0.7rem;
+	font-weight: 700;
+	margin-left: auto;
+	padding: 3px 10px;
+	text-transform: uppercase;
+}
+
+.engineBadge.claude {
+	background: #e7dafe;
+	color: #5b34b3;
+}
+
+.engineBadge.rule-based {
+	background: #e7ece4;
+	color: #4a6353;
+}
+
+.catalogSummary {
+	color: #4a4f57;
+	font-style: italic;
+	margin: 0 0 12px;
+}
+
+.catalogList {
+	display: grid;
+	gap: 12px;
+}
+
+.catalogMatch {
+	align-items: start;
+	border: 1px solid #ece4d8;
+	border-radius: 12px;
+	display: grid;
+	gap: 10px;
+	grid-template-columns: auto 1fr auto;
+	padding: 12px;
+}
+
+.catalogMatch .rank {
+	color: #275c63;
+	font-weight: 800;
+}
+
+.matchBody {
+	display: grid;
+	gap: 4px;
+}
+
+.matchBody a {
+	color: #1f2933;
+	font-weight: 700;
+	text-decoration: none;
+}
+
+.matchBody a:hover {
+	text-decoration: underline;
+}
+
+.matchMeta {
+	color: #6c7480;
+	text-transform: capitalize;
+}
+
+.matchRationale {
+	color: #4a4f57;
+	margin: 2px 0 0;
+}
+
+.matchScore {
+	color: #8a6d3b;
+	font-variant-numeric: tabular-nums;
+	font-weight: 700;
+}
+
+.catalogFootnote {
+	color: #9aa0a8;
+	display: block;
+	margin-top: 10px;
+}
+
 @media (max-width: 820px) {
 	.shell {
 		padding: 18px;

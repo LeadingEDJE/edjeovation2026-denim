@@ -1,6 +1,8 @@
 import { randomUUID } from "node:crypto";
 import type { FastifyInstance } from "fastify";
+import { rerank } from "./claude-reranker.js";
 import { pool } from "./db.js";
+import { rankCandidates } from "./recommendation-scoring.js";
 import {
 	fetchThirdPartyOrderHistory,
 	fetchThirdPartyRecommendation,
@@ -437,6 +439,48 @@ export async function registerRoutes(app: FastifyInstance) {
 		}
 
 		return { product: mapCatalogProduct(result.rows[0]) };
+	});
+
+	// Hybrid catalog-backed recommendations: rule-based scoring shortlists
+	// denim candidates, then Claude re-ranks the top matches with rationale.
+	app.post("/api/recommendations", async (request, reply) => {
+		const parsed = fittingInputSchema.safeParse(request.body);
+		if (!parsed.success) {
+			return reply.code(400).send({
+				message: "Invalid fitting input",
+				issues: parsed.error.issues,
+			});
+		}
+		const input = parsed.data;
+
+		// Candidate pool: catalog items with a derivable fit (the denim/bottoms
+		// where fit/rise/stretch actually apply).
+		const result = await pool.query(
+			"SELECT * FROM catalog_products WHERE fit IS NOT NULL",
+		);
+		const candidates = result.rows.map(mapCatalogProduct);
+
+		const shortlist = rankCandidates(input, candidates, 10);
+		const reranked = await rerank(input, shortlist, 5);
+
+		// Merge the ranking (productId/rank/rationale) back with product + score.
+		const byId = new Map(shortlist.map((c) => [c.product.productId, c]));
+		const recommendations = reranked.rankings.map((r) => {
+			const scored = byId.get(r.productId);
+			return {
+				rank: r.rank,
+				rationale: r.rationale,
+				score: scored ? Number(scored.score.toFixed(3)) : null,
+				product: scored?.product ?? null,
+			};
+		});
+
+		return {
+			engine: reranked.engine,
+			summary: reranked.summary,
+			candidatesConsidered: candidates.length,
+			recommendations,
+		};
 	});
 
 	app.get(
