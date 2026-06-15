@@ -24,6 +24,8 @@ For setup and full-stack run instructions, start with [QUICKSTART.md](QUICKSTART
 
 - Web UI: `http://localhost:5173`
 - API health: `http://localhost:4000/health`
+- API docs: `http://localhost:4000/docs`
+- OpenAPI spec: `http://localhost:4000/openapi.json`
 - WireMock admin: `http://localhost:8080/__admin`
 - PostgreSQL: `localhost:5432`, database `denim_fit`, user/password `denim`
 

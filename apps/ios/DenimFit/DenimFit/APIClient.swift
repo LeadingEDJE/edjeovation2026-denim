@@ -1,11 +1,12 @@
 import Foundation
 
-final class APIClient {
+final class APIClient: Sendable {
     private let baseURL = URL(string: "http://localhost:4000")!
-    private let decoder = JSONDecoder()
-    private let encoder = JSONEncoder()
 
     func createSession(input: FittingInput) async throws -> CreateFittingResponse {
+        let decoder = JSONDecoder()
+        let encoder = JSONEncoder()
+
         var request = URLRequest(url: baseURL.appending(path: "/api/fitting-sessions"))
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")

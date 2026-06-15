@@ -1,21 +1,38 @@
 {
-  "name": "edjeovation2026-denim",
-  "private": true,
-  "version": "0.1.0",
-  "workspaces": [
-    "apps/api",
-    "apps/web",
-    "apps/scraper"
-  ],
-  "scripts": {
-    "dev": "npm run dev -w @denim-fit/api & npm run dev -w @denim-fit/web",
-    "dev:api": "npm run dev -w @denim-fit/api",
-    "dev:web": "npm run dev -w @denim-fit/web",
-    "db:migrate": "npm run db:migrate -w @denim-fit/api",
-    "build": "npm run build --workspaces --if-present",
-    "typecheck": "npm run typecheck --workspaces --if-present"
-  },
-  "engines": {
-    "node": ">=24"
-  }
+	"name": "edjeovation2026-denim",
+	"private": true,
+	"version": "0.1.0",
+	"workspaces": [
+		"apps/api",
+		"apps/web",
+		"apps/scraper"
+	],
+	"scripts": {
+		"dev": "npm run dev -w @denim-fit/api & npm run dev -w @denim-fit/web",
+		"dev:api": "npm run dev -w @denim-fit/api",
+		"dev:web": "npm run dev -w @denim-fit/web",
+		"db:migrate": "npm run db:migrate -w @denim-fit/api",
+		"build": "npm run build --workspaces --if-present",
+		"typecheck": "npm run typecheck --workspaces --if-present",
+		"format": "biome format --write .",
+		"lint": "biome lint .",
+		"check": "biome check .",
+		"check:write": "biome check --write .",
+		"test": "vitest run",
+		"test:watch": "vitest",
+		"test:coverage": "vitest run --coverage",
+		"test:e2e": "playwright test",
+		"test:e2e:ui": "playwright test --ui",
+		"test:e2e:report": "playwright show-report"
+	},
+	"engines": {
+		"node": ">=24"
+	},
+	"devDependencies": {
+		"@biomejs/biome": "2.5.0",
+		"@playwright/test": "1.61.0",
+		"@vitest/coverage-v8": "^4.1.9",
+		"jsdom": "^25.0.1",
+		"vitest": "^4.1.9"
+	}
 }

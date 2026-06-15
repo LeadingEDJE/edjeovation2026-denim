@@ -1,0 +1,28 @@
+{
+	"stylist": {
+		"id": "sty_002",
+		"displayName": "Jordan Ellis",
+		"pronouns": "he/him",
+		"title": "Athletic Fit Associate",
+		"store": {
+			"storeId": "anf_soho_001",
+			"name": "Abercrombie & Fitch SoHo",
+			"city": "New York",
+			"state": "NY"
+		},
+		"bio": "Store associate specializing in athletic builds, relaxed denim, and fit choices that preserve movement without looking oversized.",
+		"specialties": ["athletic-builds", "relaxed-denim", "mobility-comfort"],
+		"stylePointOfView": ["easy", "balanced", "weekend-ready"],
+		"supportedFits": ["relaxed", "straight", "wide"],
+		"customerSignals": [
+			"thigh-tightness",
+			"mobility-priority",
+			"comfort-stretch-preference"
+		],
+		"availability": {
+			"status": "busy",
+			"nextAvailableAt": "2026-06-15T20:30:00Z"
+		},
+		"avatarUrl": null
+	}
+}

@@ -15,9 +15,9 @@ The iOS app is a SwiftUI project that runs separately through Xcode and talks to
 
 ## Prerequisites
 
-- Docker Desktop, Podman Desktop, or another local Docker Compose-compatible runtime
+- Docker Desktop, Podman Desktop, or another local runtime with Docker Compose v2 support
 - Node.js 24+ only if you want to run local type checks outside Docker
-- Xcode for the iOS simulator
+- Xcode only if you want to run the iOS simulator app
 
 No local PostgreSQL, WireMock, API server, or web server is required. Compose owns those.
 
@@ -33,6 +33,8 @@ Then open:
 
 - Web UI: `http://localhost:5173`
 - API health: `http://localhost:4000/health`
+- API docs: `http://localhost:4000/docs`
+- OpenAPI spec: `http://localhost:4000/openapi.json`
 - WireMock admin: `http://localhost:8080/__admin`
 
 The API container runs the database migration automatically on startup.
@@ -49,6 +51,18 @@ Check API health:
 
 ```sh
 curl http://localhost:4000/health
+```
+
+Check the OpenAPI spec:
+
+```sh
+curl http://localhost:4000/openapi.json
+```
+
+Open the interactive API docs in a browser:
+
+```text
+http://localhost:4000/docs
 ```
 
 Create a sample fitting session:
@@ -68,6 +82,37 @@ curl -X POST http://localhost:4000/api/fitting-sessions \
 ```
 
 Expected result: a JSON response with a `session` and `recommendation`, including a size like `29W x 30L`.
+
+Load mocked third-party order history through the API:
+
+```sh
+curl 'http://localhost:4000/api/customers/cust_avery_001/order-history?scenario=standard'
+```
+
+Supported order-history scenarios:
+
+- `standard`
+- `denim-heavy`
+- `returns`
+- `empty`
+- `error`
+
+Load simulated store-associate stylist profiles through the API:
+
+```sh
+curl 'http://localhost:4000/api/stylists'
+curl 'http://localhost:4000/api/stylists/sty_001'
+curl 'http://localhost:4000/api/stylists/availability'
+```
+
+Filter stylists by specialty, supported fit, or availability:
+
+```sh
+curl 'http://localhost:4000/api/stylists?specialty=petite-proportions'
+curl 'http://localhost:4000/api/stylists?fit=wide&availability=available'
+```
+
+The mocked stylist availability schedule is rendered by WireMock from the current request date through 9 days after the current date. All stylists are assigned to the same store, with scheduled shifts only between `11:00` and `19:00` on Monday through Thursday.
 
 ## Daily Run Commands
 
@@ -176,6 +221,7 @@ apps/ios/DenimFit/DenimFit.xcodeproj
 | --- | --- | --- | --- |
 | Web UI | `web` | `http://localhost:5173` | Fitting-session form and recommendation display |
 | API | `api` | `http://localhost:4000` | Shared API for web and iOS |
+| API docs | `api` | `http://localhost:4000/docs` | Interactive Swagger UI |
 | PostgreSQL | `postgres` | `localhost:5432` | Data storage |
 | WireMock | `wiremock` | `http://localhost:8080` | Mock third-party recommendation service |
 
@@ -189,10 +235,12 @@ Database defaults:
 
 - `docker-compose.yml`: full local stack definition
 - `apps/api`: TypeScript API source and Dockerfile
+- `apps/api/src/routes.ts`: API routes and OpenAPI route schemas
 - `apps/web`: React web UI source and Dockerfile
 - `apps/ios/DenimFit`: SwiftUI iOS project
 - `infra/db/init.sql`: database schema
-- `infra/wiremock/mappings/fit-recommendation.json`: mocked third-party recommendation endpoint
+- `infra/wiremock/mappings`: mocked third-party recommendation, order-history, and stylist endpoints
+- `infra/wiremock/__files`: larger WireMock response payloads, including stylist profile data
 - `docs/requirements-review.md`: open product and requirements questions
 
 ## Troubleshooting
@@ -203,12 +251,14 @@ If `localhost:4000` or `localhost:5173` is already in use, stop the conflicting 
 docker compose down
 ```
 
-If the API starts but database data looks stale, reset the database:
+If the API starts but database data looks stale, reset the database volume:
 
 ```sh
 docker compose down -v
 docker compose up -d --build
 ```
+
+This removes the local PostgreSQL volume and recreates the schema from `infra/db/init.sql`.
 
 If WireMock recommendations are not changing, check the mapping file:
 

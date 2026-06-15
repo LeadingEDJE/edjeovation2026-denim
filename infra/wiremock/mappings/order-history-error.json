@@ -1,0 +1,21 @@
+{
+	"priority": 10,
+	"request": {
+		"method": "GET",
+		"urlPathPattern": "/customers/[^/]+/orders",
+		"queryParameters": {
+			"scenario": {
+				"equalTo": "error"
+			}
+		}
+	},
+	"response": {
+		"status": 503,
+		"headers": {
+			"Content-Type": "application/json"
+		},
+		"jsonBody": {
+			"message": "Third-party order history service unavailable"
+		}
+	}
+}

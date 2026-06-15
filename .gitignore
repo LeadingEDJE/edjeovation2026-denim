@@ -1,5 +1,10 @@
 node_modules/
 dist/
+coverage/
+test-results/
+playwright-report/
+blob-report/
+.playwright/
 *.tsbuildinfo
 .env
 .env.local
@@ -8,4 +13,8 @@ dist/
 DerivedData/
 *.xcuserstate
 .idea/
-.vscode/
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+apps/ios/DenimFit/DenimFit.xcodeproj/project.xcworkspace/contents.xcworkspacedata
+apps/ios/DenimFit/DenimFit.xcodeproj/xcuserdata/
