@@ -55,3 +55,57 @@ export type OrderHistory = {
   scenario: OrderHistoryScenario;
   orders: OrderHistoryOrder[];
 };
+
+export type StylistAvailabilityStatus = "available" | "busy" | "offline";
+
+export type StylistProfile = {
+  id: string;
+  displayName: string;
+  pronouns: string;
+  title: string;
+  store: {
+    storeId: string;
+    name: string;
+    city: string;
+    state: string;
+  };
+  bio: string;
+  specialties: string[];
+  stylePointOfView: string[];
+  supportedFits: string[];
+  customerSignals: string[];
+  availability: {
+    status: StylistAvailabilityStatus;
+    nextAvailableAt: string | null;
+  };
+  avatarUrl: string | null;
+};
+
+export type StylistList = {
+  stylists: StylistProfile[];
+};
+
+export type StylistShift = {
+  stylistId: string;
+  displayName: string;
+  role: string;
+  shiftStart: string;
+  shiftEnd: string;
+};
+
+export type StylistAvailabilityDay = {
+  date: string;
+  dayOfWeek: string;
+  storeOpen: boolean;
+  openTime: string | null;
+  closeTime: string | null;
+  scheduledStylists: StylistShift[];
+};
+
+export type StylistAvailabilitySchedule = {
+  store: StylistProfile["store"];
+  timezone: string;
+  startDate: string;
+  endDate: string;
+  days: StylistAvailabilityDay[];
+};

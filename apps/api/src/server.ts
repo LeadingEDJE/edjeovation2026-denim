@@ -28,7 +28,8 @@ await app.register(swagger, {
     tags: [
       { name: "health", description: "Service health" },
       { name: "fitting-sessions", description: "Customer measurements and denim recommendations" },
-      { name: "order-history", description: "Simulated third-party customer order history" }
+      { name: "order-history", description: "Simulated third-party customer order history" },
+      { name: "stylists", description: "Simulated store-associate stylist profiles" }
     ]
   }
 });

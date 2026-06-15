@@ -1,18 +1,29 @@
 import { randomUUID } from "node:crypto";
 import type { FastifyInstance } from "fastify";
 import { pool } from "./db.js";
-import { fetchThirdPartyOrderHistory, fetchThirdPartyRecommendation, toRecommendation } from "./recommendations.js";
+import {
+  fetchThirdPartyOrderHistory,
+  fetchThirdPartyRecommendation,
+  fetchThirdPartyStylistAvailability,
+  fetchThirdPartyStylist,
+  fetchThirdPartyStylists,
+  ThirdPartyHttpError,
+  toRecommendation
+} from "./recommendations.js";
 import {
   fittingInputSchema,
   type DenimRecommendation,
   type FittingInput,
   type FittingSession,
-  type OrderHistoryScenario
+  type OrderHistoryScenario,
+  type StylistAvailabilityStatus,
+  type StylistProfile
 } from "./types.js";
 
 const fitPreferenceEnum = ["skinny", "slim", "straight", "relaxed", "wide"] as const;
 const stretchPreferenceEnum = ["rigid", "comfort-stretch", "high-stretch"] as const;
 const orderHistoryScenarioEnum = ["standard", "denim-heavy", "returns", "empty", "error"] as const;
+const stylistAvailabilityEnum = ["available", "busy", "offline"] as const;
 
 const fittingInputJsonSchema = {
   type: "object",
@@ -125,6 +136,117 @@ const orderHistoryJsonSchema = {
   }
 } as const;
 
+const stylistJsonSchema = {
+  type: "object",
+  required: [
+    "id",
+    "displayName",
+    "pronouns",
+    "title",
+    "store",
+    "bio",
+    "specialties",
+    "stylePointOfView",
+    "supportedFits",
+    "customerSignals",
+    "availability",
+    "avatarUrl"
+  ],
+  properties: {
+    id: { type: "string" },
+    displayName: { type: "string" },
+    pronouns: { type: "string" },
+    title: { type: "string" },
+    store: {
+      type: "object",
+      required: ["storeId", "name", "city", "state"],
+      properties: {
+        storeId: { type: "string" },
+        name: { type: "string" },
+        city: { type: "string" },
+        state: { type: "string" }
+      }
+    },
+    bio: { type: "string" },
+    specialties: { type: "array", items: { type: "string" } },
+    stylePointOfView: { type: "array", items: { type: "string" } },
+    supportedFits: { type: "array", items: { type: "string" } },
+    customerSignals: { type: "array", items: { type: "string" } },
+    availability: {
+      type: "object",
+      required: ["status", "nextAvailableAt"],
+      properties: {
+        status: { type: "string", enum: stylistAvailabilityEnum },
+        nextAvailableAt: { anyOf: [{ type: "string", format: "date-time" }, { type: "null" }] }
+      }
+    },
+    avatarUrl: { anyOf: [{ type: "string", format: "uri" }, { type: "null" }] }
+  }
+} as const;
+
+const stylistListJsonSchema = {
+  type: "object",
+  required: ["stylists"],
+  properties: {
+    stylists: {
+      type: "array",
+      items: stylistJsonSchema
+    }
+  }
+} as const;
+
+const stylistAvailabilityJsonSchema = {
+  type: "object",
+  required: ["store", "timezone", "startDate", "endDate", "days"],
+  properties: {
+    store: stylistJsonSchema.properties.store,
+    timezone: { type: "string" },
+    startDate: { type: "string", format: "date" },
+    endDate: { type: "string", format: "date" },
+    days: {
+      type: "array",
+      items: {
+        type: "object",
+        required: ["date", "dayOfWeek", "storeOpen", "openTime", "closeTime", "scheduledStylists"],
+        properties: {
+          date: { type: "string", format: "date" },
+          dayOfWeek: { type: "string" },
+          storeOpen: { type: "boolean" },
+          openTime: { anyOf: [{ type: "string" }, { type: "null" }] },
+          closeTime: { anyOf: [{ type: "string" }, { type: "null" }] },
+          scheduledStylists: {
+            type: "array",
+            items: {
+              type: "object",
+              required: ["stylistId", "displayName", "role", "shiftStart", "shiftEnd"],
+              properties: {
+                stylistId: { type: "string" },
+                displayName: { type: "string" },
+                role: { type: "string" },
+                shiftStart: { type: "string", format: "date-time" },
+                shiftEnd: { type: "string", format: "date-time" }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+} as const;
+
+function filterStylists(
+  stylists: StylistProfile[],
+  filters: { specialty?: string; fit?: string; availability?: StylistAvailabilityStatus }
+) {
+  return stylists.filter((stylist) => {
+    const specialtyMatch = filters.specialty ? stylist.specialties.includes(filters.specialty) : true;
+    const fitMatch = filters.fit ? stylist.supportedFits.includes(filters.fit) : true;
+    const availabilityMatch = filters.availability ? stylist.availability.status === filters.availability : true;
+
+    return specialtyMatch && fitMatch && availabilityMatch;
+  });
+}
+
 function mapSession(row: Record<string, unknown>): FittingSession {
   return {
     id: String(row.id),
@@ -231,6 +353,97 @@ export async function registerRoutes(app: FastifyInstance) {
     } catch (error) {
       request.log.error(error);
       return reply.code(502).send({ message: "Unable to load third-party order history" });
+    }
+  });
+
+  app.get("/api/stylists", {
+    schema: {
+      tags: ["stylists"],
+      summary: "List simulated store-associate stylist profiles",
+      querystring: {
+        type: "object",
+        properties: {
+          specialty: { type: "string" },
+          fit: { type: "string" },
+          availability: { type: "string", enum: stylistAvailabilityEnum }
+        }
+      },
+      response: {
+        200: stylistListJsonSchema,
+        502: errorJsonSchema
+      }
+    }
+  }, async (request, reply) => {
+    const filters = request.query as {
+      specialty?: string;
+      fit?: string;
+      availability?: StylistAvailabilityStatus;
+    };
+
+    try {
+      const data = await fetchThirdPartyStylists();
+      return { stylists: filterStylists(data.stylists, filters) };
+    } catch (error) {
+      request.log.error(error);
+      return reply.code(502).send({ message: "Unable to load third-party stylist profiles" });
+    }
+  });
+
+  app.get("/api/stylists/availability", {
+    schema: {
+      tags: ["stylists"],
+      summary: "Get the next 10 days of simulated store-associate stylist availability",
+      response: {
+        200: stylistAvailabilityJsonSchema,
+        502: errorJsonSchema
+      }
+    }
+  }, async (request, reply) => {
+    try {
+      return await fetchThirdPartyStylistAvailability();
+    } catch (error) {
+      request.log.error(error);
+      return reply.code(502).send({ message: "Unable to load third-party stylist availability" });
+    }
+  });
+
+  app.get("/api/stylists/:stylistId", {
+    schema: {
+      tags: ["stylists"],
+      summary: "Get a simulated store-associate stylist profile",
+      params: {
+        type: "object",
+        required: ["stylistId"],
+        properties: {
+          stylistId: { type: "string", minLength: 1 }
+        }
+      },
+      response: {
+        200: {
+          type: "object",
+          required: ["stylist"],
+          properties: {
+            stylist: stylistJsonSchema
+          }
+        },
+        404: errorJsonSchema,
+        502: errorJsonSchema
+      }
+    }
+  }, async (request, reply) => {
+    const { stylistId } = request.params as { stylistId: string };
+
+    try {
+      const stylist = await fetchThirdPartyStylist(stylistId);
+      return { stylist };
+    } catch (error) {
+      request.log.error(error);
+
+      if (error instanceof ThirdPartyHttpError && error.status === 404) {
+        return reply.code(404).send({ message: "Stylist not found" });
+      }
+
+      return reply.code(502).send({ message: "Unable to load third-party stylist profile" });
     }
   });
 

@@ -1,0 +1,24 @@
+{
+  "stylist": {
+    "id": "sty_003",
+    "displayName": "Priya Raman",
+    "pronouns": "she/her",
+    "title": "Petite Denim Associate",
+    "store": {
+      "storeId": "anf_soho_001",
+      "name": "Abercrombie & Fitch SoHo",
+      "city": "New York",
+      "state": "NY"
+    },
+    "bio": "Store associate focused on petite proportions, inseam selection, and helping customers find ankle, cropped, and full-length denim balance.",
+    "specialties": ["petite-proportions", "inseam-selection", "cropped-denim"],
+    "stylePointOfView": ["tailored", "proportional", "minimal"],
+    "supportedFits": ["skinny", "slim", "straight"],
+    "customerSignals": ["short-inseam", "hemming-concern", "ankle-length-preference"],
+    "availability": {
+      "status": "available",
+      "nextAvailableAt": "2026-06-15T17:30:00Z"
+    },
+    "avatarUrl": null
+  }
+}

@@ -1,0 +1,24 @@
+{
+  "stylist": {
+    "id": "sty_001",
+    "displayName": "Maya Chen",
+    "pronouns": "she/her",
+    "title": "Denim Fit Specialist",
+    "store": {
+      "storeId": "anf_soho_001",
+      "name": "Abercrombie & Fitch SoHo",
+      "city": "New York",
+      "state": "NY"
+    },
+    "bio": "Store associate focused on everyday denim fits, curve-aware sizing, and practical recommendations for customers between sizes.",
+    "specialties": ["curve-love-fit", "straight-leg-denim", "fit-troubleshooting"],
+    "stylePointOfView": ["comfortable", "polished", "everyday"],
+    "supportedFits": ["straight", "slim", "relaxed"],
+    "customerSignals": ["waist-gap", "between-sizes", "comfort-stretch-preference"],
+    "availability": {
+      "status": "available",
+      "nextAvailableAt": "2026-06-15T18:00:00Z"
+    },
+    "avatarUrl": null
+  }
+}

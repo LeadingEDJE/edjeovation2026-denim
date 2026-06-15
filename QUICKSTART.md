@@ -97,6 +97,23 @@ Supported order-history scenarios:
 - `empty`
 - `error`
 
+Load simulated store-associate stylist profiles through the API:
+
+```sh
+curl 'http://localhost:4000/api/stylists'
+curl 'http://localhost:4000/api/stylists/sty_001'
+curl 'http://localhost:4000/api/stylists/availability'
+```
+
+Filter stylists by specialty, supported fit, or availability:
+
+```sh
+curl 'http://localhost:4000/api/stylists?specialty=petite-proportions'
+curl 'http://localhost:4000/api/stylists?fit=wide&availability=available'
+```
+
+The mocked stylist availability schedule is rendered by WireMock from the current request date through 9 days after the current date. All stylists are assigned to the same store, with scheduled shifts only between `11:00` and `19:00` on Monday through Thursday.
+
 ## Daily Run Commands
 
 Start or rebuild everything:
@@ -222,7 +239,8 @@ Database defaults:
 - `apps/web`: React web UI source and Dockerfile
 - `apps/ios/DenimFit`: SwiftUI iOS project
 - `infra/db/init.sql`: database schema
-- `infra/wiremock/mappings`: mocked third-party recommendation and order-history endpoints
+- `infra/wiremock/mappings`: mocked third-party recommendation, order-history, and stylist endpoints
+- `infra/wiremock/__files`: larger WireMock response payloads, including stylist profile data
 - `docs/requirements-review.md`: open product and requirements questions
 
 ## Troubleshooting
