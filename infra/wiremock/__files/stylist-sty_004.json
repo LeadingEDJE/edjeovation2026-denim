@@ -1,24 +1,28 @@
 {
-  "stylist": {
-    "id": "sty_004",
-    "displayName": "Andre Brooks",
-    "pronouns": "he/him",
-    "title": "Trend Styling Associate",
-    "store": {
-      "storeId": "anf_soho_001",
-      "name": "Abercrombie & Fitch SoHo",
-      "city": "New York",
-      "state": "NY"
-    },
-    "bio": "Store associate specializing in trend-led denim, wide-leg silhouettes, and building complete outfits around statement fits.",
-    "specialties": ["trend-styling", "wide-leg-denim", "outfit-building"],
-    "stylePointOfView": ["expressive", "modern", "statement"],
-    "supportedFits": ["wide", "relaxed", "straight"],
-    "customerSignals": ["trend-interest", "outfit-needed", "wide-leg-curiosity"],
-    "availability": {
-      "status": "available",
-      "nextAvailableAt": "2026-06-15T19:00:00Z"
-    },
-    "avatarUrl": null
-  }
+	"stylist": {
+		"id": "sty_004",
+		"displayName": "Andre Brooks",
+		"pronouns": "he/him",
+		"title": "Trend Styling Associate",
+		"store": {
+			"storeId": "anf_soho_001",
+			"name": "Abercrombie & Fitch SoHo",
+			"city": "New York",
+			"state": "NY"
+		},
+		"bio": "Store associate specializing in trend-led denim, wide-leg silhouettes, and building complete outfits around statement fits.",
+		"specialties": ["trend-styling", "wide-leg-denim", "outfit-building"],
+		"stylePointOfView": ["expressive", "modern", "statement"],
+		"supportedFits": ["wide", "relaxed", "straight"],
+		"customerSignals": [
+			"trend-interest",
+			"outfit-needed",
+			"wide-leg-curiosity"
+		],
+		"availability": {
+			"status": "available",
+			"nextAvailableAt": "2026-06-15T19:00:00Z"
+		},
+		"avatarUrl": null
+	}
 }

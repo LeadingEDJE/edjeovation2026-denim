@@ -1,247 +1,247 @@
 {
-  "store": {
-    "storeId": "anf_soho_001",
-    "name": "Abercrombie & Fitch SoHo",
-    "city": "New York",
-    "state": "NY"
-  },
-  "timezone": "America/New_York",
-  "startDate": "{{now offset='0 days' format='yyyy-MM-dd'}}",
-  "endDate": "{{now offset='9 days' format='yyyy-MM-dd'}}",
-  "days": [
-    {
-      "date": "{{now offset='0 days' format='yyyy-MM-dd'}}",
-      "dayOfWeek": "{{now offset='0 days' format='EEEE'}}",
-      "storeOpen": true,
-      "openTime": "11:00",
-      "closeTime": "19:00",
-      "scheduledStylists": [
-        {
-          "stylistId": "sty_001",
-          "displayName": "Maya Chen",
-          "role": "Denim Fit Specialist",
-          "shiftStart": "{{now offset='0 days' format='yyyy-MM-dd'}}T11:00:00-04:00",
-          "shiftEnd": "{{now offset='0 days' format='yyyy-MM-dd'}}T19:00:00-04:00"
-        },
-        {
-          "stylistId": "sty_002",
-          "displayName": "Jordan Ellis",
-          "role": "Athletic Fit Associate",
-          "shiftStart": "{{now offset='0 days' format='yyyy-MM-dd'}}T11:00:00-04:00",
-          "shiftEnd": "{{now offset='0 days' format='yyyy-MM-dd'}}T19:00:00-04:00"
-        },
-        {
-          "stylistId": "sty_003",
-          "displayName": "Priya Raman",
-          "role": "Petite Denim Associate",
-          "shiftStart": "{{now offset='0 days' format='yyyy-MM-dd'}}T11:00:00-04:00",
-          "shiftEnd": "{{now offset='0 days' format='yyyy-MM-dd'}}T19:00:00-04:00"
-        },
-        {
-          "stylistId": "sty_004",
-          "displayName": "Andre Brooks",
-          "role": "Trend Styling Associate",
-          "shiftStart": "{{now offset='0 days' format='yyyy-MM-dd'}}T11:00:00-04:00",
-          "shiftEnd": "{{now offset='0 days' format='yyyy-MM-dd'}}T19:00:00-04:00"
-        },
-        {
-          "stylistId": "sty_005",
-          "displayName": "Sofia Martinez",
-          "role": "Fit Recovery Associate",
-          "shiftStart": "{{now offset='0 days' format='yyyy-MM-dd'}}T11:00:00-04:00",
-          "shiftEnd": "{{now offset='0 days' format='yyyy-MM-dd'}}T19:00:00-04:00"
-        }
-      ]
-    },
-    {
-      "date": "{{now offset='1 days' format='yyyy-MM-dd'}}",
-      "dayOfWeek": "{{now offset='1 days' format='EEEE'}}",
-      "storeOpen": true,
-      "openTime": "11:00",
-      "closeTime": "19:00",
-      "scheduledStylists": [
-        {
-          "stylistId": "sty_001",
-          "displayName": "Maya Chen",
-          "role": "Denim Fit Specialist",
-          "shiftStart": "{{now offset='1 days' format='yyyy-MM-dd'}}T11:00:00-04:00",
-          "shiftEnd": "{{now offset='1 days' format='yyyy-MM-dd'}}T19:00:00-04:00"
-        },
-        {
-          "stylistId": "sty_003",
-          "displayName": "Priya Raman",
-          "role": "Petite Denim Associate",
-          "shiftStart": "{{now offset='1 days' format='yyyy-MM-dd'}}T11:00:00-04:00",
-          "shiftEnd": "{{now offset='1 days' format='yyyy-MM-dd'}}T19:00:00-04:00"
-        }
-      ]
-    },
-    {
-      "date": "{{now offset='2 days' format='yyyy-MM-dd'}}",
-      "dayOfWeek": "{{now offset='2 days' format='EEEE'}}",
-      "storeOpen": true,
-      "openTime": "11:00",
-      "closeTime": "19:00",
-      "scheduledStylists": [
-        {
-          "stylistId": "sty_002",
-          "displayName": "Jordan Ellis",
-          "role": "Athletic Fit Associate",
-          "shiftStart": "{{now offset='2 days' format='yyyy-MM-dd'}}T11:00:00-04:00",
-          "shiftEnd": "{{now offset='2 days' format='yyyy-MM-dd'}}T19:00:00-04:00"
-        },
-        {
-          "stylistId": "sty_004",
-          "displayName": "Andre Brooks",
-          "role": "Trend Styling Associate",
-          "shiftStart": "{{now offset='2 days' format='yyyy-MM-dd'}}T11:00:00-04:00",
-          "shiftEnd": "{{now offset='2 days' format='yyyy-MM-dd'}}T19:00:00-04:00"
-        },
-        {
-          "stylistId": "sty_005",
-          "displayName": "Sofia Martinez",
-          "role": "Fit Recovery Associate",
-          "shiftStart": "{{now offset='2 days' format='yyyy-MM-dd'}}T11:00:00-04:00",
-          "shiftEnd": "{{now offset='2 days' format='yyyy-MM-dd'}}T19:00:00-04:00"
-        }
-      ]
-    },
-    {
-      "date": "{{now offset='3 days' format='yyyy-MM-dd'}}",
-      "dayOfWeek": "{{now offset='3 days' format='EEEE'}}",
-      "storeOpen": true,
-      "openTime": "11:00",
-      "closeTime": "19:00",
-      "scheduledStylists": [
-        {
-          "stylistId": "sty_001",
-          "displayName": "Maya Chen",
-          "role": "Denim Fit Specialist",
-          "shiftStart": "{{now offset='3 days' format='yyyy-MM-dd'}}T11:00:00-04:00",
-          "shiftEnd": "{{now offset='3 days' format='yyyy-MM-dd'}}T19:00:00-04:00"
-        },
-        {
-          "stylistId": "sty_004",
-          "displayName": "Andre Brooks",
-          "role": "Trend Styling Associate",
-          "shiftStart": "{{now offset='3 days' format='yyyy-MM-dd'}}T11:00:00-04:00",
-          "shiftEnd": "{{now offset='3 days' format='yyyy-MM-dd'}}T19:00:00-04:00"
-        }
-      ]
-    },
-    {
-      "date": "{{now offset='4 days' format='yyyy-MM-dd'}}",
-      "dayOfWeek": "{{now offset='4 days' format='EEEE'}}",
-      "storeOpen": false,
-      "openTime": null,
-      "closeTime": null,
-      "scheduledStylists": []
-    },
-    {
-      "date": "{{now offset='5 days' format='yyyy-MM-dd'}}",
-      "dayOfWeek": "{{now offset='5 days' format='EEEE'}}",
-      "storeOpen": false,
-      "openTime": null,
-      "closeTime": null,
-      "scheduledStylists": []
-    },
-    {
-      "date": "{{now offset='6 days' format='yyyy-MM-dd'}}",
-      "dayOfWeek": "{{now offset='6 days' format='EEEE'}}",
-      "storeOpen": false,
-      "openTime": null,
-      "closeTime": null,
-      "scheduledStylists": []
-    },
-    {
-      "date": "{{now offset='7 days' format='yyyy-MM-dd'}}",
-      "dayOfWeek": "{{now offset='7 days' format='EEEE'}}",
-      "storeOpen": true,
-      "openTime": "11:00",
-      "closeTime": "19:00",
-      "scheduledStylists": [
-        {
-          "stylistId": "sty_003",
-          "displayName": "Priya Raman",
-          "role": "Petite Denim Associate",
-          "shiftStart": "{{now offset='7 days' format='yyyy-MM-dd'}}T11:00:00-04:00",
-          "shiftEnd": "{{now offset='7 days' format='yyyy-MM-dd'}}T19:00:00-04:00"
-        },
-        {
-          "stylistId": "sty_005",
-          "displayName": "Sofia Martinez",
-          "role": "Fit Recovery Associate",
-          "shiftStart": "{{now offset='7 days' format='yyyy-MM-dd'}}T11:00:00-04:00",
-          "shiftEnd": "{{now offset='7 days' format='yyyy-MM-dd'}}T19:00:00-04:00"
-        }
-      ]
-    },
-    {
-      "date": "{{now offset='8 days' format='yyyy-MM-dd'}}",
-      "dayOfWeek": "{{now offset='8 days' format='EEEE'}}",
-      "storeOpen": true,
-      "openTime": "11:00",
-      "closeTime": "19:00",
-      "scheduledStylists": [
-        {
-          "stylistId": "sty_001",
-          "displayName": "Maya Chen",
-          "role": "Denim Fit Specialist",
-          "shiftStart": "{{now offset='8 days' format='yyyy-MM-dd'}}T11:00:00-04:00",
-          "shiftEnd": "{{now offset='8 days' format='yyyy-MM-dd'}}T19:00:00-04:00"
-        },
-        {
-          "stylistId": "sty_002",
-          "displayName": "Jordan Ellis",
-          "role": "Athletic Fit Associate",
-          "shiftStart": "{{now offset='8 days' format='yyyy-MM-dd'}}T11:00:00-04:00",
-          "shiftEnd": "{{now offset='8 days' format='yyyy-MM-dd'}}T19:00:00-04:00"
-        },
-        {
-          "stylistId": "sty_004",
-          "displayName": "Andre Brooks",
-          "role": "Trend Styling Associate",
-          "shiftStart": "{{now offset='8 days' format='yyyy-MM-dd'}}T11:00:00-04:00",
-          "shiftEnd": "{{now offset='8 days' format='yyyy-MM-dd'}}T19:00:00-04:00"
-        }
-      ]
-    },
-    {
-      "date": "{{now offset='9 days' format='yyyy-MM-dd'}}",
-      "dayOfWeek": "{{now offset='9 days' format='EEEE'}}",
-      "storeOpen": true,
-      "openTime": "11:00",
-      "closeTime": "19:00",
-      "scheduledStylists": [
-        {
-          "stylistId": "sty_002",
-          "displayName": "Jordan Ellis",
-          "role": "Athletic Fit Associate",
-          "shiftStart": "{{now offset='9 days' format='yyyy-MM-dd'}}T11:00:00-04:00",
-          "shiftEnd": "{{now offset='9 days' format='yyyy-MM-dd'}}T19:00:00-04:00"
-        },
-        {
-          "stylistId": "sty_003",
-          "displayName": "Priya Raman",
-          "role": "Petite Denim Associate",
-          "shiftStart": "{{now offset='9 days' format='yyyy-MM-dd'}}T11:00:00-04:00",
-          "shiftEnd": "{{now offset='9 days' format='yyyy-MM-dd'}}T19:00:00-04:00"
-        },
-        {
-          "stylistId": "sty_004",
-          "displayName": "Andre Brooks",
-          "role": "Trend Styling Associate",
-          "shiftStart": "{{now offset='9 days' format='yyyy-MM-dd'}}T11:00:00-04:00",
-          "shiftEnd": "{{now offset='9 days' format='yyyy-MM-dd'}}T19:00:00-04:00"
-        },
-        {
-          "stylistId": "sty_005",
-          "displayName": "Sofia Martinez",
-          "role": "Fit Recovery Associate",
-          "shiftStart": "{{now offset='9 days' format='yyyy-MM-dd'}}T11:00:00-04:00",
-          "shiftEnd": "{{now offset='9 days' format='yyyy-MM-dd'}}T19:00:00-04:00"
-        }
-      ]
-    }
-  ]
+	"store": {
+		"storeId": "anf_soho_001",
+		"name": "Abercrombie & Fitch SoHo",
+		"city": "New York",
+		"state": "NY"
+	},
+	"timezone": "America/New_York",
+	"startDate": "{{now offset='0 days' format='yyyy-MM-dd'}}",
+	"endDate": "{{now offset='9 days' format='yyyy-MM-dd'}}",
+	"days": [
+		{
+			"date": "{{now offset='0 days' format='yyyy-MM-dd'}}",
+			"dayOfWeek": "{{now offset='0 days' format='EEEE'}}",
+			"storeOpen": true,
+			"openTime": "11:00",
+			"closeTime": "19:00",
+			"scheduledStylists": [
+				{
+					"stylistId": "sty_001",
+					"displayName": "Maya Chen",
+					"role": "Denim Fit Specialist",
+					"shiftStart": "{{now offset='0 days' format='yyyy-MM-dd'}}T11:00:00-04:00",
+					"shiftEnd": "{{now offset='0 days' format='yyyy-MM-dd'}}T19:00:00-04:00"
+				},
+				{
+					"stylistId": "sty_002",
+					"displayName": "Jordan Ellis",
+					"role": "Athletic Fit Associate",
+					"shiftStart": "{{now offset='0 days' format='yyyy-MM-dd'}}T11:00:00-04:00",
+					"shiftEnd": "{{now offset='0 days' format='yyyy-MM-dd'}}T19:00:00-04:00"
+				},
+				{
+					"stylistId": "sty_003",
+					"displayName": "Priya Raman",
+					"role": "Petite Denim Associate",
+					"shiftStart": "{{now offset='0 days' format='yyyy-MM-dd'}}T11:00:00-04:00",
+					"shiftEnd": "{{now offset='0 days' format='yyyy-MM-dd'}}T19:00:00-04:00"
+				},
+				{
+					"stylistId": "sty_004",
+					"displayName": "Andre Brooks",
+					"role": "Trend Styling Associate",
+					"shiftStart": "{{now offset='0 days' format='yyyy-MM-dd'}}T11:00:00-04:00",
+					"shiftEnd": "{{now offset='0 days' format='yyyy-MM-dd'}}T19:00:00-04:00"
+				},
+				{
+					"stylistId": "sty_005",
+					"displayName": "Sofia Martinez",
+					"role": "Fit Recovery Associate",
+					"shiftStart": "{{now offset='0 days' format='yyyy-MM-dd'}}T11:00:00-04:00",
+					"shiftEnd": "{{now offset='0 days' format='yyyy-MM-dd'}}T19:00:00-04:00"
+				}
+			]
+		},
+		{
+			"date": "{{now offset='1 days' format='yyyy-MM-dd'}}",
+			"dayOfWeek": "{{now offset='1 days' format='EEEE'}}",
+			"storeOpen": true,
+			"openTime": "11:00",
+			"closeTime": "19:00",
+			"scheduledStylists": [
+				{
+					"stylistId": "sty_001",
+					"displayName": "Maya Chen",
+					"role": "Denim Fit Specialist",
+					"shiftStart": "{{now offset='1 days' format='yyyy-MM-dd'}}T11:00:00-04:00",
+					"shiftEnd": "{{now offset='1 days' format='yyyy-MM-dd'}}T19:00:00-04:00"
+				},
+				{
+					"stylistId": "sty_003",
+					"displayName": "Priya Raman",
+					"role": "Petite Denim Associate",
+					"shiftStart": "{{now offset='1 days' format='yyyy-MM-dd'}}T11:00:00-04:00",
+					"shiftEnd": "{{now offset='1 days' format='yyyy-MM-dd'}}T19:00:00-04:00"
+				}
+			]
+		},
+		{
+			"date": "{{now offset='2 days' format='yyyy-MM-dd'}}",
+			"dayOfWeek": "{{now offset='2 days' format='EEEE'}}",
+			"storeOpen": true,
+			"openTime": "11:00",
+			"closeTime": "19:00",
+			"scheduledStylists": [
+				{
+					"stylistId": "sty_002",
+					"displayName": "Jordan Ellis",
+					"role": "Athletic Fit Associate",
+					"shiftStart": "{{now offset='2 days' format='yyyy-MM-dd'}}T11:00:00-04:00",
+					"shiftEnd": "{{now offset='2 days' format='yyyy-MM-dd'}}T19:00:00-04:00"
+				},
+				{
+					"stylistId": "sty_004",
+					"displayName": "Andre Brooks",
+					"role": "Trend Styling Associate",
+					"shiftStart": "{{now offset='2 days' format='yyyy-MM-dd'}}T11:00:00-04:00",
+					"shiftEnd": "{{now offset='2 days' format='yyyy-MM-dd'}}T19:00:00-04:00"
+				},
+				{
+					"stylistId": "sty_005",
+					"displayName": "Sofia Martinez",
+					"role": "Fit Recovery Associate",
+					"shiftStart": "{{now offset='2 days' format='yyyy-MM-dd'}}T11:00:00-04:00",
+					"shiftEnd": "{{now offset='2 days' format='yyyy-MM-dd'}}T19:00:00-04:00"
+				}
+			]
+		},
+		{
+			"date": "{{now offset='3 days' format='yyyy-MM-dd'}}",
+			"dayOfWeek": "{{now offset='3 days' format='EEEE'}}",
+			"storeOpen": true,
+			"openTime": "11:00",
+			"closeTime": "19:00",
+			"scheduledStylists": [
+				{
+					"stylistId": "sty_001",
+					"displayName": "Maya Chen",
+					"role": "Denim Fit Specialist",
+					"shiftStart": "{{now offset='3 days' format='yyyy-MM-dd'}}T11:00:00-04:00",
+					"shiftEnd": "{{now offset='3 days' format='yyyy-MM-dd'}}T19:00:00-04:00"
+				},
+				{
+					"stylistId": "sty_004",
+					"displayName": "Andre Brooks",
+					"role": "Trend Styling Associate",
+					"shiftStart": "{{now offset='3 days' format='yyyy-MM-dd'}}T11:00:00-04:00",
+					"shiftEnd": "{{now offset='3 days' format='yyyy-MM-dd'}}T19:00:00-04:00"
+				}
+			]
+		},
+		{
+			"date": "{{now offset='4 days' format='yyyy-MM-dd'}}",
+			"dayOfWeek": "{{now offset='4 days' format='EEEE'}}",
+			"storeOpen": false,
+			"openTime": null,
+			"closeTime": null,
+			"scheduledStylists": []
+		},
+		{
+			"date": "{{now offset='5 days' format='yyyy-MM-dd'}}",
+			"dayOfWeek": "{{now offset='5 days' format='EEEE'}}",
+			"storeOpen": false,
+			"openTime": null,
+			"closeTime": null,
+			"scheduledStylists": []
+		},
+		{
+			"date": "{{now offset='6 days' format='yyyy-MM-dd'}}",
+			"dayOfWeek": "{{now offset='6 days' format='EEEE'}}",
+			"storeOpen": false,
+			"openTime": null,
+			"closeTime": null,
+			"scheduledStylists": []
+		},
+		{
+			"date": "{{now offset='7 days' format='yyyy-MM-dd'}}",
+			"dayOfWeek": "{{now offset='7 days' format='EEEE'}}",
+			"storeOpen": true,
+			"openTime": "11:00",
+			"closeTime": "19:00",
+			"scheduledStylists": [
+				{
+					"stylistId": "sty_003",
+					"displayName": "Priya Raman",
+					"role": "Petite Denim Associate",
+					"shiftStart": "{{now offset='7 days' format='yyyy-MM-dd'}}T11:00:00-04:00",
+					"shiftEnd": "{{now offset='7 days' format='yyyy-MM-dd'}}T19:00:00-04:00"
+				},
+				{
+					"stylistId": "sty_005",
+					"displayName": "Sofia Martinez",
+					"role": "Fit Recovery Associate",
+					"shiftStart": "{{now offset='7 days' format='yyyy-MM-dd'}}T11:00:00-04:00",
+					"shiftEnd": "{{now offset='7 days' format='yyyy-MM-dd'}}T19:00:00-04:00"
+				}
+			]
+		},
+		{
+			"date": "{{now offset='8 days' format='yyyy-MM-dd'}}",
+			"dayOfWeek": "{{now offset='8 days' format='EEEE'}}",
+			"storeOpen": true,
+			"openTime": "11:00",
+			"closeTime": "19:00",
+			"scheduledStylists": [
+				{
+					"stylistId": "sty_001",
+					"displayName": "Maya Chen",
+					"role": "Denim Fit Specialist",
+					"shiftStart": "{{now offset='8 days' format='yyyy-MM-dd'}}T11:00:00-04:00",
+					"shiftEnd": "{{now offset='8 days' format='yyyy-MM-dd'}}T19:00:00-04:00"
+				},
+				{
+					"stylistId": "sty_002",
+					"displayName": "Jordan Ellis",
+					"role": "Athletic Fit Associate",
+					"shiftStart": "{{now offset='8 days' format='yyyy-MM-dd'}}T11:00:00-04:00",
+					"shiftEnd": "{{now offset='8 days' format='yyyy-MM-dd'}}T19:00:00-04:00"
+				},
+				{
+					"stylistId": "sty_004",
+					"displayName": "Andre Brooks",
+					"role": "Trend Styling Associate",
+					"shiftStart": "{{now offset='8 days' format='yyyy-MM-dd'}}T11:00:00-04:00",
+					"shiftEnd": "{{now offset='8 days' format='yyyy-MM-dd'}}T19:00:00-04:00"
+				}
+			]
+		},
+		{
+			"date": "{{now offset='9 days' format='yyyy-MM-dd'}}",
+			"dayOfWeek": "{{now offset='9 days' format='EEEE'}}",
+			"storeOpen": true,
+			"openTime": "11:00",
+			"closeTime": "19:00",
+			"scheduledStylists": [
+				{
+					"stylistId": "sty_002",
+					"displayName": "Jordan Ellis",
+					"role": "Athletic Fit Associate",
+					"shiftStart": "{{now offset='9 days' format='yyyy-MM-dd'}}T11:00:00-04:00",
+					"shiftEnd": "{{now offset='9 days' format='yyyy-MM-dd'}}T19:00:00-04:00"
+				},
+				{
+					"stylistId": "sty_003",
+					"displayName": "Priya Raman",
+					"role": "Petite Denim Associate",
+					"shiftStart": "{{now offset='9 days' format='yyyy-MM-dd'}}T11:00:00-04:00",
+					"shiftEnd": "{{now offset='9 days' format='yyyy-MM-dd'}}T19:00:00-04:00"
+				},
+				{
+					"stylistId": "sty_004",
+					"displayName": "Andre Brooks",
+					"role": "Trend Styling Associate",
+					"shiftStart": "{{now offset='9 days' format='yyyy-MM-dd'}}T11:00:00-04:00",
+					"shiftEnd": "{{now offset='9 days' format='yyyy-MM-dd'}}T19:00:00-04:00"
+				},
+				{
+					"stylistId": "sty_005",
+					"displayName": "Sofia Martinez",
+					"role": "Fit Recovery Associate",
+					"shiftStart": "{{now offset='9 days' format='yyyy-MM-dd'}}T11:00:00-04:00",
+					"shiftEnd": "{{now offset='9 days' format='yyyy-MM-dd'}}T19:00:00-04:00"
+				}
+			]
+		}
+	]
 }

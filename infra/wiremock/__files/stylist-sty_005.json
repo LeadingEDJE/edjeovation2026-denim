@@ -1,24 +1,28 @@
 {
-  "stylist": {
-    "id": "sty_005",
-    "displayName": "Sofia Martinez",
-    "pronouns": "she/her",
-    "title": "Fit Recovery Associate",
-    "store": {
-      "storeId": "anf_soho_001",
-      "name": "Abercrombie & Fitch SoHo",
-      "city": "New York",
-      "state": "NY"
-    },
-    "bio": "Store associate focused on returns, exchanges, and helping customers recover from fit misses with clearer size confidence.",
-    "specialties": ["returns-exchanges", "fit-issue-recovery", "size-confidence"],
-    "stylePointOfView": ["supportive", "clear", "confidence-first"],
-    "supportedFits": ["skinny", "straight", "relaxed"],
-    "customerSignals": ["prior-return", "too-tight-waist", "too-short"],
-    "availability": {
-      "status": "offline",
-      "nextAvailableAt": "2026-06-16T15:00:00Z"
-    },
-    "avatarUrl": null
-  }
+	"stylist": {
+		"id": "sty_005",
+		"displayName": "Sofia Martinez",
+		"pronouns": "she/her",
+		"title": "Fit Recovery Associate",
+		"store": {
+			"storeId": "anf_soho_001",
+			"name": "Abercrombie & Fitch SoHo",
+			"city": "New York",
+			"state": "NY"
+		},
+		"bio": "Store associate focused on returns, exchanges, and helping customers recover from fit misses with clearer size confidence.",
+		"specialties": [
+			"returns-exchanges",
+			"fit-issue-recovery",
+			"size-confidence"
+		],
+		"stylePointOfView": ["supportive", "clear", "confidence-first"],
+		"supportedFits": ["skinny", "straight", "relaxed"],
+		"customerSignals": ["prior-return", "too-tight-waist", "too-short"],
+		"availability": {
+			"status": "offline",
+			"nextAvailableAt": "2026-06-16T15:00:00Z"
+		},
+		"avatarUrl": null
+	}
 }

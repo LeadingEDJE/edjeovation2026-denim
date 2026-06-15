@@ -1,77 +1,77 @@
 {
-  "priority": 10,
-  "request": {
-    "method": "GET",
-    "urlPathPattern": "/customers/[^/]+/orders",
-    "queryParameters": {
-      "scenario": {
-        "equalTo": "returns"
-      }
-    }
-  },
-  "response": {
-    "status": 200,
-    "headers": {
-      "Content-Type": "application/json"
-    },
-    "jsonBody": {
-      "customerId": "{{request.pathSegments.[1]}}",
-      "scenario": "returns",
-      "orders": [
-        {
-          "orderId": "ord_3001",
-          "orderedAt": "2026-02-11T18:05:00Z",
-          "channel": "store",
-          "status": "returned",
-          "items": [
-            {
-              "sku": "anf-denim-ultra-high-skinny-black",
-              "productName": "Ultra High Rise Skinny Jean",
-              "category": "denim",
-              "sizeLabel": "28W x 30L",
-              "fit": "skinny",
-              "wash": "black",
-              "quantity": 1,
-              "unitPrice": 79.95,
-              "kept": false,
-              "returnReason": "too-tight-waist"
-            }
-          ]
-        },
-        {
-          "orderId": "ord_3002",
-          "orderedAt": "2026-01-28T21:33:00Z",
-          "channel": "web",
-          "status": "exchanged",
-          "items": [
-            {
-              "sku": "anf-denim-curve-love-straight-medium",
-              "productName": "Curve Love High Rise Straight Jean",
-              "category": "denim",
-              "sizeLabel": "29W x 30L",
-              "fit": "straight",
-              "wash": "medium",
-              "quantity": 1,
-              "unitPrice": 89.95,
-              "kept": false,
-              "returnReason": "too-short"
-            },
-            {
-              "sku": "anf-denim-curve-love-straight-medium-long",
-              "productName": "Curve Love High Rise Straight Jean",
-              "category": "denim",
-              "sizeLabel": "29W x 32L",
-              "fit": "straight",
-              "wash": "medium",
-              "quantity": 1,
-              "unitPrice": 89.95,
-              "kept": true,
-              "returnReason": null
-            }
-          ]
-        }
-      ]
-    },
-    "transformers": ["response-template"]
-  }
+	"priority": 10,
+	"request": {
+		"method": "GET",
+		"urlPathPattern": "/customers/[^/]+/orders",
+		"queryParameters": {
+			"scenario": {
+				"equalTo": "returns"
+			}
+		}
+	},
+	"response": {
+		"status": 200,
+		"headers": {
+			"Content-Type": "application/json"
+		},
+		"jsonBody": {
+			"customerId": "{{request.pathSegments.[1]}}",
+			"scenario": "returns",
+			"orders": [
+				{
+					"orderId": "ord_3001",
+					"orderedAt": "2026-02-11T18:05:00Z",
+					"channel": "store",
+					"status": "returned",
+					"items": [
+						{
+							"sku": "anf-denim-ultra-high-skinny-black",
+							"productName": "Ultra High Rise Skinny Jean",
+							"category": "denim",
+							"sizeLabel": "28W x 30L",
+							"fit": "skinny",
+							"wash": "black",
+							"quantity": 1,
+							"unitPrice": 79.95,
+							"kept": false,
+							"returnReason": "too-tight-waist"
+						}
+					]
+				},
+				{
+					"orderId": "ord_3002",
+					"orderedAt": "2026-01-28T21:33:00Z",
+					"channel": "web",
+					"status": "exchanged",
+					"items": [
+						{
+							"sku": "anf-denim-curve-love-straight-medium",
+							"productName": "Curve Love High Rise Straight Jean",
+							"category": "denim",
+							"sizeLabel": "29W x 30L",
+							"fit": "straight",
+							"wash": "medium",
+							"quantity": 1,
+							"unitPrice": 89.95,
+							"kept": false,
+							"returnReason": "too-short"
+						},
+						{
+							"sku": "anf-denim-curve-love-straight-medium-long",
+							"productName": "Curve Love High Rise Straight Jean",
+							"category": "denim",
+							"sizeLabel": "29W x 32L",
+							"fit": "straight",
+							"wash": "medium",
+							"quantity": 1,
+							"unitPrice": 89.95,
+							"kept": true,
+							"returnReason": null
+						}
+					]
+				}
+			]
+		},
+		"transformers": ["response-template"]
+	}
 }

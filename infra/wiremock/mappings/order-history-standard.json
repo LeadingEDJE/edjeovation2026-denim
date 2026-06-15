@@ -1,65 +1,65 @@
 {
-  "priority": 10,
-  "request": {
-    "method": "GET",
-    "urlPathPattern": "/customers/[^/]+/orders",
-    "queryParameters": {
-      "scenario": {
-        "equalTo": "standard"
-      }
-    }
-  },
-  "response": {
-    "status": 200,
-    "headers": {
-      "Content-Type": "application/json"
-    },
-    "jsonBody": {
-      "customerId": "{{request.pathSegments.[1]}}",
-      "scenario": "standard",
-      "orders": [
-        {
-          "orderId": "ord_1001",
-          "orderedAt": "2026-04-20T14:18:00Z",
-          "channel": "web",
-          "status": "delivered",
-          "items": [
-            {
-              "sku": "anf-denim-curve-90s-straight-med",
-              "productName": "Curve Love High Rise 90s Straight Jean",
-              "category": "denim",
-              "sizeLabel": "29W x 30L",
-              "fit": "straight",
-              "wash": "medium",
-              "quantity": 1,
-              "unitPrice": 89.95,
-              "kept": true,
-              "returnReason": null
-            }
-          ]
-        },
-        {
-          "orderId": "ord_1002",
-          "orderedAt": "2026-03-09T19:42:00Z",
-          "channel": "mobile",
-          "status": "delivered",
-          "items": [
-            {
-              "sku": "anf-tops-essential-rib-tank-white",
-              "productName": "Essential Rib Tank",
-              "category": "tops",
-              "sizeLabel": "M",
-              "fit": "regular",
-              "wash": "white",
-              "quantity": 2,
-              "unitPrice": 29.95,
-              "kept": true,
-              "returnReason": null
-            }
-          ]
-        }
-      ]
-    },
-    "transformers": ["response-template"]
-  }
+	"priority": 10,
+	"request": {
+		"method": "GET",
+		"urlPathPattern": "/customers/[^/]+/orders",
+		"queryParameters": {
+			"scenario": {
+				"equalTo": "standard"
+			}
+		}
+	},
+	"response": {
+		"status": 200,
+		"headers": {
+			"Content-Type": "application/json"
+		},
+		"jsonBody": {
+			"customerId": "{{request.pathSegments.[1]}}",
+			"scenario": "standard",
+			"orders": [
+				{
+					"orderId": "ord_1001",
+					"orderedAt": "2026-04-20T14:18:00Z",
+					"channel": "web",
+					"status": "delivered",
+					"items": [
+						{
+							"sku": "anf-denim-curve-90s-straight-med",
+							"productName": "Curve Love High Rise 90s Straight Jean",
+							"category": "denim",
+							"sizeLabel": "29W x 30L",
+							"fit": "straight",
+							"wash": "medium",
+							"quantity": 1,
+							"unitPrice": 89.95,
+							"kept": true,
+							"returnReason": null
+						}
+					]
+				},
+				{
+					"orderId": "ord_1002",
+					"orderedAt": "2026-03-09T19:42:00Z",
+					"channel": "mobile",
+					"status": "delivered",
+					"items": [
+						{
+							"sku": "anf-tops-essential-rib-tank-white",
+							"productName": "Essential Rib Tank",
+							"category": "tops",
+							"sizeLabel": "M",
+							"fit": "regular",
+							"wash": "white",
+							"quantity": 2,
+							"unitPrice": 29.95,
+							"kept": true,
+							"returnReason": null
+						}
+					]
+				}
+			]
+		},
+		"transformers": ["response-template"]
+	}
 }

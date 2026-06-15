@@ -1,27 +1,27 @@
 {
-  "name": "@denim-fit/api",
-  "version": "0.1.0",
-  "private": true,
-  "type": "module",
-  "scripts": {
-    "dev": "tsx watch src/server.ts",
-    "build": "tsc -p tsconfig.json",
-    "start": "node dist/server.js",
-    "typecheck": "tsc -p tsconfig.json --noEmit",
-    "db:migrate": "node src/migrate.js"
-  },
-  "dependencies": {
-    "@fastify/cors": "^11.1.0",
-    "@fastify/swagger": "^9.7.0",
-    "@fastify/swagger-ui": "^6.0.0",
-    "fastify": "^5.8.5",
-    "pg": "^8.21.0",
-    "zod": "^4.4.3"
-  },
-  "devDependencies": {
-    "@types/node": "^24.10.1",
-    "@types/pg": "^8.15.6",
-    "tsx": "^4.21.0",
-    "typescript": "^6.0.3"
-  }
+	"name": "@denim-fit/api",
+	"version": "0.1.0",
+	"private": true,
+	"type": "module",
+	"scripts": {
+		"dev": "tsx watch src/server.ts",
+		"build": "tsc -p tsconfig.json",
+		"start": "node dist/server.js",
+		"typecheck": "tsc -p tsconfig.json --noEmit",
+		"db:migrate": "node src/migrate.js"
+	},
+	"dependencies": {
+		"@fastify/cors": "^11.1.0",
+		"@fastify/swagger": "^9.7.0",
+		"@fastify/swagger-ui": "^6.0.0",
+		"fastify": "^5.8.5",
+		"pg": "^8.21.0",
+		"zod": "^4.4.3"
+	},
+	"devDependencies": {
+		"@types/node": "^24.10.1",
+		"@types/pg": "^8.15.6",
+		"tsx": "^4.21.0",
+		"typescript": "^6.0.3"
+	}
 }

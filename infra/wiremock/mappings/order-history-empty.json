@@ -1,24 +1,24 @@
 {
-  "priority": 10,
-  "request": {
-    "method": "GET",
-    "urlPathPattern": "/customers/[^/]+/orders",
-    "queryParameters": {
-      "scenario": {
-        "equalTo": "empty"
-      }
-    }
-  },
-  "response": {
-    "status": 200,
-    "headers": {
-      "Content-Type": "application/json"
-    },
-    "jsonBody": {
-      "customerId": "{{request.pathSegments.[1]}}",
-      "scenario": "empty",
-      "orders": []
-    },
-    "transformers": ["response-template"]
-  }
+	"priority": 10,
+	"request": {
+		"method": "GET",
+		"urlPathPattern": "/customers/[^/]+/orders",
+		"queryParameters": {
+			"scenario": {
+				"equalTo": "empty"
+			}
+		}
+	},
+	"response": {
+		"status": 200,
+		"headers": {
+			"Content-Type": "application/json"
+		},
+		"jsonBody": {
+			"customerId": "{{request.pathSegments.[1]}}",
+			"scenario": "empty",
+			"orders": []
+		},
+		"transformers": ["response-template"]
+	}
 }

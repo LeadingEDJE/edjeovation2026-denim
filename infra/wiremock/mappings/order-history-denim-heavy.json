@@ -1,77 +1,77 @@
 {
-  "priority": 10,
-  "request": {
-    "method": "GET",
-    "urlPathPattern": "/customers/[^/]+/orders",
-    "queryParameters": {
-      "scenario": {
-        "equalTo": "denim-heavy"
-      }
-    }
-  },
-  "response": {
-    "status": 200,
-    "headers": {
-      "Content-Type": "application/json"
-    },
-    "jsonBody": {
-      "customerId": "{{request.pathSegments.[1]}}",
-      "scenario": "denim-heavy",
-      "orders": [
-        {
-          "orderId": "ord_2001",
-          "orderedAt": "2026-05-18T16:22:00Z",
-          "channel": "web",
-          "status": "delivered",
-          "items": [
-            {
-              "sku": "anf-denim-curve-love-baggy-light",
-              "productName": "Curve Love Low Rise Baggy Jean",
-              "category": "denim",
-              "sizeLabel": "30W x 31L",
-              "fit": "baggy",
-              "wash": "light",
-              "quantity": 1,
-              "unitPrice": 89.95,
-              "kept": true,
-              "returnReason": null
-            }
-          ]
-        },
-        {
-          "orderId": "ord_2002",
-          "orderedAt": "2026-04-02T12:10:00Z",
-          "channel": "store",
-          "status": "delivered",
-          "items": [
-            {
-              "sku": "anf-denim-high-rise-slim-dark",
-              "productName": "High Rise Slim Straight Jean",
-              "category": "denim",
-              "sizeLabel": "30W x 30L",
-              "fit": "slim",
-              "wash": "dark",
-              "quantity": 1,
-              "unitPrice": 79.95,
-              "kept": true,
-              "returnReason": null
-            },
-            {
-              "sku": "anf-denim-90s-straight-black",
-              "productName": "High Rise 90s Straight Jean",
-              "category": "denim",
-              "sizeLabel": "30W x 31L",
-              "fit": "straight",
-              "wash": "black",
-              "quantity": 1,
-              "unitPrice": 89.95,
-              "kept": true,
-              "returnReason": null
-            }
-          ]
-        }
-      ]
-    },
-    "transformers": ["response-template"]
-  }
+	"priority": 10,
+	"request": {
+		"method": "GET",
+		"urlPathPattern": "/customers/[^/]+/orders",
+		"queryParameters": {
+			"scenario": {
+				"equalTo": "denim-heavy"
+			}
+		}
+	},
+	"response": {
+		"status": 200,
+		"headers": {
+			"Content-Type": "application/json"
+		},
+		"jsonBody": {
+			"customerId": "{{request.pathSegments.[1]}}",
+			"scenario": "denim-heavy",
+			"orders": [
+				{
+					"orderId": "ord_2001",
+					"orderedAt": "2026-05-18T16:22:00Z",
+					"channel": "web",
+					"status": "delivered",
+					"items": [
+						{
+							"sku": "anf-denim-curve-love-baggy-light",
+							"productName": "Curve Love Low Rise Baggy Jean",
+							"category": "denim",
+							"sizeLabel": "30W x 31L",
+							"fit": "baggy",
+							"wash": "light",
+							"quantity": 1,
+							"unitPrice": 89.95,
+							"kept": true,
+							"returnReason": null
+						}
+					]
+				},
+				{
+					"orderId": "ord_2002",
+					"orderedAt": "2026-04-02T12:10:00Z",
+					"channel": "store",
+					"status": "delivered",
+					"items": [
+						{
+							"sku": "anf-denim-high-rise-slim-dark",
+							"productName": "High Rise Slim Straight Jean",
+							"category": "denim",
+							"sizeLabel": "30W x 30L",
+							"fit": "slim",
+							"wash": "dark",
+							"quantity": 1,
+							"unitPrice": 79.95,
+							"kept": true,
+							"returnReason": null
+						},
+						{
+							"sku": "anf-denim-90s-straight-black",
+							"productName": "High Rise 90s Straight Jean",
+							"category": "denim",
+							"sizeLabel": "30W x 31L",
+							"fit": "straight",
+							"wash": "black",
+							"quantity": 1,
+							"unitPrice": 89.95,
+							"kept": true,
+							"returnReason": null
+						}
+					]
+				}
+			]
+		},
+		"transformers": ["response-template"]
+	}
 }

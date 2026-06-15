@@ -2,9 +2,9 @@ import pg from "pg";
 import { config } from "./config.js";
 
 export const pool = new pg.Pool({
-  connectionString: config.databaseUrl
+	connectionString: config.databaseUrl,
 });
 
 export async function closeDb() {
-  await pool.end();
+	await pool.end();
 }
