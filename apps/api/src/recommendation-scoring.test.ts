@@ -1,17 +1,15 @@
 import { describe, expect, it } from "vitest";
 import {
+	type FitProfile,
 	rankCandidates,
 	scoreProduct,
 	targetLength,
 	targetWaistSize,
 } from "./recommendation-scoring.js";
-import type { CatalogProduct, FittingInput } from "./types.js";
+import type { CatalogProduct } from "./types.js";
 
-const input: FittingInput = {
-	customerName: "Avery",
-	heightInches: 67,
+const input: FitProfile = {
 	waistInches: 29,
-	hipInches: 39,
 	inseamInches: 30,
 	fitPreference: "straight",
 	stretchPreference: "comfort-stretch",

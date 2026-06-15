@@ -15,9 +15,7 @@ body {
 	margin: 0;
 }
 
-button,
-input,
-select {
+button {
 	font: inherit;
 }
 
@@ -61,7 +59,7 @@ h2 {
 .workspace {
 	display: grid;
 	gap: 16px;
-	grid-template-columns: minmax(280px, 380px) minmax(280px, 1fr);
+	grid-template-columns: minmax(240px, 320px) minmax(320px, 1fr);
 	margin: 0 auto;
 	max-width: 1180px;
 }
@@ -73,17 +71,6 @@ h2 {
 	padding: 18px;
 }
 
-.formPanel {
-	display: grid;
-	gap: 14px;
-	grid-row: span 2;
-}
-
-.resultPanel,
-.sessionsPanel {
-	min-height: 220px;
-}
-
 .panelHeader {
 	align-items: center;
 	display: flex;
@@ -92,52 +79,16 @@ h2 {
 	margin-bottom: 12px;
 }
 
-.formPanel .panelHeader {
-	justify-content: flex-start;
-	margin-bottom: 0;
+.summaryPanel {
+	align-self: start;
 }
 
-label {
-	color: #4a5565;
-	display: grid;
-	font-size: 0.82rem;
-	font-weight: 700;
-	gap: 6px;
-}
-
-input,
-select {
-	background: #ffffff;
-	border: 1px solid #c7c0b8;
-	border-radius: 6px;
-	color: #1c2430;
-	min-height: 42px;
-	padding: 8px 10px;
-	width: 100%;
-}
-
-.gridFields {
-	display: grid;
-	gap: 10px;
-	grid-template-columns: repeat(2, minmax(0, 1fr));
-}
-
-.primaryButton,
 .iconButton {
 	align-items: center;
 	border: 0;
 	cursor: pointer;
 	display: inline-flex;
 	justify-content: center;
-}
-
-.primaryButton {
-	background: #275c63;
-	border-radius: 6px;
-	color: white;
-	gap: 8px;
-	min-height: 44px;
-	padding: 0 14px;
 }
 
 .iconButton {
@@ -159,122 +110,57 @@ button:disabled {
 	font-size: 0.9rem;
 }
 
-.recommendation {
-	display: grid;
-	gap: 10px;
+.appointmentsPanel {
+	min-height: 360px;
 }
 
-.recommendation strong {
-	font-size: 1.75rem;
-}
-
-.recommendation span {
-	color: #275c63;
-	font-weight: 800;
-}
-
-meter {
-	height: 12px;
-	width: min(100%, 360px);
-}
-
-.sessionList {
-	display: grid;
-	gap: 10px;
-}
-
-.sessionRow {
-	border-bottom: 1px solid #ece4d8;
-	display: grid;
-	gap: 2px;
-	padding: 0 0 10px;
-}
-
-.sessionRow span,
-.sessionRow small {
-	color: #6c7480;
-}
-
-.engineBadge {
-	border-radius: 999px;
-	font-size: 0.7rem;
-	font-weight: 700;
-	margin-left: auto;
-	padding: 3px 10px;
-	text-transform: uppercase;
-}
-
-.engineBadge.claude {
-	background: #e7dafe;
-	color: #5b34b3;
-}
-
-.engineBadge.rule-based {
-	background: #e7ece4;
-	color: #4a6353;
-}
-
-.catalogSummary {
-	color: #4a4f57;
-	font-style: italic;
-	margin: 0 0 12px;
-}
-
-.catalogList {
+.appointmentList {
 	display: grid;
 	gap: 12px;
 }
 
-.catalogMatch {
-	align-items: start;
+.appointmentRow {
 	border: 1px solid #ece4d8;
-	border-radius: 12px;
+	border-radius: 8px;
 	display: grid;
-	gap: 10px;
-	grid-template-columns: auto 1fr auto;
+	gap: 8px;
 	padding: 12px;
 }
 
-.catalogMatch .rank {
-	color: #275c63;
-	font-weight: 800;
-}
-
-.matchBody {
-	display: grid;
-	gap: 4px;
-}
-
-.matchBody a {
-	color: #1f2933;
-	font-weight: 700;
-	text-decoration: none;
-}
-
-.matchBody a:hover {
-	text-decoration: underline;
-}
-
-.matchMeta {
+.appointmentRow span,
+.appointmentRow p {
 	color: #6c7480;
-	text-transform: capitalize;
 }
 
-.matchRationale {
-	color: #4a4f57;
-	margin: 2px 0 0;
+.appointmentHeading {
+	align-items: start;
+	display: flex;
+	gap: 12px;
+	justify-content: space-between;
 }
 
-.matchScore {
-	color: #8a6d3b;
-	font-variant-numeric: tabular-nums;
-	font-weight: 700;
+.appointmentHeading div {
+	display: grid;
+	gap: 2px;
 }
 
-.catalogFootnote {
-	color: #9aa0a8;
-	display: block;
-	margin-top: 10px;
+.stylistTitle {
+	text-align: right;
+}
+
+.prepTags {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+}
+
+.prepTags span {
+	background: #e7f0ef;
+	border-radius: 999px;
+	color: #275c63;
+	font-size: 0.8rem;
+	font-weight: 800;
+	padding: 4px 8px;
 }
 
 @media (max-width: 820px) {

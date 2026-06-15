@@ -1,0 +1,17 @@
+{
+	"user": {
+		"customerId": "cust_jordan_002",
+		"loyaltyId": "anf-loyalty-10002",
+		"displayName": "Jordan",
+		"measurements": {
+			"heightInches": 70,
+			"waistInches": 32,
+			"hipInches": 40,
+			"inseamInches": 32
+		},
+		"preferences": {
+			"fitPreference": "relaxed",
+			"stretchPreference": "rigid"
+		}
+	}
+}

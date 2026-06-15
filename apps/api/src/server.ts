@@ -17,7 +17,7 @@ await app.register(swagger, {
 		info: {
 			title: "Personalized Denim Fitting API",
 			description:
-				"API for creating denim fitting sessions and retrieving fit recommendations.",
+				"API for guided denim fitting appointment booking and stylist prep data.",
 			version: "0.1.0",
 		},
 		servers: [
@@ -28,9 +28,11 @@ await app.register(swagger, {
 		],
 		tags: [
 			{ name: "health", description: "Service health" },
+			{ name: "admin", description: "Local mock-user switching controls" },
+			{ name: "user", description: "Mocked logged-in customer context" },
 			{
-				name: "fitting-sessions",
-				description: "Customer measurements and denim recommendations",
+				name: "appointments",
+				description: "Guided fitting appointment booking and prep data",
 			},
 			{
 				name: "order-history",

@@ -1,0 +1,79 @@
+{
+	"users": [
+		{
+			"customerId": "cust_avery_001",
+			"loyaltyId": "anf-loyalty-10001",
+			"displayName": "Avery",
+			"measurements": {
+				"heightInches": 67,
+				"waistInches": 29,
+				"hipInches": 39,
+				"inseamInches": 30
+			},
+			"preferences": {
+				"fitPreference": "straight",
+				"stretchPreference": "comfort-stretch"
+			}
+		},
+		{
+			"customerId": "cust_jordan_002",
+			"loyaltyId": "anf-loyalty-10002",
+			"displayName": "Jordan",
+			"measurements": {
+				"heightInches": 70,
+				"waistInches": 32,
+				"hipInches": 40,
+				"inseamInches": 32
+			},
+			"preferences": {
+				"fitPreference": "relaxed",
+				"stretchPreference": "rigid"
+			}
+		},
+		{
+			"customerId": "cust_riley_003",
+			"loyaltyId": "anf-loyalty-10003",
+			"displayName": "Riley",
+			"measurements": {
+				"heightInches": 64,
+				"waistInches": 26,
+				"hipInches": 36,
+				"inseamInches": 28
+			},
+			"preferences": {
+				"fitPreference": "slim",
+				"stretchPreference": "high-stretch"
+			}
+		},
+		{
+			"customerId": "cust_morgan_004",
+			"loyaltyId": "anf-loyalty-10004",
+			"displayName": "Morgan",
+			"measurements": {
+				"heightInches": 72,
+				"waistInches": 34,
+				"hipInches": 42,
+				"inseamInches": 34
+			},
+			"preferences": {
+				"fitPreference": "wide",
+				"stretchPreference": "comfort-stretch"
+			}
+		},
+		{
+			"customerId": "cust_taylor_005",
+			"loyaltyId": "anf-loyalty-10005",
+			"displayName": "Taylor",
+			"measurements": {
+				"heightInches": 66,
+				"waistInches": 30,
+				"hipInches": 41,
+				"inseamInches": 30
+			},
+			"preferences": {
+				"fitPreference": "skinny",
+				"stretchPreference": "high-stretch"
+			}
+		}
+	]
+}

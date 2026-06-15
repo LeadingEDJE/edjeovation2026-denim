@@ -1,23 +1,22 @@
-CREATE TABLE IF NOT EXISTS fitting_sessions (
-  id UUID PRIMARY KEY,
-  customer_name TEXT NOT NULL,
-  height_inches INTEGER NOT NULL,
-  waist_inches NUMERIC(5,2) NOT NULL,
-  hip_inches NUMERIC(5,2) NOT NULL,
-  inseam_inches NUMERIC(5,2) NOT NULL,
-  fit_preference TEXT NOT NULL,
-  stretch_preference TEXT NOT NULL,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
-);
+DROP TABLE IF EXISTS denim_recommendations;
+DROP TABLE IF EXISTS fitting_sessions;
 
-CREATE TABLE IF NOT EXISTS denim_recommendations (
+CREATE TABLE IF NOT EXISTS appointments (
   id UUID PRIMARY KEY,
-  session_id UUID NOT NULL REFERENCES fitting_sessions(id) ON DELETE CASCADE,
-  style_name TEXT NOT NULL,
-  size_label TEXT NOT NULL,
-  confidence NUMERIC(4,3) NOT NULL,
-  rationale TEXT NOT NULL,
-  source_payload JSONB NOT NULL DEFAULT '{}'::jsonb,
+  customer_id TEXT NOT NULL,
+  loyalty_id TEXT NOT NULL,
+  customer_name TEXT NOT NULL,
+  slot_start TIMESTAMPTZ NOT NULL,
+  slot_end TIMESTAMPTZ NOT NULL,
+  occasion TEXT NOT NULL,
+  focus_colors TEXT NOT NULL,
+  avoid_colors TEXT NOT NULL,
+  style_keywords JSONB NOT NULL DEFAULT '[]'::jsonb,
+  guidance TEXT NOT NULL DEFAULT '',
+  muse_tag TEXT NOT NULL,
+  assigned_stylist JSONB NOT NULL,
+  order_history_summary JSONB NOT NULL,
+  source_payload JSONB NOT NULL,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 

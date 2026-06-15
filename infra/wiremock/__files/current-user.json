@@ -1,0 +1,15 @@
+{
+	"customerId": "cust_avery_001",
+	"loyaltyId": "anf-loyalty-10001",
+	"displayName": "Avery",
+	"measurements": {
+		"heightInches": 67,
+		"waistInches": 29,
+		"hipInches": 39,
+		"inseamInches": 30
+	},
+	"preferences": {
+		"fitPreference": "straight",
+		"stretchPreference": "comfort-stretch"
+	}
+}

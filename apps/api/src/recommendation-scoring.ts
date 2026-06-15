@@ -5,7 +5,17 @@
  * Claude re-ranker then refines. Pure functions only (no DB, no network) so the
  * scoring is easy to unit-test and reason about.
  */
-import type { CatalogProduct, FittingInput } from "./types.js";
+import type { CatalogProduct } from "./types.js";
+
+// Self-contained fit profile the scorer needs. Decoupled from any request/UI
+// shape so it can be fed from the logged-in user's measurements + preferences
+// (the appointment-prep flow) rather than a one-off form.
+export type FitProfile = {
+	waistInches: number;
+	inseamInches: number;
+	fitPreference: "skinny" | "slim" | "straight" | "relaxed" | "wide";
+	stretchPreference: "rigid" | "comfort-stretch" | "high-stretch";
+};
 
 export type ScoredCandidate = {
 	product: CatalogProduct;
@@ -15,7 +25,7 @@ export type ScoredCandidate = {
 
 // Fits one step away on the skinny→wide spectrum still partially satisfy a
 // preference (e.g. someone who wants "straight" is often happy in "slim").
-const FIT_ADJACENCY: Record<FittingInput["fitPreference"], string[]> = {
+const FIT_ADJACENCY: Record<FitProfile["fitPreference"], string[]> = {
 	skinny: ["slim"],
 	slim: ["skinny", "straight"],
 	straight: ["slim", "relaxed"],
@@ -47,7 +57,7 @@ export function targetLength(
 }
 
 export function scoreProduct(
-	input: FittingInput,
+	input: FitProfile,
 	product: CatalogProduct,
 ): ScoredCandidate {
 	let score = 0;
@@ -89,7 +99,7 @@ export function scoreProduct(
 
 /** Score every candidate and return the top `limit`, highest score first. */
 export function rankCandidates(
-	input: FittingInput,
+	input: FitProfile,
 	products: CatalogProduct[],
 	limit = 10,
 ): ScoredCandidate[] {

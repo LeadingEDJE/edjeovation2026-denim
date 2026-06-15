@@ -7,8 +7,7 @@
  */
 import Anthropic from "@anthropic-ai/sdk";
 import { config } from "./config.js";
-import type { ScoredCandidate } from "./recommendation-scoring.js";
-import type { FittingInput } from "./types.js";
+import type { FitProfile, ScoredCandidate } from "./recommendation-scoring.js";
 
 export type RankedRecommendation = {
 	productId: string;
@@ -76,15 +75,12 @@ function candidateLine(c: ScoredCandidate): string {
 }
 
 function buildUserPrompt(
-	input: FittingInput,
+	input: FitProfile,
 	shortlist: ScoredCandidate[],
 	topN: number,
 ): string {
 	const profile = [
-		`name: ${input.customerName}`,
-		`height: ${input.heightInches} in`,
 		`waist: ${input.waistInches} in`,
-		`hip: ${input.hipInches} in`,
 		`inseam: ${input.inseamInches} in`,
 		`fitPreference: ${input.fitPreference}`,
 		`stretchPreference: ${input.stretchPreference}`,
@@ -104,7 +100,7 @@ Return the best ${topN} candidates, ranked 1 (best) to ${topN}, with a rationale
 
 /** Re-rank the shortlist with Claude, or fall back to the rule-based order. */
 export async function rerank(
-	input: FittingInput,
+	input: FitProfile,
 	shortlist: ScoredCandidate[],
 	topN = 5,
 ): Promise<RerankResult> {

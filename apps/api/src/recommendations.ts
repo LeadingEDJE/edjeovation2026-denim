@@ -1,21 +1,13 @@
-import { randomUUID } from "node:crypto";
 import { config } from "./config.js";
 import type {
-	DenimRecommendation,
-	FittingInput,
+	CurrentUser,
 	OrderHistory,
 	OrderHistoryScenario,
 	StylistAvailabilitySchedule,
 	StylistList,
 	StylistProfile,
+	UserList,
 } from "./types.js";
-
-type ThirdPartyRecommendation = {
-	styleName: string;
-	sizeLabel: string;
-	confidence: number;
-	rationale: string;
-};
 
 export class ThirdPartyHttpError extends Error {
 	constructor(
@@ -26,41 +18,48 @@ export class ThirdPartyHttpError extends Error {
 	}
 }
 
-export async function fetchThirdPartyRecommendation(
-	input: FittingInput,
-): Promise<ThirdPartyRecommendation> {
-	const response = await fetch(
-		`${config.thirdPartyBaseUrl}/fit/recommendation`,
-		{
-			method: "POST",
-			headers: { "content-type": "application/json" },
-			body: JSON.stringify(input),
-		},
-	);
+export async function fetchThirdPartyCurrentUser(): Promise<CurrentUser> {
+	const response = await fetch(`${config.thirdPartyBaseUrl}/me`);
 
 	if (!response.ok) {
 		throw new ThirdPartyHttpError(
-			`Third-party recommendation failed with ${response.status}`,
+			`Third-party current user failed with ${response.status}`,
 			response.status,
 		);
 	}
 
-	return response.json() as Promise<ThirdPartyRecommendation>;
+	return response.json() as Promise<CurrentUser>;
 }
 
-export function toRecommendation(
-	sessionId: string,
-	source: ThirdPartyRecommendation,
-): DenimRecommendation {
-	return {
-		id: randomUUID(),
-		sessionId,
-		styleName: source.styleName,
-		sizeLabel: source.sizeLabel,
-		confidence: source.confidence,
-		rationale: source.rationale,
-		createdAt: new Date().toISOString(),
-	};
+export async function fetchThirdPartyUsers(): Promise<UserList> {
+	const response = await fetch(`${config.thirdPartyBaseUrl}/users`);
+
+	if (!response.ok) {
+		throw new ThirdPartyHttpError(
+			`Third-party users failed with ${response.status}`,
+			response.status,
+		);
+	}
+
+	return response.json() as Promise<UserList>;
+}
+
+export async function fetchThirdPartyUser(
+	userId: string,
+): Promise<CurrentUser> {
+	const response = await fetch(
+		`${config.thirdPartyBaseUrl}/users/${encodeURIComponent(userId)}`,
+	);
+
+	if (!response.ok) {
+		throw new ThirdPartyHttpError(
+			`Third-party user failed with ${response.status}`,
+			response.status,
+		);
+	}
+
+	const data = (await response.json()) as { user: CurrentUser };
+	return data.user;
 }
 
 export async function fetchThirdPartyOrderHistory(
