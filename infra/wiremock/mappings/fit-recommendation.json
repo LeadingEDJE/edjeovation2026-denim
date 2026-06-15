@@ -1,0 +1,19 @@
+{
+  "request": {
+    "method": "POST",
+    "url": "/fit/recommendation"
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "jsonBody": {
+      "styleName": "Curve Love High Rise 90s Straight Jean",
+      "sizeLabel": "{{#jsonPath request.body '$.waistInches'}}{{.}}{{/jsonPath}}W x {{#jsonPath request.body '$.inseamInches'}}{{.}}{{/jsonPath}}L",
+      "confidence": 0.88,
+      "rationale": "Matched from measurement profile, fit preference, and stretch preference supplied by the fitting experience."
+    },
+    "transformers": ["response-template"]
+  }
+}

@@ -1,0 +1,58 @@
+services:
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    environment:
+      API_PORT: 4000
+      DATABASE_URL: postgres://denim:denim@postgres:5432/denim_fit
+      THIRD_PARTY_BASE_URL: http://wiremock:8080
+    ports:
+      - "4000:4000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      wiremock:
+        condition: service_started
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+      args:
+        VITE_API_BASE_URL: http://localhost:4000
+    environment:
+      VITE_API_BASE_URL: http://localhost:4000
+    ports:
+      - "5173:5173"
+    depends_on:
+      - api
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: denim_fit
+      POSTGRES_USER: denim
+      POSTGRES_PASSWORD: denim
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./infra/db/init.sql:/docker-entrypoint-initdb.d/001-init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U denim -d denim_fit"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  wiremock:
+    image: wiremock/wiremock:3.13.1
+    command: ["--global-response-templating", "--verbose"]
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./infra/wiremock/mappings:/home/wiremock/mappings:ro
+      - ./infra/wiremock/__files:/home/wiremock/__files:ro
+
+volumes:
+  postgres-data:
