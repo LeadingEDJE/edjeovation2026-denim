@@ -1,4 +1,10 @@
-import { CalendarClock, CheckCircle2, RefreshCw, Save } from "lucide-react";
+import {
+	CalendarClock,
+	CheckCircle2,
+	RefreshCw,
+	Save,
+	XCircle,
+} from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
 import {
@@ -9,6 +15,18 @@ import {
 } from "./api";
 import "./styles.css";
 
+type DashboardView = "upcoming" | "completed" | "cancelled";
+
+const dashboardViews: Array<{
+	id: DashboardView;
+	label: string;
+	icon: typeof CalendarClock;
+}> = [
+	{ id: "upcoming", label: "Upcoming", icon: CalendarClock },
+	{ id: "completed", label: "Completed", icon: CheckCircle2 },
+	{ id: "cancelled", label: "Cancelled", icon: XCircle },
+];
+
 const panelClass = "rounded-lg border border-line bg-surface p-[18px]";
 const tagClass =
 	"rounded-full bg-tag px-2 py-1 font-extrabold text-[0.8rem] text-accent";
@@ -18,6 +36,7 @@ const buttonBase =
 function App() {
 	const [appointments, setAppointments] = useState<Appointment[]>([]);
 	const [sessionNotes, setSessionNotes] = useState<Record<string, string>>({});
+	const [activeView, setActiveView] = useState<DashboardView>("upcoming");
 	const [status, setStatus] = useState("Loading appointments");
 	const [isLoading, setIsLoading] = useState(false);
 
@@ -100,9 +119,40 @@ function App() {
 		void refresh();
 	}, [refresh]);
 
+	const filteredAppointments = appointments.filter((appointment) => {
+		switch (activeView) {
+			case "upcoming":
+				return (
+					appointment.status === "scheduled" &&
+					new Date(appointment.slotStart) >= new Date()
+				);
+			case "completed":
+				return appointment.status === "completed";
+			case "cancelled":
+				return appointment.status === "cancelled";
+		}
+	});
+
+	const counts = {
+		upcoming: appointments.filter(
+			(appointment) =>
+				appointment.status === "scheduled" &&
+				new Date(appointment.slotStart) >= new Date(),
+		).length,
+		completed: appointments.filter(
+			(appointment) => appointment.status === "completed",
+		).length,
+		cancelled: appointments.filter(
+			(appointment) => appointment.status === "cancelled",
+		).length,
+	};
+
+	const activeTitle =
+		dashboardViews.find((view) => view.id === activeView)?.label ?? "Upcoming";
+
 	return (
 		<main className="min-h-screen p-[18px] min-[820px]:p-7">
-			<header className="mx-auto mb-6 flex max-w-[1180px] items-center justify-between">
+			<header className="mx-auto mb-6 flex max-w-[1180px] flex-col gap-[18px] min-[820px]:flex-row min-[820px]:items-center min-[820px]:justify-between">
 				<div>
 					<p className="mb-1 font-bold text-[0.78rem] text-clay uppercase">
 						AnF denim fitting
@@ -111,46 +161,68 @@ function App() {
 						Appointment prep dashboard
 					</h1>
 				</div>
-				<button
-					type="button"
-					className="inline-flex size-[42px] cursor-pointer items-center justify-center rounded-full bg-ink text-white transition-opacity hover:opacity-90 disabled:cursor-wait disabled:opacity-60"
-					onClick={refresh}
-					disabled={isLoading}
-					aria-label="Refresh appointments"
-				>
-					<RefreshCw size={18} />
-				</button>
+				<div className="flex items-center justify-between gap-3 min-[820px]:justify-start">
+					<p className="text-[0.9rem] text-muted">{status}</p>
+					<button
+						type="button"
+						className="inline-flex size-[42px] cursor-pointer items-center justify-center rounded-full bg-ink text-white transition-opacity hover:opacity-90 disabled:cursor-wait disabled:opacity-60"
+						onClick={refresh}
+						disabled={isLoading}
+						aria-label="Refresh appointments"
+					>
+						<RefreshCw size={18} />
+					</button>
+				</div>
 			</header>
 
-			<section className="mx-auto grid max-w-[1180px] grid-cols-1 gap-4 min-[820px]:grid-cols-[minmax(240px,320px)_minmax(320px,1fr)]">
-				<section
-					className={`${panelClass} self-start`}
-					data-testid="summary-panel"
-				>
-					<div className="mb-3 flex items-center justify-between gap-2">
-						<div>
-							<p className="mb-1 font-bold text-[0.78rem] text-clay uppercase">
-								Booked journeys
-							</p>
-							<h2 className="font-semibold text-base">{appointments.length}</h2>
-						</div>
-						<CalendarClock size={24} />
-					</div>
-					<p className="text-[0.9rem] text-muted">{status}</p>
-				</section>
+			<nav
+				className="mx-auto mb-4 flex max-w-[1180px] flex-wrap gap-2"
+				aria-label="Appointment views"
+			>
+				{dashboardViews.map((view) => {
+					const Icon = view.icon;
+					return (
+						<button
+							key={view.id}
+							type="button"
+							className={`inline-flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-2.5 ${
+								activeView === view.id
+									? "border-ink bg-ink text-white"
+									: "border-line bg-surface text-ink"
+							}`}
+							onClick={() => setActiveView(view.id)}
+						>
+							<Icon size={17} />
+							<span>{view.label}</span>
+							<strong
+								className={`min-w-6 rounded-full px-[7px] py-0.5 text-center text-[0.78rem] ${
+									activeView === view.id
+										? "bg-white/20"
+										: "bg-[rgba(28,36,48,0.1)]"
+								}`}
+							>
+								{counts[view.id]}
+							</strong>
+						</button>
+					);
+				})}
+			</nav>
 
+			<section className="mx-auto max-w-[1180px]">
 				<section
 					className={`${panelClass} min-h-[360px]`}
 					data-testid="appointments-panel"
 				>
 					<div className="mb-3 flex items-center justify-between gap-2">
-						<h2 className="font-semibold text-base">Stylist prep queue</h2>
+						<h2 className="font-semibold text-base">
+							{activeTitle} appointments
+						</h2>
 						<span className="text-[0.9rem] text-muted">
-							{appointments.length}
+							{filteredAppointments.length}
 						</span>
 					</div>
 					<div className="grid gap-3" data-testid="appointment-list">
-						{appointments.map((appointment) => (
+						{filteredAppointments.map((appointment) => (
 							<article
 								className="grid gap-3 rounded-lg border border-rowline p-3"
 								key={appointment.id}
@@ -167,7 +239,9 @@ function App() {
 									<span className="text-right text-muted">
 										{appointment.status === "completed"
 											? "Completed"
-											: appointment.assignedStylist.title}
+											: appointment.status === "cancelled"
+												? "Cancelled"
+												: appointment.assignedStylist.title}
 									</span>
 								</div>
 								<div className="flex flex-wrap gap-2">
@@ -254,7 +328,7 @@ function App() {
 												[appointment.id]: event.target.value,
 											}))
 										}
-										disabled={appointment.status === "completed" || isLoading}
+										disabled={appointment.status !== "scheduled" || isLoading}
 										placeholder="Summarize fit feedback, products tried, and follow-up recommendations."
 									/>
 								</label>
@@ -263,7 +337,7 @@ function App() {
 										type="button"
 										className={`${buttonBase} border border-control bg-surface text-ink transition-colors hover:bg-canvas`}
 										onClick={() => void saveNotes(appointment)}
-										disabled={appointment.status === "completed" || isLoading}
+										disabled={appointment.status !== "scheduled" || isLoading}
 									>
 										<Save size={16} />
 										Save notes
@@ -272,7 +346,7 @@ function App() {
 										type="button"
 										className={`${buttonBase} border border-ink bg-ink text-white transition-opacity hover:opacity-90`}
 										onClick={() => void completeSession(appointment)}
-										disabled={appointment.status === "completed" || isLoading}
+										disabled={appointment.status !== "scheduled" || isLoading}
 									>
 										<CheckCircle2 size={16} />
 										Mark complete
@@ -280,12 +354,12 @@ function App() {
 								</div>
 							</article>
 						))}
-						{appointments.length === 0 ? (
+						{filteredAppointments.length === 0 ? (
 							<p
 								className="text-[0.9rem] text-muted"
 								data-testid="appointments-empty"
 							>
-								No guided appointments yet.
+								No {activeTitle.toLowerCase()} appointments.
 							</p>
 						) : null}
 					</div>

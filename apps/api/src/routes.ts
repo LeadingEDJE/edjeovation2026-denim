@@ -61,7 +61,7 @@ const museTagEnum = [
 	"Boyish Muse",
 	"Statement Maker",
 ] as const;
-const appointmentStatusEnum = ["scheduled", "completed"] as const;
+const appointmentStatusEnum = ["scheduled", "completed", "cancelled"] as const;
 const styleKeywordEnum = [
 	"minimal",
 	"effortless",
@@ -1236,6 +1236,7 @@ export async function registerRoutes(app: FastifyInstance) {
 						},
 					},
 					404: errorJsonSchema,
+					409: errorJsonSchema,
 					502: errorJsonSchema,
 				},
 			},
@@ -1252,14 +1253,27 @@ export async function registerRoutes(app: FastifyInstance) {
 						SET guidance = $1
 						WHERE id = $2
 							AND customer_id = $3
-							AND slot_start >= now()
-							AND status = 'scheduled'
+							AND status <> 'completed'
 						RETURNING *
 					`,
 					[input.guidance, appointmentId, currentUser.customerId],
 				);
 
 				if (!result.rows[0]) {
+					const existing = await pool.query(
+						`
+							SELECT status
+							FROM appointments
+							WHERE id = $1
+								AND customer_id = $2
+						`,
+						[appointmentId, currentUser.customerId],
+					);
+					if (existing.rows[0]?.status === "completed") {
+						return reply
+							.code(409)
+							.send({ message: "Completed appointments cannot be edited" });
+					}
 					return reply.code(404).send({ message: "Appointment not found" });
 				}
 
@@ -1421,11 +1435,13 @@ export async function registerRoutes(app: FastifyInstance) {
 				const currentUser = await getActiveUser();
 				const result = await pool.query(
 					`
-						DELETE FROM appointments
+						UPDATE appointments
+						SET status = 'cancelled'
 						WHERE id = $1
 							AND customer_id = $2
 							AND slot_start >= now()
 							AND status = 'scheduled'
+						RETURNING id
 					`,
 					[appointmentId, currentUser.customerId],
 				);

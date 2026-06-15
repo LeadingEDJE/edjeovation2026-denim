@@ -9,6 +9,7 @@ import { registerRoutes } from "./routes.js";
 const app = Fastify({ logger: true });
 
 await app.register(cors, {
+	methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
 	origin: true,
 });
 

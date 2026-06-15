@@ -31,7 +31,7 @@ export type Appointment = {
 	styleKeywords: string[];
 	guidance: string;
 	sessionNotes: string;
-	status: "scheduled" | "completed";
+	status: "scheduled" | "completed" | "cancelled";
 	museTag: string;
 	assignedStylist: {
 		id: string;

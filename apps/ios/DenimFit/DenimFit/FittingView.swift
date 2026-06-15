@@ -57,7 +57,7 @@ struct FittingView: View {
                         }
                     }
                     Button("Home") {
-                        screen = .home
+                        Task { await refreshCustomerData() }
                     }
                     Button("Admin") {
                         screen = .admin
@@ -300,6 +300,9 @@ struct FittingView: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(24)
         }
+        .refreshable {
+            await refreshCustomerData()
+        }
     }
 
     private var newJourneyLanding: some View {
@@ -379,19 +382,20 @@ struct FittingView: View {
 
     @ViewBuilder
     private func existingAppointment(_ appointment: Appointment) -> some View {
-        let canEdit = appointment.status == "scheduled" && isFuture(appointment.slotStart)
+        let canEdit = appointment.status != "completed"
+        let canCancel = appointment.status == "scheduled" && isFuture(appointment.slotStart)
 
         VStack(spacing: 0) {
             ScrollView {
                 VStack(alignment: .leading, spacing: 18) {
-                    Text(canEdit ? "Upcoming appointment" : "Past appointment")
+                    Text(canEdit ? "Appointment" : "Past appointment")
                         .font(.subheadline)
                         .fontWeight(.semibold)
                         .foregroundStyle(.teal)
-                    Text(canEdit ? "Your fitting journey is booked." : "Your fitting recap")
+                    Text(canEdit ? "Your fitting journey" : "Your fitting recap")
                         .font(.largeTitle)
                         .fontWeight(.bold)
-                    Text(canEdit ? "You can update the note your stylist sees or cancel this appointment." : "This appointment is read-only.")
+                    Text(canEdit ? "You can update the note your stylist sees until the session is marked complete." : "This appointment is read-only.")
                         .foregroundStyle(.secondary)
                     SummaryRow(label: "Appointment", value: displayDate(appointment.slotStart))
                     SummaryRow(label: "Stylist", value: "\(appointment.assignedStylist.displayName), \(appointment.assignedStylist.title)")
@@ -412,7 +416,7 @@ struct FittingView: View {
                 .padding(24)
             }
             HStack {
-                if canEdit {
+                if canCancel {
                     Button("Cancel appointment", role: .destructive) {
                         Task { await cancelAppointment() }
                     }
@@ -442,6 +446,9 @@ struct FittingView: View {
             }
             .padding(20)
             .background(.regularMaterial)
+        }
+        .refreshable {
+            await refreshCustomerData()
         }
     }
 
@@ -614,7 +621,10 @@ struct FittingView: View {
 
     @MainActor
     private func loadInitialData() async {
-        guard currentUser == nil else { return }
+        guard currentUser == nil else {
+            await refreshCustomerData()
+            return
+        }
         isLoading = true
         defer { isLoading = false }
 
@@ -633,6 +643,33 @@ struct FittingView: View {
             status = "Ready"
         } catch {
             status = "Could not load your fitting journey"
+        }
+    }
+
+    @MainActor
+    private func refreshCustomerData() async {
+        isLoading = true
+        status = "Refreshing"
+        defer { isLoading = false }
+
+        do {
+            async let user = apiClient.getCurrentUser()
+            async let availableUsers = apiClient.getUsers()
+            async let availableSlots = apiClient.getAppointmentSlots()
+            async let upcomingAppointment = apiClient.getUpcomingAppointment()
+            async let past = apiClient.getPastAppointments()
+            currentUser = try await user
+            users = try await availableUsers
+            slots = try await availableSlots
+            appointment = try await upcomingAppointment
+            pastAppointments = try await past
+            detailAppointment = nil
+            guidance = appointment?.guidance ?? ""
+            screen = .home
+            step = .landing
+            status = "Ready"
+        } catch {
+            status = "Could not refresh your fitting journey"
         }
     }
 

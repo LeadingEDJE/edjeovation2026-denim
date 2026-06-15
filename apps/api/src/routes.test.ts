@@ -86,6 +86,26 @@ function appointmentRow(overrides: Record<string, unknown> = {}) {
 	};
 }
 
+function currentUser() {
+	return {
+		user: {
+			customerId: "cust_avery_001",
+			loyaltyId: "anf-1",
+			displayName: "Avery Parker",
+			measurements: {
+				heightInches: 66,
+				waistInches: 28,
+				hipInches: 38,
+				inseamInches: 30,
+			},
+			preferences: {
+				fitPreference: "straight",
+				stretchPreference: "comfort-stretch",
+			},
+		},
+	};
+}
+
 async function buildApp(): Promise<FastifyInstance> {
 	const app = Fastify();
 	await registerRoutes(app);
@@ -287,6 +307,47 @@ describe("PATCH /api/appointments/:appointmentId/session-notes", () => {
 	});
 });
 
+describe("PATCH /api/appointments/:appointmentId", () => {
+	it("updates customer guidance on a non-completed appointment even after the slot time", async () => {
+		fetchMock.mockResolvedValueOnce(jsonResponse(currentUser()));
+		(query as Mock).mockResolvedValueOnce({
+			rows: [
+				appointmentRow({
+					guidance: "Please pull darker washes.",
+					slot_start: "2026-06-01T15:00:00.000Z",
+					status: "scheduled",
+				}),
+			],
+		});
+
+		const res = await app.inject({
+			method: "PATCH",
+			url: "/api/appointments/11111111-1111-4111-8111-111111111111",
+			payload: { guidance: "Please pull darker washes." },
+		});
+
+		expect(res.statusCode).toBe(200);
+		expect(res.json().appointment.guidance).toBe(
+			"Please pull darker washes.",
+		);
+	});
+
+	it("rejects customer guidance edits after completion", async () => {
+		fetchMock.mockResolvedValueOnce(jsonResponse(currentUser()));
+		(query as Mock)
+			.mockResolvedValueOnce({ rows: [] })
+			.mockResolvedValueOnce({ rows: [{ status: "completed" }] });
+
+		const res = await app.inject({
+			method: "PATCH",
+			url: "/api/appointments/11111111-1111-4111-8111-111111111111",
+			payload: { guidance: "Late note" },
+		});
+
+		expect(res.statusCode).toBe(409);
+	});
+});
+
 describe("POST /api/appointments/:appointmentId/complete", () => {
 	it("marks an appointment completed with session notes", async () => {
 		(query as Mock).mockResolvedValueOnce({
@@ -312,5 +373,23 @@ describe("POST /api/appointments/:appointmentId/complete", () => {
 			completedAt: "2026-06-16T16:00:00.000Z",
 			suggestedProducts: [],
 		});
+	});
+});
+
+describe("DELETE /api/appointments/:appointmentId", () => {
+	it("marks an upcoming appointment cancelled instead of deleting it", async () => {
+		fetchMock.mockResolvedValueOnce(jsonResponse(currentUser()));
+		(query as Mock).mockResolvedValueOnce({ rowCount: 1, rows: [{ id: "x" }] });
+
+		const res = await app.inject({
+			method: "DELETE",
+			url: "/api/appointments/11111111-1111-4111-8111-111111111111",
+		});
+
+		expect(res.statusCode).toBe(204);
+		expect(query).toHaveBeenCalledWith(
+			expect.stringContaining("SET status = 'cancelled'"),
+			["11111111-1111-4111-8111-111111111111", "cust_avery_001"],
+		);
 	});
 });

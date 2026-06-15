@@ -148,7 +148,7 @@ export type MuseTag =
 	| "Romantic Muse"
 	| "Boyish Muse"
 	| "Statement Maker";
-export type AppointmentStatus = "scheduled" | "completed";
+export type AppointmentStatus = "scheduled" | "completed" | "cancelled";
 
 // A catalog product the recommendation engine suggested for an appointment,
 // with the engine's ranking and rationale. Stored on the appointment.

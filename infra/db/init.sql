@@ -14,7 +14,7 @@ CREATE TABLE IF NOT EXISTS appointments (
   style_keywords JSONB NOT NULL DEFAULT '[]'::jsonb,
   guidance TEXT NOT NULL DEFAULT '',
   session_notes TEXT NOT NULL DEFAULT '',
-  status TEXT NOT NULL DEFAULT 'scheduled' CHECK (status IN ('scheduled', 'completed')),
+  status TEXT NOT NULL DEFAULT 'scheduled' CHECK (status IN ('scheduled', 'completed', 'cancelled')),
   muse_tag TEXT NOT NULL,
   assigned_stylist JSONB NOT NULL,
   order_history_summary JSONB NOT NULL,
@@ -28,6 +28,7 @@ ALTER TABLE appointments ADD COLUMN IF NOT EXISTS session_notes TEXT NOT NULL DE
 ALTER TABLE appointments ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'scheduled';
 ALTER TABLE appointments ADD COLUMN IF NOT EXISTS completed_at TIMESTAMPTZ;
 ALTER TABLE appointments ADD COLUMN IF NOT EXISTS suggested_products JSONB NOT NULL DEFAULT '[]'::jsonb;
+ALTER TABLE appointments DROP CONSTRAINT IF EXISTS appointments_status_check;
 
 DO $$
 BEGIN
@@ -37,7 +38,7 @@ BEGIN
     WHERE conname = 'appointments_status_check'
   ) THEN
     ALTER TABLE appointments
-      ADD CONSTRAINT appointments_status_check CHECK (status IN ('scheduled', 'completed'));
+      ADD CONSTRAINT appointments_status_check CHECK (status IN ('scheduled', 'completed', 'cancelled'));
   END IF;
 END $$;
 

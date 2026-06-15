@@ -26,4 +26,13 @@
 		font-family: var(--font-sans);
 		line-height: 1.4;
 	}
+
+	body {
+		margin: 0;
+	}
+
+	button,
+	textarea {
+		font: inherit;
+	}
 }
