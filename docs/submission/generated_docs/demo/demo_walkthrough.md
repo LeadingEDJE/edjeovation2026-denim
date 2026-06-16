@@ -14,22 +14,23 @@ live demo link / recorded video, ≤ 5 minutes).
 ### 1. Customer books a fitting (iOS app)
 
 The customer selects a store, picks a non-peak appointment slot, and completes a
-short intake: occasion, colors to focus on or avoid, and a style description that
-maps to an Abercrombie **Muse** (Clean / Romantic / Boyish / Statement Maker).
-They receive a confirmation with their assigned stylist.
+short intake: occasion, colors to focus on or avoid, the catalog to pull from
+(womens, mens, or both), and a style description that maps to an Abercrombie
+**Muse** (Clean / Romantic / Boyish / Statement Maker). They receive a
+confirmation with their assigned stylist.
 
 The iOS app is styled to the **Denim Fit brand system** — a navy/ink palette,
 square corners, bordered white cards on a neutral canvas, a navy full-bleed
 landing and confirmation, a navy hero on the appointment detail with grouped
 cards and chat bubbles, a 4-up fit-profile stat strip, a key/value review table,
-a six-step segmented progress bar across the booking wizard, and tappable
-swatch grids for the color step. The SwiftUI theme mirrors the tokens in
+an eight-step segmented progress bar across the booking wizard, a per-booking
+catalog selector, and tappable swatch grids for the color step. The SwiftUI theme mirrors the tokens in
 `packages/design-system/src/theme.css` so the customer app and associate web
 dashboard share one visual language.
 
 <!-- SCREENSHOT: iOS landing (navy full-bleed) -->
 <!-- SCREENSHOT: iOS store selection + slot picker -->
-<!-- SCREENSHOT: iOS intake — occasion + color swatch grids + style keywords (with step progress bar) -->
+<!-- SCREENSHOT: iOS intake — occasion + color swatch grids + style keywords + catalog selector (with step progress bar) -->
 <!-- SCREENSHOT: iOS review screen (key/value table) -->
 <!-- SCREENSHOT: iOS confirmation showing assigned stylist (navy full-bleed) -->
 <!-- SCREENSHOT: iOS appointment detail (navy hero + grouped cards, chat bubbles) -->
@@ -54,10 +55,10 @@ handheld; on ≥ 1040 px the desktop multi-column data row returns.
 
 ### 3. Associate reviews AI-curated suggestions
 
-The appointment detail shows the customer's profile and a **Suggested products**
-list — each item with a **thumbnail**, attributes (fit / rise / stretch / price),
-and a **rationale** explaining why it fits this customer. The shortlist is built
-by the rule-based scorer and re-ranked by Claude. On phones, **Suggested
+The appointment detail shows the customer's profile, selected catalog, and a
+**Suggested products** list — each item with a **thumbnail**, attributes (fit /
+rise / stretch / price), and a **rationale** explaining why it fits this
+customer. The shortlist is built by the rule-based scorer and re-ranked by Claude. On phones, **Suggested
 Products lead** (the customer-snapshot column drops below them via a CSS grid
 order swap), the hero **Check In / No-Show** buttons go full-width, and the
 **Save / Complete** action bar sticks to the bottom of the viewport so the next

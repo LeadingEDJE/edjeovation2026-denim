@@ -3,8 +3,9 @@
 ## Project Name
 
 Personalized Denim Fitting Experience — a guided, appointment-based denim
-fitting service for Abercrombie & Fitch women's, pairing a customer iOS app with
-an associate prep dashboard and AI-assisted product suggestions.
+fitting service for Abercrombie & Fitch customers, pairing a customer iOS app
+with an associate prep dashboard and AI-assisted suggestions from the selected
+womens and/or mens catalog.
 
 ## Team Members
 
@@ -12,8 +13,8 @@ an associate prep dashboard and AI-assisted product suggestions.
 
 ## Client
 
-Abercrombie & Fitch (women's denim). Built for this Innovation Days exercise
-against an emulated single-store environment; all third-party systems are mocked.
+Abercrombie & Fitch denim. Built for this Innovation Days exercise against an
+emulated single-store environment; all third-party systems are mocked.
 
 ## Problem Statement
 
@@ -37,19 +38,21 @@ undivided, high-touch experience. (~150 words)
 ## Proposed Solution
 
 The customer books a non-peak fitting slot in an iOS app and answers a short
-intake — occasion, colors to focus on or avoid, and a style description that maps
-to an Abercrombie "Muse" (Clean, Romantic, Boyish, Statement Maker). That intake
-is combined with the customer's order-history signals so the store has a clear
-picture of intent before arrival.
+intake — occasion, colors to focus on or avoid, preferred catalog source
+(womens, mens, or both), and a style description that maps to an Abercrombie
+"Muse" (Clean, Romantic, Boyish, Statement Maker). That intake is combined with
+the customer's order-history signals so the store has a clear picture of intent
+before arrival.
 
 The system assigns a store stylist near booking time and confirms the appointment
 and stylist to the customer. Associates work a web dashboard that lists upcoming
 appointments and, for each one, presents a **curated, AI-assisted set of product
 suggestions with a per-item rationale** to pull in advance. A deterministic
-rule-based engine scores the catalog against the fit profile and color context to
-build a diverse shortlist; Claude then re-ranks it for the specific customer and
-writes the rationale. If AI is unavailable the rule-based order is used, so prep
-always works.
+rule-based engine scopes the catalog to the customer's per-booking selection,
+scores it against the fit profile and color context, and builds a diverse
+shortlist; Claude then re-ranks it for the specific customer and writes the
+rationale. If AI is unavailable the rule-based order is used, so prep always
+works.
 
 Associates manage the full appointment lifecycle (check-in, no-show, complete),
 reassign stylists when needed, track product-prep states, exchange async messages
@@ -73,6 +76,8 @@ customer signals. (~250 words)
   shortlist tailored to each customer's intent and history.
 - **Customers get a personalized, low-friction experience** from a short intake to
   a confirmed stylist and an undivided non-peak session.
+- **Catalog choice matches the shopping mission** — customers can default to one
+  source but choose womens, mens, or both catalogs for each booking.
 - **Higher confidence, fewer returns** by anchoring suggestions to the customer's
   fit profile, color preferences, and Muse.
 - **Async communication** via a shared stylist inbox keeps the customer connected

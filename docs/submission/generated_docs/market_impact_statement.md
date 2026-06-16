@@ -18,7 +18,9 @@ denim fittings during non-peak hours (Mon–Thu).
   capture customer intent before arrival or to communicate async afterward.
 - **What they want:** a repeatable way to give a *prepared, personalized* fitting
   that lifts conversion and confidence and lowers returns — without adding heavy
-  process for the associate or burning out the customer with a long intake.
+  process for the associate or burning out the customer with a long intake. The
+  catalog source can vary by shopping mission, so customers may ask for womens,
+  mens, or both catalogs on a given appointment.
 
 ## Business Value / ROI
 
@@ -54,9 +56,9 @@ return rate on appointment purchases, and repeat-booking rate.
 
 **Why ours is better/different:** it is purpose-built for the *associate-led,
 in-store denim fitting* — combining a lightweight customer intake (mapped to
-Abercrombie Muses), order-history signals, and a hybrid (rules + Claude)
-recommender that outputs a curated shortlist *with talking points*, plus the full
-appointment lifecycle and async messaging.
+Abercrombie Muses), per-booking catalog selection, order-history signals, and a
+hybrid (rules + Claude) recommender that outputs a curated shortlist *with
+talking points*, plus the full appointment lifecycle and async messaging.
 
 ## Why This Matters Right Now
 
