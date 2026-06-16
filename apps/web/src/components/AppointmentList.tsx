@@ -1,27 +1,16 @@
 import { Badge } from "@denim-fit/design-system";
 import { ChevronRight, Search } from "lucide-react";
 import { useState } from "react";
-import type {
-	Appointment,
-	AppointmentStatus,
-	Store,
-	StylistProfile,
-} from "../api";
+import type { Appointment, Store, StylistProfile } from "../api";
 import {
 	initials,
 	relativeSlotLabel,
 	statusBadgeVariant,
 	statusLabel,
 } from "../formatters";
-import type { DashboardView } from "../types";
+import type { AppointmentFilters } from "../types";
 
-export type AppointmentFilters = {
-	storeId: string;
-	date: string;
-	dateOrder: "open_priority" | "oldest" | "newest";
-	stylistId: string;
-	status: AppointmentStatus | "";
-};
+export type { AppointmentFilters };
 
 type AppointmentListProps = {
 	activeTitle: string;
@@ -400,11 +389,4 @@ function AppointmentListRow({
 			</div>
 		</button>
 	);
-}
-
-export function getActiveTitle(
-	activeView: DashboardView,
-	labels: Record<DashboardView, string>,
-) {
-	return labels[activeView];
 }
