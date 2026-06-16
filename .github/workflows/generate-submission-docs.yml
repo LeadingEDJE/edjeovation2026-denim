@@ -1,0 +1,88 @@
+name: Generate submission docs
+
+# Keeps docs/submission/** in sync with the codebase. On each PR an agent reads
+# AGENTS.md, figures out which submission artifacts the PR's changes affect,
+# regenerates only those, and commits them back to the PR branch.
+#
+# Setup required: add an `ANTHROPIC_API_KEY` repository secret.
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+# Superseded runs on the same PR are cancelled to save minutes.
+concurrency:
+  group: gen-docs-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+permissions:
+  contents: write       # push doc updates back to the PR branch
+  pull-requests: read
+
+jobs:
+  generate-docs:
+    runs-on: ubuntu-latest
+    # Skip PRs from forks: they can't access the secret and can't push to the
+    # branch. Internal branches only.
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    steps:
+      - name: Checkout PR branch
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+          fetch-depth: 0
+          # Keep credentials so the agent can push its doc commit. Commits pushed
+          # with GITHUB_TOKEN do NOT re-trigger this workflow, so there's no loop.
+          persist-credentials: true
+
+      - name: Determine changed files
+        id: changes
+        run: |
+          base="origin/${{ github.event.pull_request.base.ref }}"
+          git fetch origin "${{ github.event.pull_request.base.ref }}" --depth=1
+          changed="$(git diff --name-only "$base"...HEAD)"
+          echo "Changed files:"
+          echo "$changed"
+          {
+            echo 'files<<EOF'
+            echo "$changed"
+            echo 'EOF'
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Generate submission docs
+        uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          # Allow the agent to read the repo, edit docs, and commit/push.
+          claude_args: >-
+            --max-turns 40
+            --allowedTools "Read,Glob,Grep,Edit,Write,Bash(git:*)"
+          prompt: |
+            You are maintaining this repository's Innovation Days submission
+            documentation. Follow the instructions in AGENTS.md exactly.
+
+            This pull request changed the following files:
+            ---
+            ${{ steps.changes.outputs.files }}
+            ---
+
+            Steps:
+            1. Read AGENTS.md, especially the "Relevance mapping" table.
+            2. Decide which files under docs/submission/ are affected by the
+               changed files above. If none are affected (e.g. the PR only
+               touches tests, CI, formatting, or docs/submission itself), make
+               NO changes and stop.
+            3. For each affected doc, read it and its primary repo sources, then
+               write real content following the template's required sections and
+               word limits. Replace template text on first generation; otherwise
+               update only the sections this PR affects and preserve human edits.
+            4. Honor every guardrail in AGENTS.md (no fabricated facts, label ROI
+               as estimates, no invented team names, mark mocked data, no secrets,
+               only touch docs/submission/**).
+            5. If and only if you changed files, commit and push to the PR branch:
+                 git config user.name "github-actions[bot]"
+                 git config user.email "github-actions[bot]@users.noreply.github.com"
+                 git add docs/submission
+                 git commit -m "docs: regenerate submission artifacts for PR changes"
+                 git push origin HEAD:${{ github.event.pull_request.head.ref }}
+               If you changed nothing, do not commit.
