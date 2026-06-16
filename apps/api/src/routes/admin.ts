@@ -4,6 +4,7 @@ import { fetchThirdPartyUsers } from "../recommendations.js";
 import {
 	getActiveUser,
 	getActiveUserId,
+	normalizeUserList,
 	setActiveUserId,
 	userExists,
 } from "./helpers.js";
@@ -29,7 +30,7 @@ export async function adminRoutes(app: FastifyInstance) {
 		},
 		async (_request, _reply) => {
 			try {
-				return await fetchThirdPartyUsers();
+				return normalizeUserList(await fetchThirdPartyUsers());
 			} catch (error) {
 				throw new HttpError(502, "Unable to load mock users", { cause: error });
 			}
@@ -78,7 +79,7 @@ export async function adminRoutes(app: FastifyInstance) {
 			const input = request.body as { customerId: string };
 
 			try {
-				const users = await fetchThirdPartyUsers();
+				const users = normalizeUserList(await fetchThirdPartyUsers());
 				if (!userExists(users, input.customerId)) {
 					return reply.code(404).send({ message: "Mock user not found" });
 				}

@@ -18,6 +18,7 @@ struct Measurements: Codable {
 struct UserPreferences: Codable {
     let fitPreference: String
     let stretchPreference: String
+    let catalogAudiences: [String]?
 }
 
 struct UserListResponse: Codable {
@@ -107,6 +108,7 @@ struct CreateAppointmentRequest: Codable {
     let focusColors: String
     let avoidColors: String
     let styleKeywords: [String]
+    let catalogAudiences: [String]
     let guidance: String
     let orderHistoryScenario: String
     // Omitted from the request when nil (the customer skipped the outfit step).
@@ -167,6 +169,7 @@ struct Appointment: Codable, Identifiable {
     let focusColors: String
     let avoidColors: String
     let styleKeywords: [String]
+    let catalogAudiences: [String]
     let guidance: String
     let sessionNotes: String
     let status: String

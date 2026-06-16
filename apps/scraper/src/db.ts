@@ -10,6 +10,7 @@ export type CatalogProduct = {
 	source: string;
 	name: string;
 	category: string | null;
+	catalogAudiences: string[];
 	productUrl: string;
 	imageUrl: string | null;
 	description: string | null;
@@ -27,13 +28,20 @@ export type CatalogProduct = {
 export async function upsertProduct(p: CatalogProduct): Promise<void> {
 	await pool.query(
 		`INSERT INTO catalog_products
-       (product_id, source, name, category, product_url, image_url, description,
+       (product_id, source, name, category, catalog_audiences, product_url, image_url, description,
         price, currency, fit, rise, stretch, sizes, colors, raw, scraped_at)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13::jsonb,$14::jsonb,$15::jsonb, now())
+     VALUES ($1,$2,$3,$4,$5::jsonb,$6,$7,$8,$9,$10,$11,$12,$13,$14::jsonb,$15::jsonb,$16::jsonb, now())
      ON CONFLICT (product_id) DO UPDATE SET
        source = EXCLUDED.source,
        name = EXCLUDED.name,
        category = EXCLUDED.category,
+       catalog_audiences = (
+         SELECT jsonb_agg(value ORDER BY value)
+         FROM (
+           SELECT DISTINCT value
+           FROM jsonb_array_elements_text(catalog_products.catalog_audiences || EXCLUDED.catalog_audiences) AS merged(value)
+         ) deduped
+       ),
        product_url = EXCLUDED.product_url,
        image_url = EXCLUDED.image_url,
        description = EXCLUDED.description,
@@ -51,6 +59,7 @@ export async function upsertProduct(p: CatalogProduct): Promise<void> {
 			p.source,
 			p.name,
 			p.category,
+			JSON.stringify(p.catalogAudiences),
 			p.productUrl,
 			p.imageUrl,
 			p.description,

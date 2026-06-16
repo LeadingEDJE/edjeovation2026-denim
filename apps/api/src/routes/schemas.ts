@@ -51,6 +51,13 @@ export const productPrepStatusEnum = [
 	"pulled",
 	"skipped",
 ] as const;
+export const catalogAudienceEnum = ["womens", "mens"] as const;
+export const catalogAudiencesJsonSchema = {
+	type: "array",
+	minItems: 1,
+	uniqueItems: true,
+	items: { type: "string", enum: catalogAudienceEnum },
+} as const;
 export const styleKeywordEnum = [
 	"minimal",
 	"effortless",
@@ -96,6 +103,7 @@ export const currentUserJsonSchema = {
 			properties: {
 				fitPreference: { type: "string", enum: fitPreferenceEnum },
 				stretchPreference: { type: "string", enum: stretchPreferenceEnum },
+				catalogAudiences: catalogAudiencesJsonSchema,
 			},
 		},
 	},
@@ -465,6 +473,7 @@ export const createAppointmentJsonSchema = {
 			minItems: 1,
 			items: { type: "string", enum: styleKeywordEnum },
 		},
+		catalogAudiences: catalogAudiencesJsonSchema,
 		guidance: { type: "string" },
 		orderHistoryScenario: {
 			type: "string",
@@ -612,6 +621,7 @@ export const appointmentSummaryJsonSchema = {
 		"focusColors",
 		"avoidColors",
 		"styleKeywords",
+		"catalogAudiences",
 		"guidance",
 		"sessionNotes",
 		"status",
@@ -645,6 +655,7 @@ export const appointmentSummaryJsonSchema = {
 		focusColors: { type: "string" },
 		avoidColors: { type: "string" },
 		styleKeywords: { type: "array", items: { type: "string" } },
+		catalogAudiences: catalogAudiencesJsonSchema,
 		guidance: { type: "string" },
 		sessionNotes: { type: "string" },
 		status: { type: "string", enum: appointmentStatusEnum },

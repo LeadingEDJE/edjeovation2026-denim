@@ -22,8 +22,9 @@ around a shared API and database:
   PostgreSQL, queries the `catalog_products` table for candidates, calls the
   mocked third-party services for customer/order/store/stylist data, and runs the
   two-stage recommendation pipeline. Exposes OpenAPI docs at `/docs`.
-- **Data flow for a booking:** client submits intake + slot → API assigns a
-  stylist, maps a Muse tag, summarizes order history, builds suggested products,
+- **Data flow for a booking:** client submits intake + slot + catalog selection
+  (womens, mens, or both) → API assigns a stylist, maps a Muse tag, summarizes
+  order history, builds suggested products from the selected catalog audience,
   and stores the appointment → associate dashboard reads it for prep → lifecycle
   actions (check-in, complete, etc.) and messages mutate the same record.
 
@@ -68,7 +69,7 @@ around a shared API and database:
 | Source | Contents | Real / Mocked / Synthetic | Status |
 |---|---|---|---|
 | WireMock fixtures (`infra/wiremock/`) | Customers, order history, stores, stylist profiles, weekly schedules | Mocked | Available locally |
-| `catalog_products` (PostgreSQL, seeded `infra/db/`) | Abercrombie women's catalog (name, category, fit/rise/stretch, price, image URL) | Synthetic (scraped/seeded snapshot) | Available locally |
+| `catalog_products` (PostgreSQL, seeded `infra/db/`) | Abercrombie womens/mens catalog snapshot (name, category, catalog audiences, fit/rise/stretch, price, image URL) | Synthetic (scraped/seeded snapshot) | Available locally |
 | `appointments` (PostgreSQL) | Bookings, intake, assigned stylist, suggestions, lifecycle state, messages, recaps | Mixed: app-generated plus deterministic synthetic local seed history | Available locally |
 | Anthropic / LiteLLM | Re-ranking + rationale generation | Real external call | Optional; falls back to rule-based |
 
@@ -83,7 +84,8 @@ around a shared API and database:
   `source_payload` at booking time, but a real production deployment would still
   need a stable identity source.
 - **Catalog is a seeded snapshot**, not a live feed, and may drift from the real
-  assortment; sizing rules are simplified.
+  assortment; sizing rules are simplified and catalog-audience tags are inferred
+  from the scraped Abercrombie category path.
 - **Appointment history is demo seed data locally.** Historical bookings,
   messages, notifications, feedback, and prep states are deterministic and tied
   to the mocked users/stylists/stores, but they are not real customer records.

@@ -204,11 +204,11 @@ export function insertAppointment(values: unknown[]) {
 		`
 			INSERT INTO appointments (
 				id, customer_id, loyalty_id, customer_name, slot_start, slot_end, store_snapshot,
-				occasion, focus_colors, avoid_colors, style_keywords, guidance,
+				occasion, focus_colors, avoid_colors, style_keywords, catalog_audiences, guidance,
 				session_notes, status, muse_tag, assigned_stylist,
 				order_history_summary, suggested_products, source_payload, outfit_analysis
 			)
-			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, '', 'scheduled', $13, $14, $15, $16, $17, $18)
+			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, '', 'scheduled', $14, $15, $16, $17, $18, $19)
 			RETURNING *
 		`,
 		values,

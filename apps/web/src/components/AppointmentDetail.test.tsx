@@ -46,6 +46,7 @@ function makeAppointment(overrides: Partial<Appointment> = {}): Appointment {
 		focusColors: "Indigo",
 		avoidColors: "White",
 		styleKeywords: ["minimal"],
+		catalogAudiences: ["womens"],
 		guidance: "",
 		sessionNotes: "",
 		status: "scheduled",

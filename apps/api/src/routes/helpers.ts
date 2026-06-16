@@ -20,6 +20,7 @@ import * as repository from "../repository.js";
 import type {
 	Appointment,
 	AppointmentSlot,
+	CatalogAudience,
 	CatalogProduct,
 	CreateAppointmentInput,
 	CurrentUser,
@@ -37,6 +38,7 @@ import type {
 	UserList,
 } from "../types.js";
 import {
+	catalogAudienceEnum,
 	productPrepStatusEnum,
 	terminalAppointmentStatuses,
 } from "./schemas.js";
@@ -304,6 +306,12 @@ export function normalizeSuggestedProducts(
 ): SuggestedProduct[] {
 	return suggestedProducts.map((suggestion) => ({
 		...suggestion,
+		product: {
+			...suggestion.product,
+			catalogAudiences: normalizeCatalogAudiences(
+				suggestion.product.catalogAudiences,
+			),
+		},
 		prepStatus: productPrepStatusEnum.includes(
 			suggestion.prepStatus as SuggestedProductPrepStatus,
 		)
@@ -363,6 +371,7 @@ export function mapAppointment(row: Record<string, unknown>): Appointment {
 		focusColors: String(row.focus_colors),
 		avoidColors: String(row.avoid_colors),
 		styleKeywords: parseJsonField<string[]>(row.style_keywords),
+		catalogAudiences: normalizeCatalogAudiences(row.catalog_audiences),
 		guidance: String(row.guidance),
 		sessionNotes: String(row.session_notes ?? ""),
 		status: String(row.status ?? "scheduled") as Appointment["status"],
@@ -422,7 +431,46 @@ export function mapAppointmentNotification(row: Record<string, unknown>) {
 }
 
 export async function getActiveUser() {
-	return fetchThirdPartyUser(activeUserId);
+	return normalizeCurrentUser(await fetchThirdPartyUser(activeUserId));
+}
+
+export function normalizeCatalogAudiences(value: unknown): CatalogAudience[] {
+	const rawValues = (() => {
+		if (Array.isArray(value)) return value;
+		if (typeof value !== "string") return [];
+		try {
+			const parsed = JSON.parse(value) as unknown;
+			return Array.isArray(parsed) ? parsed : [value];
+		} catch {
+			return [value];
+		}
+	})();
+
+	const audiences = Array.from(
+		new Set(
+			rawValues.filter((audience): audience is CatalogAudience =>
+				catalogAudienceEnum.includes(audience as CatalogAudience),
+			),
+		),
+	);
+
+	return audiences.length ? audiences : ["womens"];
+}
+
+export function normalizeCurrentUser(user: CurrentUser): CurrentUser {
+	return {
+		...user,
+		preferences: {
+			...user.preferences,
+			catalogAudiences: normalizeCatalogAudiences(
+				user.preferences.catalogAudiences,
+			),
+		},
+	};
+}
+
+export function normalizeUserList(users: UserList): UserList {
+	return { users: users.users.map(normalizeCurrentUser) };
 }
 
 export function userExists(users: UserList, customerId: string) {
@@ -437,6 +485,7 @@ export function mapCatalogProduct(
 		source: String(row.source),
 		name: String(row.name),
 		category: row.category == null ? null : String(row.category),
+		catalogAudiences: normalizeCatalogAudiences(row.catalog_audiences),
 		productUrl: String(row.product_url),
 		imageUrl: row.image_url == null ? null : String(row.image_url),
 		description: row.description == null ? null : String(row.description),
@@ -450,6 +499,15 @@ export function mapCatalogProduct(
 		colors: Array.isArray(row.colors) ? (row.colors as string[]) : [],
 		scrapedAt: new Date(String(row.scraped_at)).toISOString(),
 	};
+}
+
+function productMatchesCatalogAudiences(
+	product: CatalogProduct,
+	selectedAudiences: CatalogAudience[],
+) {
+	return product.catalogAudiences.some((audience) =>
+		selectedAudiences.includes(audience),
+	);
 }
 
 /**
@@ -504,12 +562,14 @@ export async function resolveAppointmentCustomer(
 	sourcePayload: unknown,
 ): Promise<CurrentUser | null> {
 	try {
-		return await fetchThirdPartyUser(customerId);
+		return normalizeCurrentUser(await fetchThirdPartyUser(customerId));
 	} catch {
 		const snapshot = parseJsonField<{ currentUser?: CurrentUser }>(
 			sourcePayload,
 		);
-		return snapshot?.currentUser ?? null;
+		return snapshot?.currentUser
+			? normalizeCurrentUser(snapshot.currentUser)
+			: null;
 	}
 }
 
@@ -541,6 +601,9 @@ export async function buildSuggestedProducts(
 		focusColors: parseColors(focusColorsText),
 		avoidColors: parseColors(input.avoidColors),
 	};
+	const selectedAudiences = normalizeCatalogAudiences(
+		input.catalogAudiences ?? customer.preferences.catalogAudiences,
+	);
 
 	// "Similar"-only mode: when the customer marked pieces and NONE are
 	// "complement" (ignored pieces don't count at all), restrict suggestions to
@@ -558,7 +621,11 @@ export async function buildSuggestedProducts(
 		: null;
 
 	const catalogResult = await repository.selectAllCatalogProducts();
-	const allCandidates = catalogResult.rows.map(mapCatalogProduct);
+	const allCandidates = catalogResult.rows
+		.map(mapCatalogProduct)
+		.filter((product) =>
+			productMatchesCatalogAudiences(product, selectedAudiences),
+		);
 
 	// Apply the category restriction, but only if it leaves something to suggest.
 	const restricted = allowedCategories

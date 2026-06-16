@@ -14,7 +14,8 @@ export async function catalogRoutes(app: FastifyInstance) {
 			});
 		}
 
-		const { fit, rise, stretch, category, q, limit, offset } = parsed.data;
+		const { fit, rise, stretch, category, catalogAudience, q, limit, offset } =
+			parsed.data;
 		const conditions: string[] = [];
 		const params: unknown[] = [];
 
@@ -31,6 +32,10 @@ export async function catalogRoutes(app: FastifyInstance) {
 		if (rise) eq("rise", rise);
 		if (stretch) eq("stretch", stretch);
 		if (category) like("category", category);
+		if (catalogAudience) {
+			params.push(catalogAudience);
+			conditions.push(`catalog_audiences ? $${params.length}`);
+		}
 		if (q) {
 			params.push(`%${q}%`);
 			const i = params.length;

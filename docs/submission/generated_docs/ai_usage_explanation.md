@@ -7,8 +7,9 @@ recommendation pipeline** that prepares product suggestions for each appointment
 
 1. **Stage 1 — deterministic shortlist (no AI).**
    `apps/api/src/recommendation-scoring.ts` scores catalog products against the
-   customer's fit profile (fit, rise, stretch, sizes) and the appointment's color
-   context, then assembles a **category-diverse shortlist** (bottoms, dresses,
+   customer's fit profile (fit, rise, stretch, sizes), the appointment's color
+   context, and the customer's per-booking catalog selection (womens, mens, or
+   both), then assembles a **category-diverse shortlist** (bottoms, dresses,
    tops, outerwear) by default. When the customer has marked outfit pieces and
    every active piece is tagged `"similar"` (none `"complement"`), the API
    restricts the candidate pool to the coarse categories of those pieces — e.g.

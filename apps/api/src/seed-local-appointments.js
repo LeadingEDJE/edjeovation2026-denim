@@ -655,6 +655,7 @@ function normalizeCatalogProduct(row) {
 		source: String(row.source),
 		name: String(row.name),
 		category: row.category,
+		catalogAudiences: normalizeCatalogAudiences(row.catalog_audiences),
 		productUrl: String(row.product_url),
 		imageUrl: row.image_url,
 		description: row.description,
@@ -669,16 +670,33 @@ function normalizeCatalogProduct(row) {
 	};
 }
 
+function normalizeCatalogAudiences(value) {
+	const raw = Array.isArray(value) ? value : [];
+	const audiences = [
+		...new Set(raw.filter((item) => item === "womens" || item === "mens")),
+	];
+	return audiences.length ? audiences : ["womens"];
+}
+
 function chooseProducts(catalog, user, spec, index) {
 	const preferredFit = user.preferences.fitPreference;
 	const preferredStretch = user.preferences.stretchPreference;
+	const selectedAudiences = normalizeCatalogAudiences(
+		user.preferences.catalogAudiences,
+	);
 	const focusTokens = spec.focusColors
 		.toLowerCase()
 		.split(",")
 		.map((token) => token.trim())
 		.filter(Boolean);
 
-	const scored = catalog
+	const scopedCatalog = catalog.filter((product) =>
+		product.catalogAudiences.some((audience) =>
+			selectedAudiences.includes(audience),
+		),
+	);
+
+	const scored = scopedCatalog
 		.map((product) => {
 			const colorText = product.colors.join(" ").toLowerCase();
 			const nameText = product.name.toLowerCase();
@@ -879,6 +897,9 @@ function buildAppointment(spec, context, index) {
 	);
 	const id = uuidFor("0000", index);
 	const orderHistorySummary = orderHistorySummaryFor(user, spec, index);
+	const catalogAudiences = normalizeCatalogAudiences(
+		user.preferences.catalogAudiences,
+	);
 	const suggestedProducts = chooseProducts(catalog, user, spec, index);
 
 	return {
@@ -893,6 +914,7 @@ function buildAppointment(spec, context, index) {
 		focusColors: spec.focusColors,
 		avoidColors: spec.avoidColors,
 		styleKeywords: spec.styleKeywords,
+		catalogAudiences,
 		guidance: spec.guidance,
 		sessionNotes: spec.sessionNotes ?? "",
 		status: spec.status,
@@ -910,6 +932,7 @@ function buildAppointment(spec, context, index) {
 				focusColors: spec.focusColors,
 				avoidColors: spec.avoidColors,
 				styleKeywords: spec.styleKeywords,
+				catalogAudiences,
 				guidance: spec.guidance,
 			},
 			currentUser: user,
@@ -1019,7 +1042,7 @@ async function upsertAppointment(pool, appointment) {
 		`
 			INSERT INTO public.appointments (
 				id, customer_id, loyalty_id, customer_name, slot_start, slot_end, store_snapshot,
-				occasion, focus_colors, avoid_colors, style_keywords, guidance, session_notes,
+				occasion, focus_colors, avoid_colors, style_keywords, catalog_audiences, guidance, session_notes,
 				status, muse_tag, assigned_stylist, order_history_summary, suggested_products,
 				source_payload, checked_in_at, completed_at, cancelled_at, no_show_at,
 				cancel_reason, customer_recap, associate_feedback, customer_feedback_rating,
@@ -1027,11 +1050,11 @@ async function upsertAppointment(pool, appointment) {
 			)
 			VALUES (
 				$1, $2, $3, $4, $5, $6, $7,
-				$8, $9, $10, $11, $12, $13,
-				$14, $15, $16, $17, $18,
-				$19, $20, $21, $22, $23,
-				$24, $25, $26, $27,
-				$28, $29, $30
+				$8, $9, $10, $11, $12, $13, $14,
+				$15, $16, $17, $18, $19,
+				$20, $21, $22, $23, $24,
+				$25, $26, $27, $28,
+				$29, $30, $31
 			)
 			ON CONFLICT (id) DO UPDATE SET
 				customer_id = EXCLUDED.customer_id,
@@ -1044,6 +1067,7 @@ async function upsertAppointment(pool, appointment) {
 				focus_colors = EXCLUDED.focus_colors,
 				avoid_colors = EXCLUDED.avoid_colors,
 				style_keywords = EXCLUDED.style_keywords,
+				catalog_audiences = EXCLUDED.catalog_audiences,
 				guidance = EXCLUDED.guidance,
 				session_notes = EXCLUDED.session_notes,
 				status = EXCLUDED.status,
@@ -1076,6 +1100,7 @@ async function upsertAppointment(pool, appointment) {
 			appointment.focusColors,
 			appointment.avoidColors,
 			JSON.stringify(appointment.styleKeywords),
+			JSON.stringify(appointment.catalogAudiences),
 			appointment.guidance,
 			appointment.sessionNotes,
 			appointment.status,

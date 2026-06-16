@@ -8,6 +8,7 @@ describe("catalogQuerySchema", () => {
 			rise: "high",
 			stretch: "comfort-stretch",
 			category: "jeans",
+			catalogAudience: "mens",
 			q: "denim",
 			limit: "25",
 			offset: "10",
@@ -16,6 +17,7 @@ describe("catalogQuerySchema", () => {
 		if (result.success) {
 			expect(result.data.limit).toBe(25);
 			expect(result.data.offset).toBe(10);
+			expect(result.data.catalogAudience).toBe("mens");
 		}
 	});
 

@@ -20,6 +20,7 @@ struct FittingView: View {
     @State private var focusColors = Set<String>()
     @State private var avoidColors = Set<String>()
     @State private var selectedKeywords = Set<String>()
+    @State private var selectedCatalogAudiences: Set<String> = ["womens"]
     @State private var guidance = ""
     @State private var messageDraft = ""
     @State private var cancelReason = ""
@@ -61,7 +62,7 @@ struct FittingView: View {
         NavigationStack {
             VStack(spacing: 0) {
                 if screen == .booking, step.stepNumber > 0 {
-                    StepProgressBar(current: step.stepNumber, total: 7)
+                    StepProgressBar(current: step.stepNumber, total: 8)
                         .padding(.horizontal, 22)
                         .padding(.top, 12)
                         .padding(.bottom, 4)
@@ -126,7 +127,7 @@ struct FittingView: View {
             newJourneyLanding
         case .occasion:
             questionPage(
-                eyebrow: "Step 1 of 7",
+                eyebrow: "Step 1 of 8",
                 title: "What are you shopping for?",
                 subtitle: "An event, a trip, or just refreshing your rotation. Tell us in your words."
             ) {
@@ -160,7 +161,7 @@ struct FittingView: View {
             }
         case .colors:
             questionPage(
-                eyebrow: "Step 2 of 7",
+                eyebrow: "Step 2 of 8",
                 title: "Any colors in mind?",
                 subtitle: "Optional. Pick washes to lean into — and any to steer clear of."
             ) {
@@ -169,7 +170,7 @@ struct FittingView: View {
             }
         case .style:
             questionPage(
-                eyebrow: "Step 3 of 7",
+                eyebrow: "Step 3 of 8",
                 title: "Pick your style signals",
                 subtitle: "Choose the words that feel most like you."
             ) {
@@ -218,12 +219,20 @@ struct FittingView: View {
                     .overlay(Rectangle().stroke(Color.ink, lineWidth: 1))
                 }
             }
+        case .catalog:
+            questionPage(
+                eyebrow: "Step 4 of 8",
+                title: "Which catalog should your stylist pull from?",
+                subtitle: "Choose the source that fits this appointment."
+            ) {
+                CatalogAudiencePicker(selection: $selectedCatalogAudiences)
+            }
         case .outfit:
             OutfitMatchView(
                 apiClient: apiClient,
-                eyebrow: "Step 4 of 7",
+                eyebrow: "Step 5 of 8",
                 showBack: true,
-                onBack: { step = .style },
+                onBack: { step = .catalog },
                 onSkip: {
                     outfitAnalysis = nil
                     step = .store
@@ -235,7 +244,7 @@ struct FittingView: View {
             )
         case .store:
             questionPage(
-                eyebrow: "Step 5 of 7",
+                eyebrow: "Step 6 of 8",
                 title: "Choose a store",
                 subtitle: "Pick the fitting room location before choosing a time."
             ) {
@@ -269,7 +278,7 @@ struct FittingView: View {
             }
         case .schedule:
             questionPage(
-                eyebrow: "Step 6 of 7",
+                eyebrow: "Step 7 of 8",
                 title: "Pick a time",
                 subtitle: "We only show times when at least one stylist is scheduled."
             ) {
@@ -1166,6 +1175,7 @@ struct FittingView: View {
             ("When", selectedSlot.map { "\(dayLabel($0.slotStart)) · \(timeLabel($0.slotStart))" } ?? "No time selected"),
             ("Store", selectedStore?.name ?? "No store selected"),
             ("Muse", derivedMuse),
+            ("Catalog", catalogAudienceLabel(sortedSelectedCatalogAudiences)),
             ("Shopping for", occasion.isEmpty ? "—" : occasion),
             ("Colors", colorSummary(focusColors)),
         ]
@@ -1178,11 +1188,33 @@ struct FittingView: View {
         return rows
     }
 
+    private var sortedSelectedCatalogAudiences: [String] {
+        let order = ["womens", "mens"]
+        return order.filter { selectedCatalogAudiences.contains($0) }
+    }
+
+    private func defaultCatalogAudiences() -> Set<String> {
+        let audiences = currentUser?.preferences.catalogAudiences ?? ["womens"]
+        let valid = audiences.filter { $0 == "womens" || $0 == "mens" }
+        return Set(valid.isEmpty ? ["womens"] : valid)
+    }
+
+    private func catalogAudienceLabel(_ audiences: [String]) -> String {
+        let values = audiences.isEmpty ? ["womens"] : audiences
+        if values.contains("womens") && values.contains("mens") {
+            return "Womens + Mens"
+        }
+        if values.contains("mens") {
+            return "Mens"
+        }
+        return "Womens"
+    }
+
     private var review: some View {
         VStack(spacing: 0) {
             ScrollView {
                 VStack(alignment: .leading, spacing: 18) {
-                    Text("Step 7 of 7").eyebrow(.accent)
+                    Text("Step 8 of 8").eyebrow(.accent)
                     Text("Review & confirm")
                         .font(.brandDisplay(27))
                         .foregroundStyle(Color.ink)
@@ -1263,6 +1295,8 @@ struct FittingView: View {
                         confirmationRow("Store", "\(appointment.store.name), \(appointment.store.city)")
                         Rectangle().fill(Color(hex: 0x33485C)).frame(height: 1)
                         confirmationRow("Stylist", appointment.assignedStylist.displayName)
+                        Rectangle().fill(Color(hex: 0x33485C)).frame(height: 1)
+                        confirmationRow("Catalog", catalogAudienceLabel(appointment.catalogAudiences))
                     }
                     .background(Color(hex: 0x1D2C38))
                     .overlay(Rectangle().stroke(Color(hex: 0x3A5066), lineWidth: 1))
@@ -1329,6 +1363,8 @@ struct FittingView: View {
             return true
         case .style:
             return !selectedKeywords.isEmpty
+        case .catalog:
+            return !selectedCatalogAudiences.isEmpty
         case .outfit:
             // The outfit step is optional and supplies its own controls.
             return true
@@ -1457,6 +1493,7 @@ struct FittingView: View {
                 focusColors: colorPayload(focusColors),
                 avoidColors: colorPayload(avoidColors),
                 styleKeywords: selectedKeywords.sorted(),
+                catalogAudiences: sortedSelectedCatalogAudiences,
                 guidance: guidance,
                 orderHistoryScenario: "standard",
                 outfitAnalysis: outfitAnalysis
@@ -1522,6 +1559,7 @@ struct FittingView: View {
         focusColors = []
         avoidColors = []
         selectedKeywords = []
+        selectedCatalogAudiences = defaultCatalogAudiences()
         selectedSlot = nil
         guidance = ""
         outfitAnalysis = nil
@@ -1758,6 +1796,7 @@ private enum JourneyStep {
     case occasion
     case colors
     case style
+    case catalog
     case outfit
     case store
     case schedule
@@ -1775,16 +1814,17 @@ private enum JourneyStep {
         }
     }
 
-    /// 1-based position in the 7-step wizard; 0 for non-numbered screens.
+    /// 1-based position in the 8-step wizard; 0 for non-numbered screens.
     var stepNumber: Int {
         switch self {
         case .occasion: return 1
         case .colors: return 2
         case .style: return 3
-        case .outfit: return 4
-        case .store: return 5
-        case .schedule: return 6
-        case .review: return 7
+        case .catalog: return 4
+        case .outfit: return 5
+        case .store: return 6
+        case .schedule: return 7
+        case .review: return 8
         case .landing, .confirmation: return 0
         }
     }
@@ -1794,7 +1834,8 @@ private enum JourneyStep {
         case .landing: return .occasion
         case .occasion: return .colors
         case .colors: return .style
-        case .style: return .outfit
+        case .style: return .catalog
+        case .catalog: return .outfit
         case .outfit: return .store
         case .store: return .schedule
         case .schedule: return .review
@@ -1809,7 +1850,8 @@ private enum JourneyStep {
         case .occasion: return .landing
         case .colors: return .occasion
         case .style: return .colors
-        case .outfit: return .style
+        case .catalog: return .style
+        case .outfit: return .catalog
         case .store: return .outfit
         case .schedule: return .store
         case .review: return .schedule
@@ -1846,6 +1888,44 @@ private struct StyleOption: Identifiable {
         StyleOption(value: "bold", label: "Bold", muse: "Statement Maker"),
         StyleOption(value: "boundary-pushing", label: "Boundary-pushing", muse: "Statement Maker")
     ]
+}
+
+private struct CatalogAudiencePicker: View {
+    @Binding var selection: Set<String>
+
+    private let options: [(label: String, values: Set<String>)] = [
+        ("Womens", ["womens"]),
+        ("Mens", ["mens"]),
+        ("Both", ["womens", "mens"])
+    ]
+
+    var body: some View {
+        VStack(spacing: 10) {
+            ForEach(options, id: \.label) { option in
+                let selected = selection == option.values
+                Button {
+                    selection = option.values
+                } label: {
+                    HStack {
+                        Text(option.label)
+                            .font(.system(size: 15, weight: .bold))
+                            .foregroundStyle(selected ? Color.white : Color.ink)
+                        Spacer()
+                        if selected {
+                            Image(systemName: "checkmark")
+                                .font(.system(size: 13, weight: .bold))
+                                .foregroundStyle(Color.white)
+                        }
+                    }
+                    .padding(15)
+                    .frame(maxWidth: .infinity)
+                    .background(selected ? Color.ink : Color.surface)
+                    .overlay(Rectangle().stroke(selected ? Color.ink : Color.line, lineWidth: 1))
+                }
+                .buttonStyle(.plain)
+            }
+        }
+    }
 }
 
 /// Tappable color swatch grid for the booking color step. Focus selections show
@@ -2051,6 +2131,14 @@ private struct OutfitMatchView: View {
             .buttonStyle(.plain)
             .disabled(isAnalyzing)
 
+            Button {
+                onSkip()
+            } label: {
+                OutfitChooserCard(icon: "arrow.right", title: "Skip", subtitle: "Continue without an outfit to match")
+            }
+            .buttonStyle(.plain)
+            .disabled(isAnalyzing)
+
             if isAnalyzing {
                 HStack(spacing: 8) {
                     ProgressView().tint(Color.ink)
@@ -2162,9 +2250,9 @@ private struct OutfitMatchView: View {
             if showBack {
                 footerSecondaryButton("Back", action: onBack)
             }
-            footerSecondaryButton("Skip", action: onSkip)
-                .disabled(isAnalyzing)
             if stage == .editing {
+                footerSecondaryButton("Skip", action: onSkip)
+                    .disabled(isAnalyzing)
                 Button { confirm() } label: {
                     Text("Use this outfit")
                         .font(.brandDisplay(13))

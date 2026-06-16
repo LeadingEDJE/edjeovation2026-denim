@@ -31,6 +31,7 @@ import {
 	mapAppointmentMessage,
 	mapAppointmentNotification,
 	mapMuseTag,
+	normalizeCatalogAudiences,
 	normalizeSlotKey,
 	outfitEngineValues,
 	resolveAppointmentCustomer,
@@ -310,9 +311,13 @@ export async function appointmentRoutes(app: FastifyInstance) {
 					input.orderHistoryScenario ?? "standard",
 				);
 				const orderHistorySummary = summarizeOrderHistory(orderHistory);
+				const catalogAudiences = normalizeCatalogAudiences(
+					input.catalogAudiences ?? currentUser.preferences.catalogAudiences,
+				);
+				const appointmentInput = { ...input, catalogAudiences };
 				const suggestedProducts = await buildSuggestedProducts(
 					currentUser,
-					input,
+					appointmentInput,
 					museTag,
 					orderHistorySummary,
 				);
@@ -329,13 +334,14 @@ export async function appointmentRoutes(app: FastifyInstance) {
 					input.focusColors,
 					input.avoidColors,
 					JSON.stringify(input.styleKeywords),
+					JSON.stringify(catalogAudiences),
 					input.guidance ?? "",
 					museTag,
 					JSON.stringify(assignedStylist),
 					JSON.stringify(orderHistorySummary),
 					JSON.stringify(suggestedProducts),
 					JSON.stringify({
-						input,
+						input: appointmentInput,
 						currentUser,
 						orderHistory,
 						store: selectedStore,
@@ -1117,6 +1123,7 @@ export async function appointmentRoutes(app: FastifyInstance) {
 						focusColors: appointment.focusColors,
 						avoidColors: appointment.avoidColors,
 						styleKeywords: appointment.styleKeywords,
+						catalogAudiences: appointment.catalogAudiences,
 						guidance: appointment.guidance,
 						outfitAnalysis: appointment.outfitAnalysis,
 					},
@@ -1270,6 +1277,7 @@ export async function appointmentRoutes(app: FastifyInstance) {
 						focusColors: appointment.focusColors,
 						avoidColors: appointment.avoidColors,
 						styleKeywords: appointment.styleKeywords,
+						catalogAudiences: appointment.catalogAudiences,
 						guidance: appointment.guidance,
 						outfitAnalysis: normalized,
 					},

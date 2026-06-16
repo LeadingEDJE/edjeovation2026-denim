@@ -11,7 +11,8 @@
 		},
 		"preferences": {
 			"fitPreference": "skinny",
-			"stretchPreference": "high-stretch"
+			"stretchPreference": "high-stretch",
+			"catalogAudiences": ["womens"]
 		}
 	}
 }
