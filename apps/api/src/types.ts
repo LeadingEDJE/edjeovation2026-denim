@@ -59,17 +59,26 @@ export type OrderHistory = {
 
 export type StylistAvailabilityStatus = "available" | "busy" | "offline";
 
+export type Store = {
+	storeId: string;
+	name: string;
+	city: string;
+	state: string;
+	address: string;
+	phone: string;
+	timezone: string;
+};
+
+export type StoreList = {
+	stores: Store[];
+};
+
 export type StylistProfile = {
 	id: string;
 	displayName: string;
 	pronouns: string;
 	title: string;
-	store: {
-		storeId: string;
-		name: string;
-		city: string;
-		state: string;
-	};
+	store: Pick<Store, "storeId" | "name" | "city" | "state">;
 	bio: string;
 	specialties: string[];
 	stylePointOfView: string[];
@@ -84,6 +93,23 @@ export type StylistProfile = {
 
 export type StylistList = {
 	stylists: StylistProfile[];
+};
+
+export type StoreScheduleDayPattern = {
+	dayOfWeek: "Monday" | "Tuesday" | "Wednesday" | "Thursday";
+	openTime: string;
+	closeTime: string;
+	stylistIds: string[];
+};
+
+export type StoreSchedulePattern = {
+	storeId: string;
+	timezone: string;
+	weekly: StoreScheduleDayPattern[];
+};
+
+export type StoreSchedulePatternList = {
+	patterns: StoreSchedulePattern[];
 };
 
 export type StylistShift = {
@@ -148,7 +174,14 @@ export type MuseTag =
 	| "Romantic Muse"
 	| "Boyish Muse"
 	| "Statement Maker";
-export type AppointmentStatus = "scheduled" | "completed" | "cancelled";
+export type AppointmentStatus =
+	| "scheduled"
+	| "checked_in"
+	| "completed"
+	| "cancelled"
+	| "no_show";
+
+export type SuggestedProductPrepStatus = "suggested" | "pulled" | "skipped";
 
 // A catalog product the recommendation engine suggested for an appointment,
 // with the engine's ranking and rationale. Stored on the appointment.
@@ -157,9 +190,12 @@ export type SuggestedProduct = {
 	rationale: string;
 	score: number | null;
 	product: CatalogProduct;
+	prepStatus: SuggestedProductPrepStatus;
+	associateNote: string;
 };
 
 export type AppointmentSlot = {
+	storeId: string;
 	slotStart: string;
 	slotEnd: string;
 	date: string;
@@ -168,6 +204,7 @@ export type AppointmentSlot = {
 };
 
 export type CreateAppointmentInput = {
+	storeId: string;
 	slotStart: string;
 	occasion: string;
 	focusColors: string;
@@ -177,6 +214,27 @@ export type CreateAppointmentInput = {
 	orderHistoryScenario?: OrderHistoryScenario;
 };
 
+export type AppointmentMessage = {
+	id: string;
+	appointmentId: string;
+	authorType: "customer" | "associate";
+	body: string;
+	createdAt: string;
+};
+
+export type AppointmentNotificationType = "confirmation" | "reminder";
+export type AppointmentNotificationStatus = "queued" | "sent";
+
+export type AppointmentNotification = {
+	id: string;
+	appointmentId: string;
+	type: AppointmentNotificationType;
+	status: AppointmentNotificationStatus;
+	scheduledFor: string;
+	sentAt: string | null;
+	createdAt: string;
+};
+
 export type Appointment = {
 	id: string;
 	customerId: string;
@@ -184,6 +242,7 @@ export type Appointment = {
 	customerName: string;
 	slotStart: string;
 	slotEnd: string;
+	store: Store;
 	occasion: string;
 	focusColors: string;
 	avoidColors: string;
@@ -200,6 +259,20 @@ export type Appointment = {
 		preferredSizes: string[];
 	};
 	suggestedProducts: SuggestedProduct[];
+	notificationSummary: {
+		count: number;
+		confirmationStatus: AppointmentNotificationStatus | null;
+		reminderStatus: AppointmentNotificationStatus | null;
+	};
+	checkedInAt: string | null;
 	completedAt: string | null;
+	cancelledAt: string | null;
+	noShowAt: string | null;
+	cancelReason: string | null;
+	customerRecap: string;
+	associateFeedback: string;
+	customerFeedbackRating: number | null;
+	customerFeedbackComment: string;
+	customerFeedbackAt: string | null;
 	createdAt: string;
 };

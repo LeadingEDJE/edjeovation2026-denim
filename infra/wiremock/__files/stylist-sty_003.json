@@ -5,10 +5,10 @@
 		"pronouns": "she/her",
 		"title": "Petite Denim Associate",
 		"store": {
-			"storeId": "anf_soho_001",
-			"name": "Abercrombie & Fitch SoHo",
-			"city": "New York",
-			"state": "NY"
+			"storeId": "anf_easton_002",
+			"name": "Abercrombie & Fitch Columbus/Easton",
+			"city": "Columbus",
+			"state": "OH"
 		},
 		"bio": "Store associate focused on petite proportions, inseam selection, and helping customers find ankle, cropped, and full-length denim balance.",
 		"specialties": ["petite-proportions", "inseam-selection", "cropped-denim"],
@@ -21,7 +21,7 @@
 		],
 		"availability": {
 			"status": "available",
-			"nextAvailableAt": "2026-06-15T17:30:00Z"
+			"nextAvailableAt": "2026-06-16T17:30:00Z"
 		},
 		"avatarUrl": null
 	}

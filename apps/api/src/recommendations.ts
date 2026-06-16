@@ -3,6 +3,8 @@ import type {
 	CurrentUser,
 	OrderHistory,
 	OrderHistoryScenario,
+	StoreList,
+	StoreSchedulePatternList,
 	StylistAvailabilitySchedule,
 	StylistList,
 	StylistProfile,
@@ -16,6 +18,34 @@ export class ThirdPartyHttpError extends Error {
 	) {
 		super(message);
 	}
+}
+
+export async function fetchThirdPartyStores(): Promise<StoreList> {
+	const response = await fetch(`${config.thirdPartyBaseUrl}/stores`);
+
+	if (!response.ok) {
+		throw new ThirdPartyHttpError(
+			`Third-party stores failed with ${response.status}`,
+			response.status,
+		);
+	}
+
+	return response.json() as Promise<StoreList>;
+}
+
+export async function fetchThirdPartyStoreSchedulePatterns(): Promise<StoreSchedulePatternList> {
+	const response = await fetch(
+		`${config.thirdPartyBaseUrl}/stores/schedule-patterns`,
+	);
+
+	if (!response.ok) {
+		throw new ThirdPartyHttpError(
+			`Third-party store schedule patterns failed with ${response.status}`,
+			response.status,
+		);
+	}
+
+	return response.json() as Promise<StoreSchedulePatternList>;
 }
 
 export async function fetchThirdPartyCurrentUser(): Promise<CurrentUser> {

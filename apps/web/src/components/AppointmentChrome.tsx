@@ -1,4 +1,11 @@
-import { CalendarClock, CheckCircle2, RefreshCw, XCircle } from "lucide-react";
+import {
+	CalendarClock,
+	CheckCircle2,
+	RefreshCw,
+	UserCheck,
+	UserX,
+	XCircle,
+} from "lucide-react";
 import type { DashboardView } from "../types";
 
 export const dashboardViews: Array<{
@@ -6,9 +13,11 @@ export const dashboardViews: Array<{
 	label: string;
 	icon: typeof CalendarClock;
 }> = [
-	{ id: "upcoming", label: "Upcoming", icon: CalendarClock },
+	{ id: "open", label: "Open", icon: CalendarClock },
+	{ id: "in_progress", label: "In Progress", icon: UserCheck },
 	{ id: "completed", label: "Completed", icon: CheckCircle2 },
 	{ id: "cancelled", label: "Cancelled", icon: XCircle },
+	{ id: "no_show", label: "No-shows", icon: UserX },
 ];
 
 type HeaderProps = {

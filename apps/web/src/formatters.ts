@@ -4,10 +4,14 @@ export function statusLabel(status: Appointment["status"]) {
 	switch (status) {
 		case "scheduled":
 			return "Scheduled";
+		case "checked_in":
+			return "Checked in";
 		case "completed":
 			return "Completed";
 		case "cancelled":
 			return "Cancelled";
+		case "no_show":
+			return "No-show";
 	}
 }
 

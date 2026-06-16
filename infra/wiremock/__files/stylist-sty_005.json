@@ -5,10 +5,10 @@
 		"pronouns": "she/her",
 		"title": "Fit Recovery Associate",
 		"store": {
-			"storeId": "anf_soho_001",
-			"name": "Abercrombie & Fitch SoHo",
-			"city": "New York",
-			"state": "NY"
+			"storeId": "anf_easton_002",
+			"name": "Abercrombie & Fitch Columbus/Easton",
+			"city": "Columbus",
+			"state": "OH"
 		},
 		"bio": "Store associate focused on returns, exchanges, and helping customers recover from fit misses with clearer size confidence.",
 		"specialties": [
@@ -20,7 +20,7 @@
 		"supportedFits": ["skinny", "straight", "relaxed"],
 		"customerSignals": ["prior-return", "too-tight-waist", "too-short"],
 		"availability": {
-			"status": "offline",
+			"status": "available",
 			"nextAvailableAt": "2026-06-16T15:00:00Z"
 		},
 		"avatarUrl": null

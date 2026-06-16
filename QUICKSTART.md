@@ -82,6 +82,8 @@ Supported order-history scenarios:
 Load simulated store-associate stylist profiles through the API:
 
 ```sh
+curl 'http://localhost:4000/api/stores'
+curl 'http://localhost:4000/api/stores/schedule-patterns'
 curl 'http://localhost:4000/api/stylists'
 curl 'http://localhost:4000/api/stylists/sty_001'
 curl 'http://localhost:4000/api/stylists/availability'
@@ -94,7 +96,7 @@ curl 'http://localhost:4000/api/stylists?specialty=petite-proportions'
 curl 'http://localhost:4000/api/stylists?fit=wide&availability=available'
 ```
 
-The mocked stylist availability schedule is rendered by WireMock from the current request date through 9 days after the current date. All stylists are assigned to the same store, with scheduled shifts only between `11:00` and `19:00` on Monday through Thursday.
+WireMock owns three mock stores: SoHo, Columbus/Easton, and Los Angeles/Century City. It also exposes weekly store/stylist schedule patterns. The API turns those patterns into the next 10 calendar days of bookable slots, limited to Monday through Thursday from `11:00` through `19:00`.
 
 Load the mocked logged-in loyalty customer:
 
@@ -117,10 +119,10 @@ This is an admin-only local testing shortcut, not authentication. The iOS app ha
 Load bookable guided fitting appointment slots:
 
 ```sh
-curl 'http://localhost:4000/api/appointments/slots'
+curl 'http://localhost:4000/api/appointments/slots?storeId=anf_soho_001'
 ```
 
-Book a guided fitting appointment. First copy one `slotStart` value from `/api/appointments/slots`, then use it in the payload:
+Book a guided fitting appointment. First copy one `slotStart` value from `/api/appointments/slots?storeId=<store-id>`, then use it in the payload:
 
 ```sh
 SLOT_START="<paste a slotStart value here>"
@@ -128,6 +130,7 @@ SLOT_START="<paste a slotStart value here>"
 curl -X POST http://localhost:4000/api/appointments \
   -H 'content-type: application/json' \
   -d '{
+    "storeId": "anf_soho_001",
     "slotStart": "'"$SLOT_START"'",
     "occasion": "Weekend dinner",
     "focusColors": "dark wash, white, navy",
@@ -138,7 +141,7 @@ curl -X POST http://localhost:4000/api/appointments \
   }'
 ```
 
-Expected result: a JSON response with an `appointment`, assigned stylist, mapped `museTag`, and summarized order-history signals.
+Expected result: a JSON response with an `appointment`, selected store snapshot, assigned stylist, mapped `museTag`, summarized order-history signals, suggested products for associate prep, and mock confirmation/reminder notification summary.
 
 List booked guided fitting appointments:
 
@@ -163,10 +166,54 @@ curl -X PATCH "http://localhost:4000/api/appointments/<appointment-id>" \
 Cancel an upcoming appointment:
 
 ```sh
-curl -X DELETE "http://localhost:4000/api/appointments/<appointment-id>"
+curl -X POST "http://localhost:4000/api/appointments/<appointment-id>/cancel" \
+  -H 'content-type: application/json' \
+  -d '{"cancelReason":"Need to reschedule around work."}'
 ```
 
-The API allows only one upcoming appointment per mocked customer. The web dashboard shows booked appointment prep data. The iOS app is the primary user flow for creating and managing guided fitting appointments.
+Associate lifecycle actions:
+
+```sh
+curl -X PATCH "http://localhost:4000/api/appointments/<appointment-id>/stylist" \
+  -H 'content-type: application/json' \
+  -d '{"stylistId":"sty_002"}'
+
+curl -X POST "http://localhost:4000/api/appointments/<appointment-id>/check-in"
+curl -X POST "http://localhost:4000/api/appointments/<appointment-id>/no-show"
+
+curl -X PATCH "http://localhost:4000/api/appointments/<appointment-id>/session-notes" \
+  -H 'content-type: application/json' \
+  -d '{"sessionNotes":"Customer preferred the dark straight fit."}'
+
+curl -X POST "http://localhost:4000/api/appointments/<appointment-id>/complete" \
+  -H 'content-type: application/json' \
+  -d '{
+    "sessionNotes":"Customer preferred the dark straight fit.",
+    "customerRecap":"The high-rise straight jean in dark wash gave the cleanest fit.",
+    "associateFeedback":"Prepared products matched the customer goals."
+  }'
+```
+
+Messages, notifications, feedback, and product prep:
+
+```sh
+curl "http://localhost:4000/api/appointments/<appointment-id>/messages"
+curl -X POST "http://localhost:4000/api/appointments/<appointment-id>/messages" \
+  -H 'content-type: application/json' \
+  -d '{"authorType":"customer","body":"Can you pull dark washes?"}'
+
+curl "http://localhost:4000/api/appointments/<appointment-id>/notifications"
+
+curl -X PUT "http://localhost:4000/api/appointments/<appointment-id>/feedback" \
+  -H 'content-type: application/json' \
+  -d '{"rating":5,"comment":"Helpful recap and a strong fit."}'
+
+curl -X PATCH "http://localhost:4000/api/appointments/<appointment-id>/suggested-products/<product-id>" \
+  -H 'content-type: application/json' \
+  -d '{"prepStatus":"pulled","associateNote":"Ready in fitting room 2."}'
+```
+
+The API allows only one upcoming scheduled or checked-in appointment per mocked customer. The web dashboard shows booked appointment prep data, filters by store/date/stylist/status, supports date ordering, and keeps open appointments visible even after their scheduled time passes. Completed, cancelled, and no-show records are read-only. The iOS app is the primary customer flow for creating and managing guided fitting appointments.
 
 ## Daily Run Commands
 
@@ -227,7 +274,7 @@ npm run build
 
 3. Run the `DenimFit` scheme in an iOS simulator.
 
-The SwiftUI app loads the mocked loyalty customer, walks through a lightweight fitting questionnaire, lets the user choose a WireMock-backed appointment slot, and posts the booking to the API.
+The SwiftUI app loads the mocked loyalty customer, shows view-only fit profile context, walks through a fitting questionnaire, lets the user choose a WireMock-backed store and appointment slot, and posts the booking to the API. Appointment detail includes messages, mock confirmation/reminder records, cancellation with a reason, recap viewing, and post-completion feedback.
 
 The SwiftUI app is configured to call `http://localhost:4000`, which maps to the API container from the simulator.
 
@@ -279,7 +326,7 @@ apps/ios/DenimFit/DenimFit.xcodeproj
 | API | `api` | `http://localhost:4000` | Shared API for web and iOS |
 | API docs | `api` | `http://localhost:4000/docs` | Interactive Swagger UI |
 | PostgreSQL | `postgres` | `localhost:5432` | Data storage |
-| WireMock | `wiremock` | `http://localhost:8080` | Mock third-party customer, order-history, stylist, and availability services |
+| WireMock | `wiremock` | `http://localhost:8080` | Mock third-party customer, order-history, store, stylist, and schedule-pattern services |
 
 Database defaults:
 
@@ -295,8 +342,8 @@ Database defaults:
 - `apps/web`: React web UI source and Dockerfile
 - `apps/ios/DenimFit`: SwiftUI iOS project
 - `infra/db/init.sql`: database schema
-- `infra/wiremock/mappings`: mocked third-party customer, order-history, stylist, and availability endpoints
-- `infra/wiremock/__files`: larger WireMock response payloads, including current customer and stylist profile data
+- `infra/wiremock/mappings`: mocked third-party customer, order-history, store, stylist, and schedule endpoints
+- `infra/wiremock/__files`: larger WireMock response payloads, including current customer, store, schedule-pattern, and stylist profile data
 - `docs/requirements-review.md`: open product and requirements questions
 
 ## Troubleshooting

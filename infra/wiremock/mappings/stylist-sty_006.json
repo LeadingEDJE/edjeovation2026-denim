@@ -1,0 +1,14 @@
+{
+	"priority": 10,
+	"request": {
+		"method": "GET",
+		"urlPath": "/stylists/sty_006"
+	},
+	"response": {
+		"status": 200,
+		"headers": {
+			"Content-Type": "application/json"
+		},
+		"bodyFileName": "stylist-sty_006.json"
+	}
+}

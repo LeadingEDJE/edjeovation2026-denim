@@ -9,6 +9,8 @@ import {
 } from "./recommendation-scoring.js";
 import {
 	fetchThirdPartyOrderHistory,
+	fetchThirdPartyStoreSchedulePatterns,
+	fetchThirdPartyStores,
 	fetchThirdPartyStylist,
 	fetchThirdPartyStylistAvailability,
 	fetchThirdPartyStylists,
@@ -26,10 +28,13 @@ import {
 	type MuseTag,
 	type OrderHistory,
 	type OrderHistoryScenario,
-	type StylistAvailabilitySchedule,
+	type Store,
+	type StoreSchedulePattern,
+	type StoreSchedulePatternList,
 	type StylistAvailabilityStatus,
 	type StylistProfile,
 	type SuggestedProduct,
+	type SuggestedProductPrepStatus,
 	type UserList,
 } from "./types.js";
 
@@ -61,7 +66,15 @@ const museTagEnum = [
 	"Boyish Muse",
 	"Statement Maker",
 ] as const;
-const appointmentStatusEnum = ["scheduled", "completed", "cancelled"] as const;
+const appointmentStatusEnum = [
+	"scheduled",
+	"checked_in",
+	"completed",
+	"cancelled",
+	"no_show",
+] as const;
+const terminalAppointmentStatuses = ["completed", "cancelled", "no_show"];
+const productPrepStatusEnum = ["suggested", "pulled", "skipped"] as const;
 const styleKeywordEnum = [
 	"minimal",
 	"effortless",
@@ -265,6 +278,73 @@ const stylistListJsonSchema = {
 	},
 } as const;
 
+const storeJsonSchema = {
+	type: "object",
+	required: [
+		"storeId",
+		"name",
+		"city",
+		"state",
+		"address",
+		"phone",
+		"timezone",
+	],
+	properties: {
+		storeId: { type: "string" },
+		name: { type: "string" },
+		city: { type: "string" },
+		state: { type: "string" },
+		address: { type: "string" },
+		phone: { type: "string" },
+		timezone: { type: "string" },
+	},
+} as const;
+
+const storeListJsonSchema = {
+	type: "object",
+	required: ["stores"],
+	properties: {
+		stores: {
+			type: "array",
+			items: storeJsonSchema,
+		},
+	},
+} as const;
+
+const storeSchedulePatternJsonSchema = {
+	type: "object",
+	required: ["patterns"],
+	properties: {
+		patterns: {
+			type: "array",
+			items: {
+				type: "object",
+				required: ["storeId", "timezone", "weekly"],
+				properties: {
+					storeId: { type: "string" },
+					timezone: { type: "string" },
+					weekly: {
+						type: "array",
+						items: {
+							type: "object",
+							required: ["dayOfWeek", "openTime", "closeTime", "stylistIds"],
+							properties: {
+								dayOfWeek: {
+									type: "string",
+									enum: ["Monday", "Tuesday", "Wednesday", "Thursday"],
+								},
+								openTime: { type: "string" },
+								closeTime: { type: "string" },
+								stylistIds: { type: "array", items: { type: "string" } },
+							},
+						},
+					},
+				},
+			},
+		},
+	},
+} as const;
+
 const stylistAvailabilityJsonSchema = {
 	type: "object",
 	required: ["store", "timezone", "startDate", "endDate", "days"],
@@ -319,8 +399,16 @@ const stylistAvailabilityJsonSchema = {
 
 const appointmentSlotJsonSchema = {
 	type: "object",
-	required: ["slotStart", "slotEnd", "date", "time", "availableStylistCount"],
+	required: [
+		"storeId",
+		"slotStart",
+		"slotEnd",
+		"date",
+		"time",
+		"availableStylistCount",
+	],
 	properties: {
+		storeId: { type: "string" },
 		slotStart: { type: "string", format: "date-time" },
 		slotEnd: { type: "string", format: "date-time" },
 		date: { type: "string", format: "date" },
@@ -332,6 +420,7 @@ const appointmentSlotJsonSchema = {
 const createAppointmentJsonSchema = {
 	type: "object",
 	required: [
+		"storeId",
 		"slotStart",
 		"occasion",
 		"focusColors",
@@ -339,6 +428,7 @@ const createAppointmentJsonSchema = {
 		"styleKeywords",
 	],
 	properties: {
+		storeId: { type: "string", minLength: 1 },
 		slotStart: { type: "string", format: "date-time" },
 		occasion: { type: "string", minLength: 1 },
 		focusColors: { type: "string" },
@@ -373,11 +463,108 @@ const updateSessionNotesJsonSchema = {
 	},
 } as const;
 
+const completeAppointmentJsonSchema = {
+	type: "object",
+	required: ["customerRecap"],
+	properties: {
+		customerRecap: { type: "string", minLength: 1, maxLength: 3000 },
+		sessionNotes: { type: "string", maxLength: 3000 },
+		associateFeedback: { type: "string", maxLength: 3000 },
+	},
+} as const;
+
+const cancelAppointmentJsonSchema = {
+	type: "object",
+	properties: {
+		cancelReason: { type: "string", maxLength: 1000 },
+	},
+} as const;
+
+const reassignStylistJsonSchema = {
+	type: "object",
+	required: ["stylistId"],
+	properties: {
+		stylistId: { type: "string", minLength: 1 },
+	},
+} as const;
+
+const createMessageJsonSchema = {
+	type: "object",
+	required: ["authorType", "body"],
+	properties: {
+		authorType: { type: "string", enum: ["customer", "associate"] },
+		body: { type: "string", minLength: 1, maxLength: 2000 },
+	},
+} as const;
+
+const feedbackJsonSchema = {
+	type: "object",
+	required: ["rating"],
+	properties: {
+		rating: { type: "integer", minimum: 1, maximum: 5 },
+		comment: { type: "string", maxLength: 2000 },
+	},
+} as const;
+
+const updateProductPrepJsonSchema = {
+	type: "object",
+	required: ["prepStatus"],
+	properties: {
+		prepStatus: { type: "string", enum: productPrepStatusEnum },
+		associateNote: { type: "string", maxLength: 1000 },
+	},
+} as const;
+
 const appointmentIdParamsJsonSchema = {
 	type: "object",
 	required: ["appointmentId"],
 	properties: {
 		appointmentId: { type: "string", format: "uuid" },
+	},
+} as const;
+
+const suggestedProductParamsJsonSchema = {
+	type: "object",
+	required: ["appointmentId", "productId"],
+	properties: {
+		appointmentId: { type: "string", format: "uuid" },
+		productId: { type: "string", minLength: 1 },
+	},
+} as const;
+
+const appointmentMessageJsonSchema = {
+	type: "object",
+	required: ["id", "appointmentId", "authorType", "body", "createdAt"],
+	properties: {
+		id: { type: "string", format: "uuid" },
+		appointmentId: { type: "string", format: "uuid" },
+		authorType: { type: "string", enum: ["customer", "associate"] },
+		body: { type: "string" },
+		createdAt: { type: "string", format: "date-time" },
+	},
+} as const;
+
+const appointmentNotificationJsonSchema = {
+	type: "object",
+	required: [
+		"id",
+		"appointmentId",
+		"type",
+		"status",
+		"scheduledFor",
+		"sentAt",
+		"createdAt",
+	],
+	properties: {
+		id: { type: "string", format: "uuid" },
+		appointmentId: { type: "string", format: "uuid" },
+		type: { type: "string", enum: ["confirmation", "reminder"] },
+		status: { type: "string", enum: ["queued", "sent"] },
+		scheduledFor: { type: "string", format: "date-time" },
+		sentAt: {
+			anyOf: [{ type: "string", format: "date-time" }, { type: "null" }],
+		},
+		createdAt: { type: "string", format: "date-time" },
 	},
 } as const;
 
@@ -390,6 +577,7 @@ const appointmentSummaryJsonSchema = {
 		"customerName",
 		"slotStart",
 		"slotEnd",
+		"store",
 		"occasion",
 		"focusColors",
 		"avoidColors",
@@ -401,7 +589,17 @@ const appointmentSummaryJsonSchema = {
 		"assignedStylist",
 		"orderHistorySummary",
 		"suggestedProducts",
+		"notificationSummary",
+		"checkedInAt",
 		"completedAt",
+		"cancelledAt",
+		"noShowAt",
+		"cancelReason",
+		"customerRecap",
+		"associateFeedback",
+		"customerFeedbackRating",
+		"customerFeedbackComment",
+		"customerFeedbackAt",
 		"createdAt",
 	],
 	properties: {
@@ -411,6 +609,7 @@ const appointmentSummaryJsonSchema = {
 		customerName: { type: "string" },
 		slotStart: { type: "string", format: "date-time" },
 		slotEnd: { type: "string", format: "date-time" },
+		store: storeJsonSchema,
 		occasion: { type: "string" },
 		focusColors: { type: "string" },
 		avoidColors: { type: "string" },
@@ -439,7 +638,14 @@ const appointmentSummaryJsonSchema = {
 			type: "array",
 			items: {
 				type: "object",
-				required: ["rank", "rationale", "score", "product"],
+				required: [
+					"rank",
+					"rationale",
+					"score",
+					"product",
+					"prepStatus",
+					"associateNote",
+				],
 				properties: {
 					rank: { type: "integer" },
 					rationale: { type: "string" },
@@ -448,10 +654,50 @@ const appointmentSummaryJsonSchema = {
 						type: "object",
 						additionalProperties: true,
 					},
+					prepStatus: { type: "string", enum: productPrepStatusEnum },
+					associateNote: { type: "string" },
 				},
 			},
 		},
+		notificationSummary: {
+			type: "object",
+			required: ["count", "confirmationStatus", "reminderStatus"],
+			properties: {
+				count: { type: "integer", minimum: 0 },
+				confirmationStatus: {
+					anyOf: [
+						{ type: "string", enum: ["queued", "sent"] },
+						{ type: "null" },
+					],
+				},
+				reminderStatus: {
+					anyOf: [
+						{ type: "string", enum: ["queued", "sent"] },
+						{ type: "null" },
+					],
+				},
+			},
+		},
+		checkedInAt: {
+			anyOf: [{ type: "string", format: "date-time" }, { type: "null" }],
+		},
 		completedAt: {
+			anyOf: [{ type: "string", format: "date-time" }, { type: "null" }],
+		},
+		cancelledAt: {
+			anyOf: [{ type: "string", format: "date-time" }, { type: "null" }],
+		},
+		noShowAt: {
+			anyOf: [{ type: "string", format: "date-time" }, { type: "null" }],
+		},
+		cancelReason: { anyOf: [{ type: "string" }, { type: "null" }] },
+		customerRecap: { type: "string" },
+		associateFeedback: { type: "string" },
+		customerFeedbackRating: {
+			anyOf: [{ type: "integer", minimum: 1, maximum: 5 }, { type: "null" }],
+		},
+		customerFeedbackComment: { type: "string" },
+		customerFeedbackAt: {
 			anyOf: [{ type: "string", format: "date-time" }, { type: "null" }],
 		},
 		createdAt: { type: "string", format: "date-time" },
@@ -481,6 +727,24 @@ function filterStylists(
 	});
 }
 
+const defaultStore: Store = {
+	storeId: "anf_soho_001",
+	name: "Abercrombie & Fitch SoHo",
+	city: "New York",
+	state: "NY",
+	address: "547 Broadway, New York, NY 10012",
+	phone: "+1 212-625-0868",
+	timezone: "America/New_York",
+};
+
+function isTerminalStatus(status: string) {
+	return terminalAppointmentStatuses.includes(status);
+}
+
+function isActiveStatus(status: string) {
+	return status === "scheduled" || status === "checked_in";
+}
+
 function addOneHour(isoDateTime: string) {
 	const date = new Date(isoDateTime);
 	date.setHours(date.getHours() + 1);
@@ -491,49 +755,118 @@ function normalizeSlotKey(value: string) {
 	return new Date(value).toISOString();
 }
 
-function createAppointmentSlots(
-	availability: StylistAvailabilitySchedule,
-): AppointmentSlot[] {
-	const now = new Date();
+function getDatePartsForTimezone(
+	date: Date,
+	timezone: string,
+): { date: string; dayOfWeek: string } {
+	const parts = new Intl.DateTimeFormat("en-US", {
+		timeZone: timezone,
+		weekday: "long",
+		year: "numeric",
+		month: "2-digit",
+		day: "2-digit",
+	}).formatToParts(date);
+	const value = (type: string) =>
+		parts.find((part) => part.type === type)?.value ?? "";
 
-	return availability.days.flatMap((day) => {
-		if (!day.storeOpen || day.scheduledStylists.length === 0) {
+	return {
+		date: `${value("year")}-${value("month")}-${value("day")}`,
+		dayOfWeek: value("weekday"),
+	};
+}
+
+function timezoneOffsetForSchedule(timezone: string) {
+	return timezone === "America/Los_Angeles" ? "-07:00" : "-04:00";
+}
+
+function hourRange(openTime: string, closeTime: string) {
+	const openHour = Number(openTime.split(":")[0]);
+	const closeHour = Number(closeTime.split(":")[0]);
+	return Array.from(
+		{ length: Math.max(closeHour - openHour, 0) },
+		(_, index) => openHour + index,
+	);
+}
+
+function createStoreAppointmentSlots(
+	pattern: StoreSchedulePattern,
+	now = new Date(),
+): AppointmentSlot[] {
+	const offset = timezoneOffsetForSchedule(pattern.timezone);
+
+	return Array.from({ length: 10 }, (_, dayOffset) => {
+		const date = new Date(now);
+		date.setUTCDate(date.getUTCDate() + dayOffset);
+		return getDatePartsForTimezone(date, pattern.timezone);
+	}).flatMap((day) => {
+		const dayPattern = pattern.weekly.find(
+			(candidate) => candidate.dayOfWeek === day.dayOfWeek,
+		);
+
+		if (!dayPattern || dayPattern.stylistIds.length === 0) {
 			return [];
 		}
 
-		return [11, 12, 13, 14, 15, 16, 17, 18].flatMap((hour) => {
-			const hourLabel = String(hour).padStart(2, "0");
-			const slotStart = `${day.date}T${hourLabel}:00:00-04:00`;
+		return hourRange(dayPattern.openTime, dayPattern.closeTime).flatMap(
+			(hour) => {
+				const hourLabel = String(hour).padStart(2, "0");
+				const slotStart = `${day.date}T${hourLabel}:00:00${offset}`;
 
-			if (new Date(slotStart) <= now) {
-				return [];
-			}
+				if (new Date(slotStart) <= now) {
+					return [];
+				}
 
-			return [
-				{
-					slotStart,
-					slotEnd: addOneHour(slotStart),
-					date: day.date,
-					time: `${hourLabel}:00`,
-					availableStylistCount: day.scheduledStylists.length,
-				},
-			];
-		});
+				return [
+					{
+						storeId: pattern.storeId,
+						slotStart,
+						slotEnd: addOneHour(slotStart),
+						date: day.date,
+						time: `${hourLabel}:00`,
+						availableStylistCount: dayPattern.stylistIds.length,
+					},
+				];
+			},
+		);
 	});
 }
 
-function findAvailabilityDayForSlot(
-	availability: StylistAvailabilitySchedule,
+function findPatternForStore(
+	patterns: StoreSchedulePatternList,
+	storeId: string,
+) {
+	return patterns.patterns.find((pattern) => pattern.storeId === storeId);
+}
+
+function scheduledStylistIdsForSlot(
+	pattern: StoreSchedulePattern,
 	slotStart: string,
 ) {
 	const requested = new Date(slotStart);
-	return availability.days.find((day) =>
-		day.scheduledStylists.some((shift) => {
-			const shiftStart = new Date(shift.shiftStart);
-			const shiftEnd = new Date(shift.shiftEnd);
-			return requested >= shiftStart && requested < shiftEnd;
-		}),
+	const localDate = getDatePartsForTimezone(requested, pattern.timezone);
+	const dayPattern = pattern.weekly.find(
+		(candidate) => candidate.dayOfWeek === localDate.dayOfWeek,
 	);
+
+	if (!dayPattern) {
+		return [];
+	}
+
+	const localHour = Number(
+		new Intl.DateTimeFormat("en-US", {
+			timeZone: pattern.timezone,
+			hour: "2-digit",
+			hour12: false,
+		}).format(requested),
+	);
+
+	if (
+		!hourRange(dayPattern.openTime, dayPattern.closeTime).includes(localHour)
+	) {
+		return [];
+	}
+
+	return dayPattern.stylistIds;
 }
 
 function mapMuseTag(styleKeywords: string[]): MuseTag {
@@ -614,7 +947,48 @@ function parseJsonField<T>(value: unknown): T {
 	return typeof value === "string" ? JSON.parse(value) : (value as T);
 }
 
+function isoOrNull(value: unknown) {
+	return value ? new Date(String(value)).toISOString() : null;
+}
+
+function normalizeSuggestedProducts(
+	suggestedProducts: SuggestedProduct[],
+): SuggestedProduct[] {
+	return suggestedProducts.map((suggestion) => ({
+		...suggestion,
+		prepStatus: productPrepStatusEnum.includes(
+			suggestion.prepStatus as SuggestedProductPrepStatus,
+		)
+			? suggestion.prepStatus
+			: "suggested",
+		associateNote: suggestion.associateNote ?? "",
+	}));
+}
+
+function mapStoreSnapshot(row: Record<string, unknown>): Store {
+	if (row.store_snapshot) {
+		return {
+			...defaultStore,
+			...parseJsonField<Partial<Store>>(row.store_snapshot),
+		};
+	}
+
+	const stylist = row.assigned_stylist
+		? parseJsonField<StylistProfile>(row.assigned_stylist)
+		: null;
+	return {
+		...defaultStore,
+		...stylist?.store,
+	};
+}
+
 function mapAppointment(row: Record<string, unknown>): Appointment {
+	const suggestedProducts = row.suggested_products
+		? normalizeSuggestedProducts(
+				parseJsonField<SuggestedProduct[]>(row.suggested_products),
+			)
+		: [];
+
 	return {
 		id: String(row.id),
 		customerId: String(row.customer_id),
@@ -622,6 +996,7 @@ function mapAppointment(row: Record<string, unknown>): Appointment {
 		customerName: String(row.customer_name),
 		slotStart: new Date(String(row.slot_start)).toISOString(),
 		slotEnd: new Date(String(row.slot_end)).toISOString(),
+		store: mapStoreSnapshot(row),
 		occasion: String(row.occasion),
 		focusColors: String(row.focus_colors),
 		avoidColors: String(row.avoid_colors),
@@ -634,12 +1009,51 @@ function mapAppointment(row: Record<string, unknown>): Appointment {
 		orderHistorySummary: parseJsonField<Appointment["orderHistorySummary"]>(
 			row.order_history_summary,
 		),
-		suggestedProducts: row.suggested_products
-			? parseJsonField<SuggestedProduct[]>(row.suggested_products)
-			: [],
-		completedAt: row.completed_at
-			? new Date(String(row.completed_at)).toISOString()
-			: null,
+		suggestedProducts,
+		notificationSummary: {
+			count: Number(row.notification_count ?? 0),
+			confirmationStatus: row.confirmation_status
+				? (String(row.confirmation_status) as "queued" | "sent")
+				: null,
+			reminderStatus: row.reminder_status
+				? (String(row.reminder_status) as "queued" | "sent")
+				: null,
+		},
+		checkedInAt: isoOrNull(row.checked_in_at),
+		completedAt: isoOrNull(row.completed_at),
+		cancelledAt: isoOrNull(row.cancelled_at),
+		noShowAt: isoOrNull(row.no_show_at),
+		cancelReason: row.cancel_reason == null ? null : String(row.cancel_reason),
+		customerRecap: String(row.customer_recap ?? ""),
+		associateFeedback: String(row.associate_feedback ?? ""),
+		customerFeedbackRating:
+			row.customer_feedback_rating == null
+				? null
+				: Number(row.customer_feedback_rating),
+		customerFeedbackComment: String(row.customer_feedback_comment ?? ""),
+		customerFeedbackAt: isoOrNull(row.customer_feedback_at),
+		createdAt: new Date(String(row.created_at)).toISOString(),
+	};
+}
+
+function mapAppointmentMessage(row: Record<string, unknown>) {
+	return {
+		id: String(row.id),
+		appointmentId: String(row.appointment_id),
+		authorType: String(row.author_type) as "customer" | "associate",
+		body: String(row.body),
+		createdAt: new Date(String(row.created_at)).toISOString(),
+	};
+}
+
+function mapAppointmentNotification(row: Record<string, unknown>) {
+	return {
+		id: String(row.id),
+		appointmentId: String(row.appointment_id),
+		type: String(row.type) as "confirmation" | "reminder",
+		status: String(row.status) as "queued" | "sent",
+		scheduledFor: new Date(String(row.scheduled_for)).toISOString(),
+		sentAt: isoOrNull(row.sent_at),
 		createdAt: new Date(String(row.created_at)).toISOString(),
 	};
 }
@@ -720,9 +1134,81 @@ async function buildSuggestedProducts(
 				rationale: r.rationale,
 				score: Number(scored.score.toFixed(3)),
 				product: scored.product,
+				prepStatus: "suggested",
+				associateNote: "",
 			},
 		];
 	});
+}
+
+async function selectAppointmentById(appointmentId: string) {
+	const result = await pool.query(
+		`
+			SELECT a.*,
+				(
+					SELECT count(*)::int
+					FROM appointment_notifications n
+					WHERE n.appointment_id = a.id
+				) AS notification_count,
+				(
+					SELECT n.status
+					FROM appointment_notifications n
+					WHERE n.appointment_id = a.id
+						AND n.type = 'confirmation'
+					ORDER BY n.created_at DESC
+					LIMIT 1
+				) AS confirmation_status,
+				(
+					SELECT n.status
+					FROM appointment_notifications n
+					WHERE n.appointment_id = a.id
+						AND n.type = 'reminder'
+					ORDER BY n.created_at DESC
+					LIMIT 1
+				) AS reminder_status
+			FROM appointments a
+			WHERE a.id = $1
+		`,
+		[appointmentId],
+	);
+
+	return result.rows[0] ? mapAppointment(result.rows[0]) : null;
+}
+
+function reminderScheduledFor(slotStart: string, now = new Date()) {
+	const appointmentStart = new Date(slotStart);
+	const oneDayBefore = new Date(appointmentStart);
+	oneDayBefore.setHours(oneDayBefore.getHours() - 24);
+
+	if (oneDayBefore > now) {
+		return oneDayBefore.toISOString();
+	}
+
+	const twoHoursBefore = new Date(appointmentStart);
+	twoHoursBefore.setHours(twoHoursBefore.getHours() - 2);
+	return twoHoursBefore.toISOString();
+}
+
+async function createMockNotifications(
+	appointmentId: string,
+	slotStart: string,
+) {
+	await pool.query(
+		`
+			INSERT INTO appointment_notifications (
+				id, appointment_id, type, status, scheduled_for, sent_at
+			)
+			VALUES
+				($1, $3, 'confirmation', 'sent', now(), now()),
+				($2, $3, 'reminder', 'queued', $4, NULL)
+		`,
+		[
+			randomUUID(),
+			randomUUID(),
+			appointmentId,
+			reminderScheduledFor(slotStart),
+		],
+	);
 }
 
 export async function registerRoutes(app: FastifyInstance) {
@@ -921,11 +1407,64 @@ export async function registerRoutes(app: FastifyInstance) {
 	);
 
 	app.get(
+		"/api/stores",
+		{
+			schema: {
+				tags: ["appointments"],
+				summary: "List stores available for guided denim fitting appointments",
+				response: {
+					200: storeListJsonSchema,
+					502: errorJsonSchema,
+				},
+			},
+		},
+		async (request, reply) => {
+			try {
+				return await fetchThirdPartyStores();
+			} catch (error) {
+				request.log.error(error);
+				return reply.code(502).send({ message: "Unable to load stores" });
+			}
+		},
+	);
+
+	app.get(
+		"/api/stores/schedule-patterns",
+		{
+			schema: {
+				tags: ["appointments"],
+				summary:
+					"List weekly store and stylist schedule patterns used to generate bookable slots",
+				response: {
+					200: storeSchedulePatternJsonSchema,
+					502: errorJsonSchema,
+				},
+			},
+		},
+		async (request, reply) => {
+			try {
+				return await fetchThirdPartyStoreSchedulePatterns();
+			} catch (error) {
+				request.log.error(error);
+				return reply
+					.code(502)
+					.send({ message: "Unable to load store schedule patterns" });
+			}
+		},
+	);
+
+	app.get(
 		"/api/appointments/slots",
 		{
 			schema: {
 				tags: ["appointments"],
 				summary: "List bookable guided fitting appointment slots",
+				querystring: {
+					type: "object",
+					properties: {
+						storeId: { type: "string" },
+					},
+				},
 				response: {
 					200: {
 						type: "object",
@@ -934,14 +1473,26 @@ export async function registerRoutes(app: FastifyInstance) {
 							slots: { type: "array", items: appointmentSlotJsonSchema },
 						},
 					},
+					404: errorJsonSchema,
 					502: errorJsonSchema,
 				},
 			},
 		},
 		async (request, reply) => {
+			const { storeId } = request.query as { storeId?: string };
+
 			try {
-				const availability = await fetchThirdPartyStylistAvailability();
-				return { slots: createAppointmentSlots(availability) };
+				const patterns = await fetchThirdPartyStoreSchedulePatterns();
+				const selectedStoreId = storeId ?? patterns.patterns[0]?.storeId;
+				const pattern = selectedStoreId
+					? findPatternForStore(patterns, selectedStoreId)
+					: undefined;
+
+				if (!pattern) {
+					return reply.code(404).send({ message: "Store not found" });
+				}
+
+				return { slots: createStoreAppointmentSlots(pattern) };
 			} catch (error) {
 				request.log.error(error);
 				return reply
@@ -973,9 +1524,30 @@ export async function registerRoutes(app: FastifyInstance) {
 		},
 		async () => {
 			const result = await pool.query(`
-				SELECT *
-				FROM appointments
-				ORDER BY slot_start ASC, created_at DESC
+				SELECT a.*,
+					(
+						SELECT count(*)::int
+						FROM appointment_notifications n
+						WHERE n.appointment_id = a.id
+					) AS notification_count,
+					(
+						SELECT n.status
+						FROM appointment_notifications n
+						WHERE n.appointment_id = a.id
+							AND n.type = 'confirmation'
+						ORDER BY n.created_at DESC
+						LIMIT 1
+					) AS confirmation_status,
+					(
+						SELECT n.status
+						FROM appointment_notifications n
+						WHERE n.appointment_id = a.id
+							AND n.type = 'reminder'
+						ORDER BY n.created_at DESC
+						LIMIT 1
+					) AS reminder_status
+				FROM appointments a
+				ORDER BY a.slot_start ASC, a.created_at DESC
 				LIMIT 100
 			`);
 
@@ -1013,7 +1585,7 @@ export async function registerRoutes(app: FastifyInstance) {
 						FROM appointments
 						WHERE customer_id = $1
 							AND slot_start >= now()
-							AND status = 'scheduled'
+							AND status IN ('scheduled', 'checked_in')
 						ORDER BY slot_start ASC
 						LIMIT 1
 					`,
@@ -1061,7 +1633,10 @@ export async function registerRoutes(app: FastifyInstance) {
 						SELECT *
 						FROM appointments
 						WHERE customer_id = $1
-							AND (slot_start < now() OR status = 'completed')
+							AND (
+								slot_start < now()
+								OR status IN ('completed', 'cancelled', 'no_show')
+							)
 						ORDER BY slot_start DESC
 						LIMIT 25
 					`,
@@ -1093,6 +1668,8 @@ export async function registerRoutes(app: FastifyInstance) {
 							appointment: appointmentSummaryJsonSchema,
 						},
 					},
+					400: errorJsonSchema,
+					404: errorJsonSchema,
 					409: errorJsonSchema,
 					502: errorJsonSchema,
 				},
@@ -1103,11 +1680,23 @@ export async function registerRoutes(app: FastifyInstance) {
 			const appointmentId = randomUUID();
 
 			try {
-				const [currentUser, availability, stylistList] = await Promise.all([
+				const [currentUser, stores, patterns, stylistList] = await Promise.all([
 					getActiveUser(),
-					fetchThirdPartyStylistAvailability(),
+					fetchThirdPartyStores(),
+					fetchThirdPartyStoreSchedulePatterns(),
 					fetchThirdPartyStylists(),
 				]);
+				const selectedStore = stores.stores.find(
+					(store) => store.storeId === input.storeId,
+				);
+				if (!selectedStore) {
+					return reply.code(404).send({ message: "Store not found" });
+				}
+
+				const storePattern = findPatternForStore(patterns, input.storeId);
+				if (!storePattern) {
+					return reply.code(404).send({ message: "Store schedule not found" });
+				}
 
 				const existingAppointment = await pool.query(
 					`
@@ -1115,7 +1704,7 @@ export async function registerRoutes(app: FastifyInstance) {
 						FROM appointments
 						WHERE customer_id = $1
 							AND slot_start >= now()
-							AND status = 'scheduled'
+							AND status IN ('scheduled', 'checked_in')
 						ORDER BY slot_start ASC
 						LIMIT 1
 					`,
@@ -1128,7 +1717,7 @@ export async function registerRoutes(app: FastifyInstance) {
 						.send({ message: "Customer already has an upcoming appointment" });
 				}
 
-				const slots = createAppointmentSlots(availability);
+				const slots = createStoreAppointmentSlots(storePattern);
 				const selectedSlot = slots.find(
 					(slot) =>
 						normalizeSlotKey(slot.slotStart) ===
@@ -1141,11 +1730,11 @@ export async function registerRoutes(app: FastifyInstance) {
 						.send({ message: "Appointment slot is no longer available" });
 				}
 
-				const availabilityDay = findAvailabilityDayForSlot(
-					availability,
+				const scheduledStylistIds = scheduledStylistIdsForSlot(
+					storePattern,
 					selectedSlot.slotStart,
 				);
-				if (!availabilityDay) {
+				if (scheduledStylistIds.length === 0) {
 					return reply
 						.code(409)
 						.send({ message: "Appointment slot is no longer available" });
@@ -1153,7 +1742,7 @@ export async function registerRoutes(app: FastifyInstance) {
 
 				const museTag = mapMuseTag(input.styleKeywords);
 				const assignedStylist = assignStylist(
-					availabilityDay.scheduledStylists.map((stylist) => stylist.stylistId),
+					scheduledStylistIds,
 					stylistList.stylists,
 					museTag,
 				);
@@ -1179,12 +1768,12 @@ export async function registerRoutes(app: FastifyInstance) {
 				const insertResult = await pool.query(
 					`
 						INSERT INTO appointments (
-							id, customer_id, loyalty_id, customer_name, slot_start, slot_end,
+							id, customer_id, loyalty_id, customer_name, slot_start, slot_end, store_snapshot,
 							occasion, focus_colors, avoid_colors, style_keywords, guidance,
 							session_notes, status, muse_tag, assigned_stylist,
 							order_history_summary, suggested_products, source_payload
 						)
-						VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, '', 'scheduled', $12, $13, $14, $15, $16)
+						VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, '', 'scheduled', $13, $14, $15, $16, $17)
 						RETURNING *
 					`,
 					[
@@ -1194,6 +1783,7 @@ export async function registerRoutes(app: FastifyInstance) {
 						currentUser.displayName,
 						new Date(selectedSlot.slotStart).toISOString(),
 						new Date(selectedSlot.slotEnd).toISOString(),
+						JSON.stringify(selectedStore),
 						input.occasion,
 						input.focusColors,
 						input.avoidColors,
@@ -1203,12 +1793,24 @@ export async function registerRoutes(app: FastifyInstance) {
 						JSON.stringify(assignedStylist),
 						JSON.stringify(orderHistorySummary),
 						JSON.stringify(suggestedProducts),
-						JSON.stringify({ input, currentUser, orderHistory }),
+						JSON.stringify({
+							input,
+							currentUser,
+							orderHistory,
+							store: selectedStore,
+						}),
 					],
 				);
+				await createMockNotifications(
+					appointmentId,
+					new Date(selectedSlot.slotStart).toISOString(),
+				);
+				const appointment =
+					(await selectAppointmentById(appointmentId)) ??
+					mapAppointment(insertResult.rows[0]);
 
 				return reply.code(201).send({
-					appointment: mapAppointment(insertResult.rows[0]),
+					appointment,
 				});
 			} catch (error) {
 				request.log.error(error);
@@ -1235,6 +1837,7 @@ export async function registerRoutes(app: FastifyInstance) {
 							appointment: appointmentSummaryJsonSchema,
 						},
 					},
+					400: errorJsonSchema,
 					404: errorJsonSchema,
 					409: errorJsonSchema,
 					502: errorJsonSchema,
@@ -1253,7 +1856,7 @@ export async function registerRoutes(app: FastifyInstance) {
 						SET guidance = $1
 						WHERE id = $2
 							AND customer_id = $3
-							AND status <> 'completed'
+							AND status NOT IN ('completed', 'cancelled', 'no_show')
 						RETURNING *
 					`,
 					[input.guidance, appointmentId, currentUser.customerId],
@@ -1269,10 +1872,10 @@ export async function registerRoutes(app: FastifyInstance) {
 						`,
 						[appointmentId, currentUser.customerId],
 					);
-					if (existing.rows[0]?.status === "completed") {
+					if (isTerminalStatus(String(existing.rows[0]?.status ?? ""))) {
 						return reply
 							.code(409)
-							.send({ message: "Completed appointments cannot be edited" });
+							.send({ message: "Terminal appointments cannot be edited" });
 					}
 					return reply.code(404).send({ message: "Appointment not found" });
 				}
@@ -1320,7 +1923,7 @@ export async function registerRoutes(app: FastifyInstance) {
 						UPDATE appointments
 						SET session_notes = $1
 						WHERE id = $2
-							AND status <> 'completed'
+							AND status NOT IN ('completed', 'cancelled', 'no_show')
 						RETURNING *
 					`,
 					[input.sessionNotes, appointmentId],
@@ -1331,10 +1934,10 @@ export async function registerRoutes(app: FastifyInstance) {
 						"SELECT status FROM appointments WHERE id = $1",
 						[appointmentId],
 					);
-					if (existing.rows[0]?.status === "completed") {
+					if (isTerminalStatus(String(existing.rows[0]?.status ?? ""))) {
 						return reply
 							.code(409)
-							.send({ message: "Completed appointments cannot be edited" });
+							.send({ message: "Terminal appointments cannot be edited" });
 					}
 					return reply.code(404).send({ message: "Appointment not found" });
 				}
@@ -1349,14 +1952,15 @@ export async function registerRoutes(app: FastifyInstance) {
 		},
 	);
 
-	app.post(
-		"/api/appointments/:appointmentId/complete",
+	app.patch(
+		"/api/appointments/:appointmentId/stylist",
 		{
 			schema: {
 				tags: ["appointments"],
-				summary: "Mark an appointment session as completed",
+				summary:
+					"Reassign a scheduled appointment to a stylist scheduled at the same store and time",
 				params: appointmentIdParamsJsonSchema,
-				body: updateSessionNotesJsonSchema,
+				body: reassignStylistJsonSchema,
 				response: {
 					200: {
 						type: "object",
@@ -1373,20 +1977,111 @@ export async function registerRoutes(app: FastifyInstance) {
 		},
 		async (request, reply) => {
 			const { appointmentId } = request.params as { appointmentId: string };
-			const input = request.body as { sessionNotes: string };
+			const input = request.body as { stylistId: string };
+
+			try {
+				const existing = await pool.query(
+					"SELECT * FROM appointments WHERE id = $1",
+					[appointmentId],
+				);
+				if (!existing.rows[0]) {
+					return reply.code(404).send({ message: "Appointment not found" });
+				}
+
+				const appointment = mapAppointment(existing.rows[0]);
+				if (appointment.status !== "scheduled") {
+					return reply
+						.code(409)
+						.send({ message: "Only scheduled appointments can be reassigned" });
+				}
+
+				const [patterns, stylistList] = await Promise.all([
+					fetchThirdPartyStoreSchedulePatterns(),
+					fetchThirdPartyStylists(),
+				]);
+				const pattern = findPatternForStore(
+					patterns,
+					appointment.store.storeId,
+				);
+				if (!pattern) {
+					return reply.code(409).send({ message: "Store schedule not found" });
+				}
+
+				const scheduledStylistIds = scheduledStylistIdsForSlot(
+					pattern,
+					appointment.slotStart,
+				);
+				if (!scheduledStylistIds.includes(input.stylistId)) {
+					return reply.code(409).send({
+						message: "Stylist is not scheduled for this store and time",
+					});
+				}
+
+				const stylist = stylistList.stylists.find(
+					(candidate) =>
+						candidate.id === input.stylistId &&
+						candidate.store.storeId === appointment.store.storeId,
+				);
+				if (!stylist) {
+					return reply.code(404).send({ message: "Stylist not found" });
+				}
+
+				const result = await pool.query(
+					`
+						UPDATE appointments
+						SET assigned_stylist = $1
+						WHERE id = $2
+							AND status = 'scheduled'
+						RETURNING *
+					`,
+					[JSON.stringify(stylist), appointmentId],
+				);
+
+				return { appointment: mapAppointment(result.rows[0]) };
+			} catch (error) {
+				request.log.error(error);
+				return reply
+					.code(502)
+					.send({ message: "Unable to reassign appointment stylist" });
+			}
+		},
+	);
+
+	app.post(
+		"/api/appointments/:appointmentId/check-in",
+		{
+			schema: {
+				tags: ["appointments"],
+				summary: "Mark a scheduled appointment checked in",
+				params: appointmentIdParamsJsonSchema,
+				response: {
+					200: {
+						type: "object",
+						required: ["appointment"],
+						properties: {
+							appointment: appointmentSummaryJsonSchema,
+						},
+					},
+					404: errorJsonSchema,
+					409: errorJsonSchema,
+					502: errorJsonSchema,
+				},
+			},
+		},
+		async (request, reply) => {
+			const { appointmentId } = request.params as { appointmentId: string };
 
 			try {
 				const result = await pool.query(
 					`
 						UPDATE appointments
-						SET session_notes = $1,
-							status = 'completed',
-							completed_at = now()
-						WHERE id = $2
-							AND status <> 'completed'
+						SET status = 'checked_in',
+							checked_in_at = now()
+						WHERE id = $1
+							AND status = 'scheduled'
 						RETURNING *
 					`,
-					[input.sessionNotes, appointmentId],
+					[appointmentId],
 				);
 
 				if (!result.rows[0]) {
@@ -1394,10 +2089,565 @@ export async function registerRoutes(app: FastifyInstance) {
 						"SELECT status FROM appointments WHERE id = $1",
 						[appointmentId],
 					);
-					if (existing.rows[0]?.status === "completed") {
+					if (existing.rows[0]) {
 						return reply
 							.code(409)
-							.send({ message: "Appointment is already completed" });
+							.send({ message: "Only scheduled appointments can check in" });
+					}
+					return reply.code(404).send({ message: "Appointment not found" });
+				}
+
+				return { appointment: mapAppointment(result.rows[0]) };
+			} catch (error) {
+				request.log.error(error);
+				return reply
+					.code(502)
+					.send({ message: "Unable to check in appointment" });
+			}
+		},
+	);
+
+	app.post(
+		"/api/appointments/:appointmentId/no-show",
+		{
+			schema: {
+				tags: ["appointments"],
+				summary: "Mark a scheduled appointment as no-show",
+				params: appointmentIdParamsJsonSchema,
+				response: {
+					200: {
+						type: "object",
+						required: ["appointment"],
+						properties: {
+							appointment: appointmentSummaryJsonSchema,
+						},
+					},
+					404: errorJsonSchema,
+					409: errorJsonSchema,
+					502: errorJsonSchema,
+				},
+			},
+		},
+		async (request, reply) => {
+			const { appointmentId } = request.params as { appointmentId: string };
+
+			try {
+				const result = await pool.query(
+					`
+						UPDATE appointments
+						SET status = 'no_show',
+							no_show_at = now()
+						WHERE id = $1
+							AND status = 'scheduled'
+						RETURNING *
+					`,
+					[appointmentId],
+				);
+
+				if (!result.rows[0]) {
+					const existing = await pool.query(
+						"SELECT status FROM appointments WHERE id = $1",
+						[appointmentId],
+					);
+					if (existing.rows[0]) {
+						return reply.code(409).send({
+							message: "Only scheduled appointments can be no-showed",
+						});
+					}
+					return reply.code(404).send({ message: "Appointment not found" });
+				}
+
+				return { appointment: mapAppointment(result.rows[0]) };
+			} catch (error) {
+				request.log.error(error);
+				return reply
+					.code(502)
+					.send({ message: "Unable to mark appointment no-show" });
+			}
+		},
+	);
+
+	app.post(
+		"/api/appointments/:appointmentId/cancel",
+		{
+			schema: {
+				tags: ["appointments"],
+				summary:
+					"Cancel the mocked customer's scheduled appointment with an optional reason",
+				params: appointmentIdParamsJsonSchema,
+				body: cancelAppointmentJsonSchema,
+				response: {
+					200: {
+						type: "object",
+						required: ["appointment"],
+						properties: {
+							appointment: appointmentSummaryJsonSchema,
+						},
+					},
+					404: errorJsonSchema,
+					409: errorJsonSchema,
+					502: errorJsonSchema,
+				},
+			},
+		},
+		async (request, reply) => {
+			const { appointmentId } = request.params as { appointmentId: string };
+			const input = request.body as { cancelReason?: string };
+
+			try {
+				const currentUser = await getActiveUser();
+				const result = await pool.query(
+					`
+						UPDATE appointments
+						SET status = 'cancelled',
+							cancelled_at = now(),
+							cancel_reason = COALESCE($1, '')
+						WHERE id = $2
+							AND customer_id = $3
+							AND status = 'scheduled'
+						RETURNING *
+					`,
+					[input.cancelReason ?? "", appointmentId, currentUser.customerId],
+				);
+
+				if (!result.rows[0]) {
+					const existing = await pool.query(
+						`
+							SELECT status
+							FROM appointments
+							WHERE id = $1
+								AND customer_id = $2
+						`,
+						[appointmentId, currentUser.customerId],
+					);
+					if (existing.rows[0]) {
+						return reply.code(409).send({
+							message: "Only scheduled appointments can be cancelled",
+						});
+					}
+					return reply.code(404).send({ message: "Appointment not found" });
+				}
+
+				return { appointment: mapAppointment(result.rows[0]) };
+			} catch (error) {
+				request.log.error(error);
+				return reply
+					.code(502)
+					.send({ message: "Unable to cancel appointment" });
+			}
+		},
+	);
+
+	app.get(
+		"/api/appointments/:appointmentId/messages",
+		{
+			schema: {
+				tags: ["appointments"],
+				summary: "List appointment messages",
+				params: appointmentIdParamsJsonSchema,
+				response: {
+					200: {
+						type: "object",
+						required: ["messages"],
+						properties: {
+							messages: {
+								type: "array",
+								items: appointmentMessageJsonSchema,
+							},
+						},
+					},
+					404: errorJsonSchema,
+					502: errorJsonSchema,
+				},
+			},
+		},
+		async (request, reply) => {
+			const { appointmentId } = request.params as { appointmentId: string };
+
+			try {
+				const existing = await pool.query(
+					"SELECT id FROM appointments WHERE id = $1",
+					[appointmentId],
+				);
+				if (!existing.rows[0]) {
+					return reply.code(404).send({ message: "Appointment not found" });
+				}
+
+				const result = await pool.query(
+					`
+						SELECT *
+						FROM appointment_messages
+						WHERE appointment_id = $1
+						ORDER BY created_at ASC
+					`,
+					[appointmentId],
+				);
+
+				return { messages: result.rows.map(mapAppointmentMessage) };
+			} catch (error) {
+				request.log.error(error);
+				return reply
+					.code(502)
+					.send({ message: "Unable to load appointment messages" });
+			}
+		},
+	);
+
+	app.post(
+		"/api/appointments/:appointmentId/messages",
+		{
+			schema: {
+				tags: ["appointments"],
+				summary: "Post an appointment message while the appointment is active",
+				params: appointmentIdParamsJsonSchema,
+				body: createMessageJsonSchema,
+				response: {
+					201: {
+						type: "object",
+						required: ["message"],
+						properties: {
+							message: appointmentMessageJsonSchema,
+						},
+					},
+					400: errorJsonSchema,
+					404: errorJsonSchema,
+					409: errorJsonSchema,
+					502: errorJsonSchema,
+				},
+			},
+		},
+		async (request, reply) => {
+			const { appointmentId } = request.params as { appointmentId: string };
+			const input = request.body as {
+				authorType: "customer" | "associate";
+				body: string;
+			};
+			const body = input.body.trim();
+			if (!body) {
+				return reply.code(400).send({ message: "Message body is required" });
+			}
+
+			try {
+				const existing = await pool.query(
+					"SELECT status FROM appointments WHERE id = $1",
+					[appointmentId],
+				);
+				if (!existing.rows[0]) {
+					return reply.code(404).send({ message: "Appointment not found" });
+				}
+				if (!isActiveStatus(String(existing.rows[0].status))) {
+					return reply
+						.code(409)
+						.send({ message: "Messages are locked for terminal appointments" });
+				}
+
+				const result = await pool.query(
+					`
+						INSERT INTO appointment_messages (
+							id, appointment_id, author_type, body
+						)
+						VALUES ($1, $2, $3, $4)
+						RETURNING *
+					`,
+					[randomUUID(), appointmentId, input.authorType, body],
+				);
+
+				return reply
+					.code(201)
+					.send({ message: mapAppointmentMessage(result.rows[0]) });
+			} catch (error) {
+				request.log.error(error);
+				return reply
+					.code(502)
+					.send({ message: "Unable to post appointment message" });
+			}
+		},
+	);
+
+	app.get(
+		"/api/appointments/:appointmentId/notifications",
+		{
+			schema: {
+				tags: ["appointments"],
+				summary: "List mock confirmation and reminder notification records",
+				params: appointmentIdParamsJsonSchema,
+				response: {
+					200: {
+						type: "object",
+						required: ["notifications"],
+						properties: {
+							notifications: {
+								type: "array",
+								items: appointmentNotificationJsonSchema,
+							},
+						},
+					},
+					404: errorJsonSchema,
+					502: errorJsonSchema,
+				},
+			},
+		},
+		async (request, reply) => {
+			const { appointmentId } = request.params as { appointmentId: string };
+
+			try {
+				const existing = await pool.query(
+					"SELECT id FROM appointments WHERE id = $1",
+					[appointmentId],
+				);
+				if (!existing.rows[0]) {
+					return reply.code(404).send({ message: "Appointment not found" });
+				}
+
+				const result = await pool.query(
+					`
+						SELECT *
+						FROM appointment_notifications
+						WHERE appointment_id = $1
+						ORDER BY created_at ASC
+					`,
+					[appointmentId],
+				);
+
+				return { notifications: result.rows.map(mapAppointmentNotification) };
+			} catch (error) {
+				request.log.error(error);
+				return reply
+					.code(502)
+					.send({ message: "Unable to load appointment notifications" });
+			}
+		},
+	);
+
+	app.put(
+		"/api/appointments/:appointmentId/feedback",
+		{
+			schema: {
+				tags: ["appointments"],
+				summary: "Submit customer feedback after an appointment is completed",
+				params: appointmentIdParamsJsonSchema,
+				body: feedbackJsonSchema,
+				response: {
+					200: {
+						type: "object",
+						required: ["appointment"],
+						properties: {
+							appointment: appointmentSummaryJsonSchema,
+						},
+					},
+					404: errorJsonSchema,
+					409: errorJsonSchema,
+					502: errorJsonSchema,
+				},
+			},
+		},
+		async (request, reply) => {
+			const { appointmentId } = request.params as { appointmentId: string };
+			const input = request.body as { rating: number; comment?: string };
+
+			try {
+				const currentUser = await getActiveUser();
+				const result = await pool.query(
+					`
+						UPDATE appointments
+						SET customer_feedback_rating = $1,
+							customer_feedback_comment = COALESCE($2, ''),
+							customer_feedback_at = now()
+						WHERE id = $3
+							AND customer_id = $4
+							AND status = 'completed'
+						RETURNING *
+					`,
+					[
+						input.rating,
+						input.comment ?? "",
+						appointmentId,
+						currentUser.customerId,
+					],
+				);
+
+				if (!result.rows[0]) {
+					const existing = await pool.query(
+						`
+							SELECT status
+							FROM appointments
+							WHERE id = $1
+								AND customer_id = $2
+						`,
+						[appointmentId, currentUser.customerId],
+					);
+					if (existing.rows[0]) {
+						return reply
+							.code(409)
+							.send({ message: "Feedback opens after completion" });
+					}
+					return reply.code(404).send({ message: "Appointment not found" });
+				}
+
+				return { appointment: mapAppointment(result.rows[0]) };
+			} catch (error) {
+				request.log.error(error);
+				return reply
+					.code(502)
+					.send({ message: "Unable to submit appointment feedback" });
+			}
+		},
+	);
+
+	app.patch(
+		"/api/appointments/:appointmentId/suggested-products/:productId",
+		{
+			schema: {
+				tags: ["appointments"],
+				summary:
+					"Update associate-only prep state for a suggested appointment product",
+				params: suggestedProductParamsJsonSchema,
+				body: updateProductPrepJsonSchema,
+				response: {
+					200: {
+						type: "object",
+						required: ["appointment"],
+						properties: {
+							appointment: appointmentSummaryJsonSchema,
+						},
+					},
+					404: errorJsonSchema,
+					409: errorJsonSchema,
+					502: errorJsonSchema,
+				},
+			},
+		},
+		async (request, reply) => {
+			const { appointmentId, productId } = request.params as {
+				appointmentId: string;
+				productId: string;
+			};
+			const input = request.body as {
+				prepStatus: SuggestedProductPrepStatus;
+				associateNote?: string;
+			};
+
+			try {
+				const existing = await pool.query(
+					"SELECT * FROM appointments WHERE id = $1",
+					[appointmentId],
+				);
+				if (!existing.rows[0]) {
+					return reply.code(404).send({ message: "Appointment not found" });
+				}
+
+				const appointment = mapAppointment(existing.rows[0]);
+				if (!isActiveStatus(appointment.status)) {
+					return reply.code(409).send({
+						message: "Product prep is locked for terminal appointments",
+					});
+				}
+
+				let updated = false;
+				const suggestedProducts = appointment.suggestedProducts.map(
+					(suggestion) => {
+						if (suggestion.product.productId !== productId) {
+							return suggestion;
+						}
+						updated = true;
+						return {
+							...suggestion,
+							prepStatus: input.prepStatus,
+							associateNote: input.associateNote ?? suggestion.associateNote,
+						};
+					},
+				);
+
+				if (!updated) {
+					return reply
+						.code(404)
+						.send({ message: "Suggested product not found" });
+				}
+
+				const result = await pool.query(
+					`
+						UPDATE appointments
+						SET suggested_products = $1
+						WHERE id = $2
+						RETURNING *
+					`,
+					[JSON.stringify(suggestedProducts), appointmentId],
+				);
+
+				return { appointment: mapAppointment(result.rows[0]) };
+			} catch (error) {
+				request.log.error(error);
+				return reply
+					.code(502)
+					.send({ message: "Unable to update suggested product prep" });
+			}
+		},
+	);
+
+	app.post(
+		"/api/appointments/:appointmentId/complete",
+		{
+			schema: {
+				tags: ["appointments"],
+				summary: "Mark an appointment session as completed",
+				params: appointmentIdParamsJsonSchema,
+				body: completeAppointmentJsonSchema,
+				response: {
+					200: {
+						type: "object",
+						required: ["appointment"],
+						properties: {
+							appointment: appointmentSummaryJsonSchema,
+						},
+					},
+					400: errorJsonSchema,
+					404: errorJsonSchema,
+					409: errorJsonSchema,
+					502: errorJsonSchema,
+				},
+			},
+		},
+		async (request, reply) => {
+			const { appointmentId } = request.params as { appointmentId: string };
+			const input = request.body as {
+				customerRecap: string;
+				sessionNotes?: string;
+				associateFeedback?: string;
+			};
+			if (!input.customerRecap.trim()) {
+				return reply.code(400).send({ message: "Customer recap is required" });
+			}
+
+			try {
+				const result = await pool.query(
+					`
+						UPDATE appointments
+						SET session_notes = COALESCE($1, session_notes),
+							customer_recap = $2,
+							associate_feedback = COALESCE($3, ''),
+							status = 'completed',
+							completed_at = now()
+						WHERE id = $4
+							AND status IN ('scheduled', 'checked_in')
+						RETURNING *
+					`,
+					[
+						input.sessionNotes,
+						input.customerRecap.trim(),
+						input.associateFeedback ?? "",
+						appointmentId,
+					],
+				);
+
+				if (!result.rows[0]) {
+					const existing = await pool.query(
+						"SELECT status FROM appointments WHERE id = $1",
+						[appointmentId],
+					);
+					if (isTerminalStatus(String(existing.rows[0]?.status ?? ""))) {
+						return reply
+							.code(409)
+							.send({ message: "Appointment is already terminal" });
 					}
 					return reply.code(404).send({ message: "Appointment not found" });
 				}
@@ -1444,10 +2694,10 @@ export async function registerRoutes(app: FastifyInstance) {
 				return reply.code(404).send({ message: "Appointment not found" });
 			}
 			const appointment = mapAppointment(existing.rows[0]);
-			if (appointment.status === "completed") {
+			if (!isActiveStatus(appointment.status)) {
 				return reply
 					.code(409)
-					.send({ message: "Completed appointments cannot be edited" });
+					.send({ message: "Terminal appointments cannot be edited" });
 			}
 
 			try {
@@ -1455,6 +2705,7 @@ export async function registerRoutes(app: FastifyInstance) {
 				const suggestedProducts = await buildSuggestedProducts(
 					customer,
 					{
+						storeId: appointment.store.storeId,
 						slotStart: appointment.slotStart,
 						occasion: appointment.occasion,
 						focusColors: appointment.focusColors,
@@ -1505,11 +2756,12 @@ export async function registerRoutes(app: FastifyInstance) {
 				const result = await pool.query(
 					`
 						UPDATE appointments
-						SET status = 'cancelled'
+						SET status = 'cancelled',
+							cancelled_at = now()
 						WHERE id = $1
 							AND customer_id = $2
 							AND slot_start >= now()
-							AND status = 'scheduled'
+							AND status IN ('scheduled', 'checked_in')
 						RETURNING id
 					`,
 					[appointmentId, currentUser.customerId],

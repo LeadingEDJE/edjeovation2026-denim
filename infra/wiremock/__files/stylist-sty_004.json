@@ -5,10 +5,10 @@
 		"pronouns": "he/him",
 		"title": "Trend Styling Associate",
 		"store": {
-			"storeId": "anf_soho_001",
-			"name": "Abercrombie & Fitch SoHo",
-			"city": "New York",
-			"state": "NY"
+			"storeId": "anf_century_003",
+			"name": "Abercrombie & Fitch Century City",
+			"city": "Los Angeles",
+			"state": "CA"
 		},
 		"bio": "Store associate specializing in trend-led denim, wide-leg silhouettes, and building complete outfits around statement fits.",
 		"specialties": ["trend-styling", "wide-leg-denim", "outfit-building"],
@@ -21,7 +21,7 @@
 		],
 		"availability": {
 			"status": "available",
-			"nextAvailableAt": "2026-06-15T19:00:00Z"
+			"nextAvailableAt": "2026-06-16T19:00:00Z"
 		},
 		"avatarUrl": null
 	}

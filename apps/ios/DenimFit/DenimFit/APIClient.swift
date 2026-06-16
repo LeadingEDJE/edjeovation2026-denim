@@ -14,12 +14,17 @@ final class APIClient: Sendable {
         return response.users
     }
 
+    func getStores() async throws -> [Store] {
+        let response: StoresResponse = try await get(path: "/api/stores")
+        return response.stores
+    }
+
     func setActiveUser(customerId: String) async throws -> ActiveUserResponse {
         try await send(path: "/api/admin/active-user", method: "PUT", input: SetActiveUserRequest(customerId: customerId))
     }
 
-    func getAppointmentSlots() async throws -> [AppointmentSlot] {
-        let response: AppointmentSlotsResponse = try await get(path: "/api/appointments/slots")
+    func getAppointmentSlots(storeId: String) async throws -> [AppointmentSlot] {
+        let response: AppointmentSlotsResponse = try await get(path: "/api/appointments/slots?storeId=\(storeId)")
         return response.slots
     }
 
@@ -41,16 +46,31 @@ final class APIClient: Sendable {
         try await send(path: "/api/appointments/\(id)", method: "PATCH", input: UpdateAppointmentRequest(guidance: guidance))
     }
 
-    func cancelAppointment(id: String) async throws {
-        let request = URLRequest(url: baseURL.appending(path: "/api/appointments/\(id)"))
-        var mutableRequest = request
-        mutableRequest.httpMethod = "DELETE"
-        let (_, response) = try await URLSession.shared.data(for: mutableRequest)
-        try validate(response: response)
+    func cancelAppointment(id: String, reason: String) async throws -> AppointmentResponse {
+        try await send(path: "/api/appointments/\(id)/cancel", method: "POST", input: CancelAppointmentRequest(cancelReason: reason))
+    }
+
+    func getAppointmentMessages(id: String) async throws -> [AppointmentMessage] {
+        let response: AppointmentMessagesResponse = try await get(path: "/api/appointments/\(id)/messages")
+        return response.messages
+    }
+
+    func postAppointmentMessage(id: String, body: String) async throws -> AppointmentMessage {
+        let response: AppointmentMessageResponse = try await send(path: "/api/appointments/\(id)/messages", method: "POST", input: AppointmentMessageRequest(authorType: "customer", body: body))
+        return response.message
+    }
+
+    func getAppointmentNotifications(id: String) async throws -> [AppointmentNotification] {
+        let response: AppointmentNotificationsResponse = try await get(path: "/api/appointments/\(id)/notifications")
+        return response.notifications
+    }
+
+    func submitFeedback(id: String, rating: Int, comment: String) async throws -> AppointmentResponse {
+        try await send(path: "/api/appointments/\(id)/feedback", method: "PUT", input: AppointmentFeedbackRequest(rating: rating, comment: comment))
     }
 
     private func get<T: Decodable>(path: String) async throws -> T {
-        let (data, response) = try await URLSession.shared.data(from: baseURL.appending(path: path))
+        let (data, response) = try await URLSession.shared.data(from: url(for: path))
         try validate(response: response)
         return try decoder.decode(T.self, from: data)
     }
@@ -60,7 +80,7 @@ final class APIClient: Sendable {
     }
 
     private func send<T: Decodable, Body: Encodable>(path: String, method: String, input: Body) async throws -> T {
-        var request = URLRequest(url: baseURL.appending(path: path))
+        var request = URLRequest(url: url(for: path))
         request.httpMethod = method
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.httpBody = try encoder.encode(input)
@@ -68,6 +88,18 @@ final class APIClient: Sendable {
         let (data, response) = try await URLSession.shared.data(for: request)
         try validate(response: response)
         return try decoder.decode(T.self, from: data)
+    }
+
+    private func url(for path: String) -> URL {
+        guard let queryStart = path.firstIndex(of: "?") else {
+            return baseURL.appending(path: path)
+        }
+
+        let route = String(path[..<queryStart])
+        let query = String(path[path.index(after: queryStart)...])
+        var components = URLComponents(url: baseURL.appending(path: route), resolvingAgainstBaseURL: false)!
+        components.percentEncodedQuery = query
+        return components.url!
     }
 
     private func validate(response: URLResponse) throws {

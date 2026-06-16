@@ -1,0 +1,94 @@
+{
+	"patterns": [
+		{
+			"storeId": "anf_soho_001",
+			"timezone": "America/New_York",
+			"weekly": [
+				{
+					"dayOfWeek": "Monday",
+					"openTime": "11:00",
+					"closeTime": "19:00",
+					"stylistIds": ["sty_001", "sty_002"]
+				},
+				{
+					"dayOfWeek": "Tuesday",
+					"openTime": "11:00",
+					"closeTime": "19:00",
+					"stylistIds": ["sty_001"]
+				},
+				{
+					"dayOfWeek": "Wednesday",
+					"openTime": "11:00",
+					"closeTime": "19:00",
+					"stylistIds": ["sty_002"]
+				},
+				{
+					"dayOfWeek": "Thursday",
+					"openTime": "11:00",
+					"closeTime": "19:00",
+					"stylistIds": ["sty_001", "sty_002"]
+				}
+			]
+		},
+		{
+			"storeId": "anf_easton_002",
+			"timezone": "America/New_York",
+			"weekly": [
+				{
+					"dayOfWeek": "Monday",
+					"openTime": "11:00",
+					"closeTime": "19:00",
+					"stylistIds": ["sty_003", "sty_005"]
+				},
+				{
+					"dayOfWeek": "Tuesday",
+					"openTime": "11:00",
+					"closeTime": "19:00",
+					"stylistIds": ["sty_003"]
+				},
+				{
+					"dayOfWeek": "Wednesday",
+					"openTime": "11:00",
+					"closeTime": "19:00",
+					"stylistIds": ["sty_005"]
+				},
+				{
+					"dayOfWeek": "Thursday",
+					"openTime": "11:00",
+					"closeTime": "19:00",
+					"stylistIds": ["sty_003", "sty_005"]
+				}
+			]
+		},
+		{
+			"storeId": "anf_century_003",
+			"timezone": "America/Los_Angeles",
+			"weekly": [
+				{
+					"dayOfWeek": "Monday",
+					"openTime": "11:00",
+					"closeTime": "19:00",
+					"stylistIds": ["sty_004", "sty_006"]
+				},
+				{
+					"dayOfWeek": "Tuesday",
+					"openTime": "11:00",
+					"closeTime": "19:00",
+					"stylistIds": ["sty_004", "sty_006"]
+				},
+				{
+					"dayOfWeek": "Wednesday",
+					"openTime": "11:00",
+					"closeTime": "19:00",
+					"stylistIds": ["sty_006"]
+				},
+				{
+					"dayOfWeek": "Thursday",
+					"openTime": "11:00",
+					"closeTime": "19:00",
+					"stylistIds": ["sty_004"]
+				}
+			]
+		}
+	]
+}

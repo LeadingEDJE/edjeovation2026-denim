@@ -7,10 +7,10 @@ For setup and full-stack run instructions, start with [QUICKSTART.md](QUICKSTART
 ## Structure
 
 - `apps/api`: Fastify API used by the web UI and iOS app.
-- `apps/web`: React/Vite web UI for viewing and creating fitting sessions.
+- `apps/web`: React/Vite associate dashboard for guided fitting appointment prep, lifecycle actions, messages, recaps, and product prep.
 - `apps/ios`: SwiftUI iOS app scaffold for Xcode simulator work.
 - `infra/db`: PostgreSQL initialization SQL.
-- `infra/wiremock`: WireMock mappings for simulated third-party fit recommendations.
+- `infra/wiremock`: WireMock mappings for simulated customers, order history, stores, stylist profiles, and weekly schedule patterns.
 
 ## Documentation
 
@@ -41,6 +41,13 @@ For local-only TypeScript checks outside Docker:
 npm install
 npm run typecheck
 ```
+
+## Current Workflow
+
+- iOS customers choose a store, pick a store-scoped appointment slot, see view-only fit profile context, message the appointment thread, cancel scheduled visits with a reason, read the customer recap, and submit feedback after completion.
+- The web dashboard supports Open, In Progress, Completed, Cancelled, and No-show views with store/date/stylist/status filters and date ordering. Open keeps active appointments visible even after their slot time has passed.
+- Associates can reassign scheduled appointments to eligible same-store stylists, check in customers, mark no-shows, save internal notes, manage suggested-product prep states, post messages, write customer-visible recaps, and complete appointments.
+- Booking creates mock confirmation and reminder notification records only; no email or push delivery is attempted.
 
 ## iOS
 
