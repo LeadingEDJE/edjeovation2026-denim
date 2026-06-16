@@ -51,6 +51,19 @@ jobs:
 
       - name: Generate submission docs
         uses: anthropics/claude-code-action@v1
+        env:
+          # Reuse the project's LiteLLM gateway (Anthropic-compatible) so the same
+          # API key works here as in the recommender. Claude Code sends the key as
+          # the x-api-key header, which LiteLLM accepts.
+          #   - ANTHROPIC_BASE_URL : secret  -> the LiteLLM gateway URL
+          #   - ANTHROPIC_API_KEY  : secret  -> the LiteLLM key (set on the input below)
+          #   - ANTHROPIC_MODEL    : main model the gateway serves
+          #   - ANTHROPIC_SMALL_FAST_MODEL : Haiku-class model for lightweight
+          #       background calls; falls back to the main model if the gateway
+          #       doesn't serve a small one.
+          ANTHROPIC_BASE_URL: ${{ secrets.ANTHROPIC_BASE_URL }}
+          ANTHROPIC_MODEL: ${{ vars.LITELLM_MODEL || 'claude-opus-4.7' }}
+          ANTHROPIC_SMALL_FAST_MODEL: ${{ vars.LITELLM_SMALL_FAST_MODEL || vars.LITELLM_MODEL || 'claude-opus-4.7' }}
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           # Allow the agent to read the repo, edit docs, and commit/push.

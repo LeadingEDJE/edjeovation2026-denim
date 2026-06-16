@@ -179,6 +179,16 @@ Or target one doc:
    relevance mapping above.
 4. Commits any updated `docs/submission/**` files back to the PR branch.
 
-Requires the `ANTHROPIC_API_KEY` repository secret. PRs from forks are skipped
-(no secret access, can't push). Commits are pushed with the workflow's
-`GITHUB_TOKEN`, which does **not** re-trigger the workflow, so there's no loop.
+The workflow runs through the project's **LiteLLM gateway** (Anthropic-compatible)
+so it reuses the same key as the recommender. Configure these in repo settings:
+
+| Name | Kind | Purpose |
+|---|---|---|
+| `ANTHROPIC_API_KEY` | secret | LiteLLM key (sent as `x-api-key`) |
+| `ANTHROPIC_BASE_URL` | secret | LiteLLM gateway URL |
+| `LITELLM_MODEL` | variable (optional) | Main model; defaults to `claude-opus-4.7` |
+| `LITELLM_SMALL_FAST_MODEL` | variable (optional) | Haiku-class model for lightweight calls; falls back to the main model |
+
+PRs from forks are skipped (no secret access, can't push). Commits are pushed
+with the workflow's `GITHUB_TOKEN`, which does **not** re-trigger the workflow,
+so there's no loop.
