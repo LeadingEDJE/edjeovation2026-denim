@@ -2,6 +2,7 @@ import { z } from "zod";
 
 export type FitPreference = "skinny" | "slim" | "straight" | "relaxed" | "wide";
 export type StretchPreference = "rigid" | "comfort-stretch" | "high-stretch";
+export type CatalogAudience = "womens" | "mens";
 
 export type CurrentUser = {
 	customerId: string;
@@ -16,6 +17,7 @@ export type CurrentUser = {
 	preferences: {
 		fitPreference: FitPreference;
 		stretchPreference: StretchPreference;
+		catalogAudiences?: CatalogAudience[];
 	};
 };
 
@@ -144,6 +146,7 @@ export const catalogQuerySchema = z.object({
 	rise: z.enum(["ultra-high", "high", "mid", "low"]).optional(),
 	stretch: z.enum(["rigid", "comfort-stretch", "high-stretch"]).optional(),
 	category: z.string().min(1).max(120).optional(),
+	catalogAudience: z.enum(["womens", "mens"]).optional(),
 	q: z.string().min(1).max(120).optional(),
 	limit: z.coerce.number().int().min(1).max(200).default(50),
 	offset: z.coerce.number().int().min(0).default(0),
@@ -156,6 +159,7 @@ export type CatalogProduct = {
 	source: string;
 	name: string;
 	category: string | null;
+	catalogAudiences: CatalogAudience[];
 	productUrl: string;
 	imageUrl: string | null;
 	description: string | null;
@@ -203,6 +207,44 @@ export type AppointmentSlot = {
 	availableStylistCount: number;
 };
 
+// How a garment should steer recommendations:
+// - complement: recommend pieces that pair with it (e.g. a top for a skirt)
+// - similar: recommend pieces that look like it
+// - ignore: disregard it entirely
+export type OutfitIntent = "complement" | "similar" | "ignore";
+
+export const outfitIntents: OutfitIntent[] = [
+	"complement",
+	"similar",
+	"ignore",
+];
+
+// One garment or accessory the customer is building around, as identified from a
+// photo (by Claude) or typed in by the customer. Material/pattern are optional
+// because not every look has them and manual entry may omit them. `intent` is the
+// customer/stylist choice for how it influences recommendations.
+export type OutfitGarment = {
+	type: string;
+	colors: string[];
+	material?: string | null;
+	pattern?: string | null;
+	descriptors: string[];
+	intent: OutfitIntent;
+};
+
+// The "outfit to match" the customer signed off on. The SAME shape regardless of
+// origin — a photo analyzed by Claude, the canned no-key fallback, or text the
+// customer typed manually — so persistence, the reranker, and the stylist view
+// treat them identically. Images are never stored; only this text survives.
+export type OutfitAnalysis = {
+	garments: OutfitGarment[];
+	styleSummary: string;
+	suggestedFocusColors: string[];
+	suggestedStyleKeywords: string[];
+	pairingContext: string;
+	engine: "claude" | "sample" | "manual";
+};
+
 export type CreateAppointmentInput = {
 	storeId: string;
 	slotStart: string;
@@ -210,8 +252,10 @@ export type CreateAppointmentInput = {
 	focusColors: string;
 	avoidColors: string;
 	styleKeywords: string[];
+	catalogAudiences?: CatalogAudience[];
 	guidance?: string;
 	orderHistoryScenario?: OrderHistoryScenario;
+	outfitAnalysis?: OutfitAnalysis | null;
 };
 
 export type AppointmentMessage = {
@@ -247,6 +291,7 @@ export type Appointment = {
 	focusColors: string;
 	avoidColors: string;
 	styleKeywords: string[];
+	catalogAudiences: CatalogAudience[];
 	guidance: string;
 	sessionNotes: string;
 	status: AppointmentStatus;
@@ -259,6 +304,7 @@ export type Appointment = {
 		preferredSizes: string[];
 	};
 	suggestedProducts: SuggestedProduct[];
+	outfitAnalysis: OutfitAnalysis | null;
 	notificationSummary: {
 		count: number;
 		confirmationStatus: AppointmentNotificationStatus | null;

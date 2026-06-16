@@ -13,6 +13,7 @@ CREATE TABLE IF NOT EXISTS appointments (
   focus_colors TEXT NOT NULL,
   avoid_colors TEXT NOT NULL,
   style_keywords JSONB NOT NULL DEFAULT '[]'::jsonb,
+  catalog_audiences JSONB NOT NULL DEFAULT '["womens"]'::jsonb,
   guidance TEXT NOT NULL DEFAULT '',
   session_notes TEXT NOT NULL DEFAULT '',
   status TEXT NOT NULL DEFAULT 'scheduled' CHECK (status IN ('scheduled', 'checked_in', 'completed', 'cancelled', 'no_show')),
@@ -21,6 +22,9 @@ CREATE TABLE IF NOT EXISTS appointments (
   order_history_summary JSONB NOT NULL,
   suggested_products JSONB NOT NULL DEFAULT '[]'::jsonb,
   source_payload JSONB NOT NULL,
+  -- Text-only analysis of an outfit the customer wants to build around (from a
+  -- photo or typed manually). Nullable; the photo itself is never stored.
+  outfit_analysis JSONB,
   checked_in_at TIMESTAMPTZ,
   completed_at TIMESTAMPTZ,
   cancelled_at TIMESTAMPTZ,
@@ -48,6 +52,8 @@ ALTER TABLE appointments ADD COLUMN IF NOT EXISTS customer_feedback_rating INTEG
 ALTER TABLE appointments ADD COLUMN IF NOT EXISTS customer_feedback_comment TEXT NOT NULL DEFAULT '';
 ALTER TABLE appointments ADD COLUMN IF NOT EXISTS customer_feedback_at TIMESTAMPTZ;
 ALTER TABLE appointments ADD COLUMN IF NOT EXISTS suggested_products JSONB NOT NULL DEFAULT '[]'::jsonb;
+ALTER TABLE appointments ADD COLUMN IF NOT EXISTS outfit_analysis JSONB;
+ALTER TABLE appointments ADD COLUMN IF NOT EXISTS catalog_audiences JSONB NOT NULL DEFAULT '["womens"]'::jsonb;
 ALTER TABLE appointments DROP CONSTRAINT IF EXISTS appointments_status_check;
 ALTER TABLE appointments DROP CONSTRAINT IF EXISTS appointments_customer_feedback_rating_check;
 
@@ -105,7 +111,7 @@ CREATE TABLE IF NOT EXISTS appointment_notifications (
 CREATE INDEX IF NOT EXISTS idx_appointment_notifications_appointment
   ON appointment_notifications (appointment_id, type);
 
--- Scraped third-party catalog (e.g. Abercrombie women's) used as the candidate
+-- Scraped third-party catalog (e.g. Abercrombie womens/mens) used as the candidate
 -- pool the recommendation engine queries against. Structured columns hold the
 -- fit-relevant attributes; `raw` keeps the full extracted payload so we can pull
 -- more fields later without re-scraping.
@@ -114,6 +120,7 @@ CREATE TABLE IF NOT EXISTS catalog_products (
   source TEXT NOT NULL DEFAULT 'abercrombie',
   name TEXT NOT NULL,
   category TEXT,
+  catalog_audiences JSONB NOT NULL DEFAULT '["womens"]'::jsonb,
   product_url TEXT NOT NULL,
   image_url TEXT,
   description TEXT,
@@ -129,7 +136,10 @@ CREATE TABLE IF NOT EXISTS catalog_products (
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
+ALTER TABLE catalog_products ADD COLUMN IF NOT EXISTS catalog_audiences JSONB NOT NULL DEFAULT '["womens"]'::jsonb;
+
 CREATE INDEX IF NOT EXISTS idx_catalog_products_fit ON catalog_products (fit);
 CREATE INDEX IF NOT EXISTS idx_catalog_products_rise ON catalog_products (rise);
 CREATE INDEX IF NOT EXISTS idx_catalog_products_stretch ON catalog_products (stretch);
 CREATE INDEX IF NOT EXISTS idx_catalog_products_category ON catalog_products (category);
+CREATE INDEX IF NOT EXISTS idx_catalog_products_catalog_audiences ON catalog_products USING GIN (catalog_audiences);

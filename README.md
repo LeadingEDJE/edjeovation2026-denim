@@ -52,3 +52,5 @@ npm run typecheck
 ## iOS
 
 Open `apps/ios/DenimFit/DenimFit.xcodeproj` in Xcode and run the `DenimFit` scheme in a simulator. The app points at `http://localhost:4000` by default for simulator use.
+
+To test the simulator against the deployed Azure API, run the `DenimFit Production API` scheme. That scheme intentionally sets `DENIM_FIT_API_BASE_URL` to the production API URL while leaving the default local scheme unchanged.

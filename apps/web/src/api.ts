@@ -12,6 +12,7 @@ export type CatalogProduct = {
 	productId: string;
 	name: string;
 	category: string | null;
+	catalogAudiences: string[];
 	productUrl: string;
 	imageUrl: string | null;
 	price: number | null;
@@ -48,6 +49,29 @@ export type StylistProfile = {
 	avatarUrl: string | null;
 };
 
+// How a garment steers recommendations: complement it, find similar, or ignore.
+export type OutfitIntent = "complement" | "similar" | "ignore";
+
+export type OutfitGarment = {
+	type: string;
+	colors: string[];
+	material?: string | null;
+	pattern?: string | null;
+	descriptors: string[];
+	intent: OutfitIntent;
+};
+
+// Text-only analysis of an outfit the customer wants to build around (from a
+// photo or typed manually). The photo itself is never stored or shown.
+export type OutfitAnalysis = {
+	garments: OutfitGarment[];
+	styleSummary: string;
+	suggestedFocusColors: string[];
+	suggestedStyleKeywords: string[];
+	pairingContext: string;
+	engine: "claude" | "sample" | "manual";
+};
+
 export type AppointmentStatus =
 	| "scheduled"
 	| "checked_in"
@@ -67,6 +91,7 @@ export type Appointment = {
 	focusColors: string;
 	avoidColors: string;
 	styleKeywords: string[];
+	catalogAudiences: string[];
 	guidance: string;
 	sessionNotes: string;
 	status: AppointmentStatus;
@@ -79,6 +104,7 @@ export type Appointment = {
 		preferredSizes: string[];
 	};
 	suggestedProducts: SuggestedProduct[];
+	outfitAnalysis: OutfitAnalysis | null;
 	notificationSummary: {
 		count: number;
 		confirmationStatus: "queued" | "sent" | null;
@@ -245,6 +271,26 @@ export async function regenerateSuggestions(
 	);
 
 	return parseAppointment(response, "Could not regenerate suggestions");
+}
+
+// Persist edited outfit intents. `regenerate` defaults to false so the stylist's
+// edits are saved without an LLM re-run; they apply them with the Regenerate
+// suggestions action.
+export async function updateOutfitAnalysis(
+	appointmentId: string,
+	outfitAnalysis: OutfitAnalysis | null,
+	regenerate = false,
+): Promise<Appointment> {
+	const response = await fetch(
+		`${apiBaseUrl}/api/appointments/${appointmentId}/outfit-analysis`,
+		{
+			method: "PATCH",
+			headers: { "content-type": "application/json" },
+			body: JSON.stringify({ outfitAnalysis, regenerate }),
+		},
+	);
+
+	return parseAppointment(response, "Could not update outfit intents");
 }
 
 export async function updateSuggestedProductPrep(

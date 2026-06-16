@@ -41,3 +41,19 @@ services:
     volumes:
       - ./infra/wiremock/mappings:/home/wiremock/mappings:ro
       - ./infra/wiremock/__files:/home/wiremock/__files:ro
+
+  # Dev-only sidecar: watches the bind-mounted WireMock stubs and reloads them
+  # (POST /__admin/mappings/reset) whenever a mapping/fixture changes. WireMock
+  # reads mappings only at startup, so without this you must restart it after
+  # every edit. Tune the poll interval with WIREMOCK_RELOAD_INTERVAL.
+  wiremock-reloader:
+    image: alpine:3.20
+    depends_on:
+      - wiremock
+    environment:
+      WIREMOCK_URL: http://wiremock:8080
+      POLL_INTERVAL: ${WIREMOCK_RELOAD_INTERVAL:-2}
+    volumes:
+      - ./infra/wiremock:/watch:ro
+    entrypoint: ["sh", "/watch/reload.sh"]
+    restart: unless-stopped

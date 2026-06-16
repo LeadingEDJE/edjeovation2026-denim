@@ -17,7 +17,7 @@ or link.*
 ## Slide 2 — Solution
 
 - Customer books a **non-peak fitting** in an iOS app and completes a short intake
-  (occasion, focus/avoid colors, style → **Abercrombie Muse**).
+  (occasion, focus/avoid colors, catalog source, style → **Abercrombie Muse**).
 - A stylist is assigned and confirmed; order-history signals are combined with the
   intake.
 - The associate gets a **prepared, AI-curated shortlist with rationale** to pull
@@ -30,7 +30,8 @@ or link.*
   API** → **PostgreSQL**, with **WireMock** standing in for third-party
   customer/order/store/stylist data.
 - **Hybrid recommender:** deterministic rule-based scoring builds a diverse
-  shortlist → **Claude re-ranks** it for the customer and writes rationale.
+  shortlist from the selected womens/mens catalog audience → **Claude re-ranks**
+  it for the customer and writes rationale.
 - *(Insert architecture diagram or dashboard screenshot.)*
 
 ## Slide 4 — AI Usage Highlight

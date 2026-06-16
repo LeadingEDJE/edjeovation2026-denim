@@ -1,5 +1,6 @@
 import { readFile } from "node:fs/promises";
 import pg from "pg";
+import { seedLocalAppointments } from "./seed-local-appointments.js";
 
 function sslConfig() {
 	return process.env.PGSSLMODE === "require"
@@ -67,6 +68,15 @@ try {
 	}
 	console.log("Refreshed catalog products");
 	console.log(`Applied ${steps[1].name}`);
+
+	const appointmentSeed = await seedLocalAppointments(pool);
+	if (appointmentSeed.skipped) {
+		console.log("Skipped local appointment seed");
+	} else {
+		console.log(
+			`Seeded local appointments (${appointmentSeed.count} appointments)`,
+		);
+	}
 
 	// Schema-qualified: the seed (pg_dump output) resets search_path on this
 	// connection, so an unqualified name would not resolve here.

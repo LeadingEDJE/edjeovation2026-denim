@@ -33,6 +33,9 @@ export type StyleContext = {
 	styleKeywords?: string[];
 	museTag?: string;
 	preferredSizes?: string[];
+	// A garment the customer already owns/is wearing and wants to build around
+	// (from an outfit photo or manual entry). Recommendations should complement it.
+	pairingContext?: string;
 };
 
 // Stable across all requests → safe to mark for prompt caching. The volatile
@@ -54,7 +57,34 @@ Rules:
 - Write a concise, specific rationale (one or two sentences) per product that ties it
   to the customer's preferences AND the appointment's occasion, colors, or style.
   For bottoms, reference fit/size; for other categories, lean on color and style.
-- Favor focus colors and avoid the colors to skip. Lead with the strongest match.`;
+- Favor focus colors and avoid the colors to skip. Lead with the strongest match.
+
+Completing a look — when the appointment context lists pieces to "complement" (an
+item the customer already owns and wants to build around), treat that piece as worn
+and recommend things that go WITH it, never an alternative to it:
+- Complementing a bottom (skirt, pants, jeans, or shorts): do NOT recommend another
+  bottom — including a different skirt — or a dress. Suggest tops, outerwear, and
+  accessories instead.
+- Complementing a one-piece (dress, jumpsuit, or romper): do NOT recommend a bottom
+  or another one-piece. Suggest outerwear, layering pieces, and accessories. Only
+  recommend a top if it clearly works as a layering piece (e.g. a tee under a slip
+  dress, a turtleneck under a pinafore) — never as a standalone top.
+- Never pair pants or jeans with a maxi-length skirt or maxi-length dress.
+- Exception: a skirt explicitly described as a layering piece (e.g. a sheer overlay)
+  may be layered over a dress or pants.
+These no-second-bottom rules apply ONLY to "complement" pieces. For pieces listed as
+"find similar," recommend items of the same kind and style as the named piece (a
+skirt for a skirt is correct there).
+
+Occasion appropriateness — only recommend specialized categories when the occasion
+or style context clearly calls for them:
+- Swimwear (swimsuits, bikinis, cover-ups): only when the occasion implies swimming
+  or water/sun, e.g. a pool party, beach day, resort or vacation, or similar. For any
+  other occasion, do not recommend swimwear even if it is in the candidate list.
+- Sleepwear, loungewear, pajamas, and intimates: only when the event context
+  explicitly asks for them. Do not recommend them for ordinary occasions.
+When in doubt for these categories, leave them out and pick a more occasion-
+appropriate candidate instead.`;
 
 // The exact JSON shape we ask the model to emit. We instruct this in the prompt
 // rather than using output_config.format because some compatible proxies (e.g.
@@ -63,7 +93,7 @@ const OUTPUT_INSTRUCTION = `Return ONLY a JSON object (no markdown fences, no pr
 {"summary": string, "rankings": [{"productId": string, "rank": integer, "rationale": string}]}`;
 
 /** Pull a JSON object out of model text, tolerating markdown fences/prose. */
-function extractJson(text: string): string {
+export function extractJson(text: string): string {
 	const fenced = text.match(/```(?:json)?\s*([\s\S]*?)```/i);
 	const body = fenced ? fenced[1] : text;
 	const start = body.indexOf("{");
@@ -116,12 +146,19 @@ function buildUserPrompt(
 		.filter(Boolean)
 		.join(", ");
 
+	// An owned/worn garment to complement gets its own emphasized line rather than
+	// being folded into the comma-joined context, so the model treats it as a
+	// primary "complete the look" signal.
+	const pairing = style.pairingContext
+		? `\n\nOutfit to build around: ${style.pairingContext}\nFavor pieces that complete or complement this look (e.g. a top for a skirt), and reference the pairing in the rationale.`
+		: "";
+
 	const candidates = shortlist
 		.map((c, i) => `${i + 1}. ${candidateLine(c)}`)
 		.join("\n");
 
 	return `Customer profile: ${profile}
-Appointment style context: ${styleLines || "none provided"}
+Appointment style context: ${styleLines || "none provided"}${pairing}
 
 Candidate products (pre-scored shortlist):
 ${candidates}

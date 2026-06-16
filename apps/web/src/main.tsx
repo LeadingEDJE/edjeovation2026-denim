@@ -12,15 +12,23 @@ import {
 	listStores,
 	listStylists,
 	markNoShowAppointment,
+	type OutfitAnalysis,
 	postAppointmentMessage,
 	reassignAppointmentStylist,
 	regenerateSuggestions,
 	type Store,
 	type StylistProfile,
 	type SuggestedProduct,
+	updateOutfitAnalysis,
 	updateSessionNotes,
 	updateSuggestedProductPrep,
 } from "./api";
+import {
+	compareAppointments,
+	isOpenAppointment,
+	matchesFilters,
+	matchesView,
+} from "./appointment-filters";
 import {
 	AppointmentViewNav,
 	DashboardHeader,
@@ -254,6 +262,16 @@ function App() {
 		}
 	};
 
+	const saveOutfitIntents = async (
+		appointment: Appointment,
+		analysis: OutfitAnalysis,
+	) => {
+		await runAppointmentAction(
+			() => updateOutfitAnalysis(appointment.id, analysis, false),
+			"Outfit intents saved — regenerate suggestions to apply",
+		);
+	};
+
 	const updateProductPrep = async (
 		appointment: Appointment,
 		suggestion: SuggestedProduct,
@@ -383,6 +401,9 @@ function App() {
 							void completeSession(appointment)
 						}
 						onRegenerate={(appointment) => void regenerate(appointment)}
+						onSaveOutfitIntents={(appointment, analysis) =>
+							void saveOutfitIntents(appointment, analysis)
+						}
 						onCheckIn={(appointment) => void checkIn(appointment)}
 						onNoShow={(appointment) => void noShow(appointment)}
 						onReassign={(appointment, stylistId) =>
@@ -417,75 +438,6 @@ function App() {
 			</section>
 		</main>
 	);
-}
-
-function isOpenAppointment(appointment: Appointment) {
-	return (
-		appointment.status === "scheduled" || appointment.status === "checked_in"
-	);
-}
-
-function matchesView(appointment: Appointment, view: DashboardView) {
-	switch (view) {
-		case "open":
-			return isOpenAppointment(appointment);
-		case "in_progress":
-			return appointment.status === "checked_in";
-		case "completed":
-			return appointment.status === "completed";
-		case "cancelled":
-			return appointment.status === "cancelled";
-		case "no_show":
-			return appointment.status === "no_show";
-	}
-}
-
-function matchesFilters(appointment: Appointment, filters: AppointmentFilters) {
-	if (filters.storeId && appointment.store.storeId !== filters.storeId) {
-		return false;
-	}
-	if (
-		filters.date &&
-		new Date(appointment.slotStart).toISOString().slice(0, 10) !== filters.date
-	) {
-		return false;
-	}
-	if (
-		filters.stylistId &&
-		appointment.assignedStylist.id !== filters.stylistId
-	) {
-		return false;
-	}
-	if (filters.status && appointment.status !== filters.status) {
-		return false;
-	}
-	return true;
-}
-
-function compareAppointments(
-	a: Appointment,
-	b: Appointment,
-	dateOrder: AppointmentFilters["dateOrder"],
-) {
-	const aTime = new Date(a.slotStart).getTime();
-	const bTime = new Date(b.slotStart).getTime();
-
-	if (dateOrder === "oldest") {
-		return aTime - bTime;
-	}
-	if (dateOrder === "newest") {
-		return bTime - aTime;
-	}
-
-	const now = Date.now();
-	const aFuture = aTime >= now;
-	const bFuture = bTime >= now;
-
-	if (aFuture !== bFuture) {
-		return aFuture ? -1 : 1;
-	}
-
-	return aFuture ? aTime - bTime : bTime - aTime;
 }
 
 const rootElement = document.getElementById("root");

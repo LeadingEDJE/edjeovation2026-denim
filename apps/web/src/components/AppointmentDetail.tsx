@@ -13,6 +13,9 @@ import type {
 	AppointmentMessage,
 	AppointmentNotification,
 	CatalogProduct,
+	OutfitAnalysis,
+	OutfitGarment,
+	OutfitIntent,
 	StylistProfile,
 	SuggestedProduct,
 } from "../api";
@@ -46,6 +49,10 @@ type AppointmentDetailProps = {
 	onNoShow: (appointment: Appointment) => void;
 	onReassign: (appointment: Appointment, stylistId: string) => void;
 	onPostMessage: (appointment: Appointment) => void;
+	onSaveOutfitIntents: (
+		appointment: Appointment,
+		analysis: OutfitAnalysis,
+	) => void;
 	onUpdateProductPrep: (
 		appointment: Appointment,
 		suggestion: SuggestedProduct,
@@ -95,6 +102,14 @@ function specLine(product: CatalogProduct) {
 	return [product.category, product.fit, product.rise, product.stretch]
 		.filter(Boolean)
 		.join(" · ");
+}
+
+function catalogAudienceLabel(audiences: string[]) {
+	if (audiences.includes("womens") && audiences.includes("mens")) {
+		return "Womens + Mens";
+	}
+	if (audiences.includes("mens")) return "Mens";
+	return "Womens";
 }
 
 /* ------------------------------------------------------------------ chrome */
@@ -222,7 +237,13 @@ function Stat({ value, label }: { value: string; label: string }) {
 }
 
 /** Left-column customer snapshot — preferences + order signal, used by both frames. */
-function CustomerSnapshot({ appointment }: { appointment: Appointment }) {
+function CustomerSnapshot({
+	appointment,
+	onSaveOutfitIntents,
+}: {
+	appointment: Appointment;
+	onSaveOutfitIntents?: (analysis: OutfitAnalysis) => void;
+}) {
 	const order = appointment.orderHistorySummary;
 	return (
 		<>
@@ -243,10 +264,22 @@ function CustomerSnapshot({ appointment }: { appointment: Appointment }) {
 				<Chips items={appointment.styleKeywords} />
 			</div>
 
+			<MetaLabel>Catalog</MetaLabel>
+			<p className="mb-4 text-[14px] text-body">
+				{catalogAudienceLabel(appointment.catalogAudiences)}
+			</p>
+
 			<MetaLabel>Customer note</MetaLabel>
 			<p className="border-ink border-l-[3px] bg-surface-subtle px-3.5 py-3 text-[14px] text-body leading-relaxed">
 				{appointment.guidance ? `“${appointment.guidance}”` : "None provided"}
 			</p>
+
+			{appointment.outfitAnalysis && (
+				<OutfitMatchBlock
+					analysis={appointment.outfitAnalysis}
+					onSave={onSaveOutfitIntents}
+				/>
+			)}
 
 			<div className="mt-7">
 				<SectionTitle>Order Signal</SectionTitle>
@@ -258,6 +291,146 @@ function CustomerSnapshot({ appointment }: { appointment: Appointment }) {
 				<Stat value={order.preferredSizes[0] ?? "—"} label="Preferred size" />
 			</div>
 		</>
+	);
+}
+
+const INTENT_LABELS: Record<OutfitIntent, string> = {
+	complement: "Complement",
+	similar: "Find similar",
+	ignore: "Ignore",
+};
+
+/**
+ * Summary of an outfit the customer wants to build around (from a photo or typed
+ * manually). Text only — the photo is never stored or shown. When `onSave` is
+ * provided (active appointments), the stylist can change each piece's intent and
+ * save it; suggestions are re-applied via the separate Regenerate action.
+ */
+function OutfitMatchBlock({
+	analysis,
+	onSave,
+}: {
+	analysis: OutfitAnalysis;
+	onSave?: (analysis: OutfitAnalysis) => void;
+}) {
+	const source =
+		analysis.engine === "manual"
+			? "Described by customer"
+			: "From customer photo · AI analysis";
+
+	const editable = Boolean(onSave);
+	const [garments, setGarments] = useState<OutfitGarment[]>(analysis.garments);
+	// Re-seed when a new analysis arrives (e.g. after save/regenerate).
+	useEffect(() => setGarments(analysis.garments), [analysis]);
+
+	const dirty = garments.some(
+		(g, i) => g.intent !== analysis.garments[i]?.intent,
+	);
+
+	const setIntent = (index: number, intent: OutfitIntent) =>
+		setGarments((current) =>
+			current.map((g, i) => (i === index ? { ...g, intent } : g)),
+		);
+
+	return (
+		<div className="mt-7">
+			<SectionTitle>Outfit To Match</SectionTitle>
+
+			<p className="mb-3 font-bold text-2xs text-muted uppercase tracking-label">
+				{source}
+			</p>
+
+			{analysis.pairingContext && (
+				<p className="mb-4 border-ink border-l-[3px] bg-surface-subtle px-3.5 py-3 text-[14px] text-body leading-relaxed">
+					{analysis.pairingContext}
+				</p>
+			)}
+
+			{garments.length > 0 && (
+				<>
+					<MetaLabel>Pieces</MetaLabel>
+					<ul className="mb-3 space-y-2">
+						{garments.map((garment, index) => (
+							<li
+								key={`${garment.type}-${garment.colors.join("-")}-${garment.material ?? ""}`}
+								className="text-[14px] text-body leading-relaxed"
+							>
+								<span className="block">
+									{garment.type}
+									{garment.colors.length > 0
+										? ` — ${garment.colors.join(", ")}`
+										: ""}
+									{garment.material ? ` · ${garment.material}` : ""}
+								</span>
+								{editable ? (
+									<select
+										className="mt-1 border border-line bg-surface px-2 py-1 text-[13px] text-ink"
+										value={garment.intent}
+										onChange={(e) =>
+											setIntent(index, e.target.value as OutfitIntent)
+										}
+									>
+										{(
+											["complement", "similar", "ignore"] as OutfitIntent[]
+										).map((intent) => (
+											<option key={intent} value={intent}>
+												{INTENT_LABELS[intent]}
+											</option>
+										))}
+									</select>
+								) : (
+									<span className="text-[12px] text-muted uppercase tracking-label">
+										{INTENT_LABELS[garment.intent]}
+									</span>
+								)}
+							</li>
+						))}
+					</ul>
+					{editable && (
+						<div className="mb-4">
+							<button
+								type="button"
+								className="border border-ink px-3 py-1.5 font-bold text-2xs text-ink uppercase tracking-label disabled:opacity-40"
+								disabled={!dirty}
+								onClick={() => onSave?.({ ...analysis, garments })}
+							>
+								Save intents
+							</button>
+							<p className="mt-1.5 text-[11px] text-muted">
+								Save, then Regenerate suggestions to apply.
+							</p>
+						</div>
+					)}
+				</>
+			)}
+
+			{analysis.styleSummary && (
+				<>
+					<MetaLabel>Stylist read</MetaLabel>
+					<p className="mb-4 text-[14px] text-body leading-relaxed">
+						{analysis.styleSummary}
+					</p>
+				</>
+			)}
+
+			{analysis.suggestedFocusColors.length > 0 && (
+				<>
+					<MetaLabel>Suggested focus colors</MetaLabel>
+					<div className="mb-4">
+						<SwatchRow value={analysis.suggestedFocusColors.join(", ")} />
+					</div>
+				</>
+			)}
+
+			{analysis.suggestedStyleKeywords.length > 0 && (
+				<>
+					<MetaLabel>Suggested style signals</MetaLabel>
+					<div className="mb-4">
+						<Chips items={analysis.suggestedStyleKeywords} />
+					</div>
+				</>
+			)}
+		</div>
 	);
 }
 
@@ -320,6 +493,7 @@ function InteractiveDetail({
 	onNoShow,
 	onReassign,
 	onPostMessage,
+	onSaveOutfitIntents,
 	onUpdateProductPrep,
 }: InteractiveProps) {
 	const stylist = appointment.assignedStylist;
@@ -333,7 +507,7 @@ function InteractiveDetail({
 			? "Complete · check in first"
 			: "Complete";
 	const heroAction =
-		"inline-flex items-center gap-2 px-5 py-3 font-bold text-2xs uppercase tracking-label transition-colors disabled:cursor-not-allowed disabled:opacity-50";
+		"inline-flex flex-1 items-center justify-center gap-2 px-5 py-3 font-bold text-2xs uppercase tracking-label transition-colors disabled:cursor-not-allowed disabled:opacity-50 min-[760px]:flex-none";
 
 	return (
 		<>
@@ -359,7 +533,7 @@ function InteractiveDetail({
 						<span>{appointment.occasion}</span>
 					</div>
 				</div>
-				<div className="flex shrink-0 gap-2.5">
+				<div className="flex w-full shrink-0 gap-2.5 min-[760px]:w-auto">
 					<button
 						type="button"
 						className={`${heroAction} bg-white text-ink hover:bg-white/90`}
@@ -382,10 +556,27 @@ function InteractiveDetail({
 			</div>
 
 			{/* body */}
-			<div className="grid min-[900px]:grid-cols-[360px_1fr]">
-				{/* LEFT */}
-				<div className="border-line-subtle px-5 py-7 min-[900px]:border-r min-[760px]:px-7">
-					<CustomerSnapshot appointment={appointment} />
+			<div className="grid grid-cols-1 min-[1040px]:grid-cols-[360px_1fr]">
+				{/* SUGGESTED PRODUCTS — centerpiece, first on mobile */}
+				<div className="px-5 pt-7 min-[1040px]:col-start-2 min-[1040px]:row-start-1 min-[760px]:px-8">
+					<SuggestedProducts
+						appointment={appointment}
+						canEdit={canEdit}
+						onRegenerate={onRegenerate}
+						onUpdateProductPrep={onUpdateProductPrep}
+					/>
+				</div>
+
+				{/* LEFT INFO — customer snapshot + stylist */}
+				<div className="border-line-subtle px-5 py-7 min-[1040px]:col-start-1 min-[1040px]:row-span-2 min-[1040px]:row-start-1 min-[1040px]:border-r min-[760px]:px-7">
+					<CustomerSnapshot
+						appointment={appointment}
+						onSaveOutfitIntents={
+							canEdit
+								? (analysis) => onSaveOutfitIntents(appointment, analysis)
+								: undefined
+						}
+					/>
 
 					<div className="mt-7">
 						<SectionTitle>Stylist</SectionTitle>
@@ -429,16 +620,9 @@ function InteractiveDetail({
 					) : null}
 				</div>
 
-				{/* RIGHT */}
-				<div className="px-5 py-7 min-[760px]:px-8">
-					<SuggestedProducts
-						appointment={appointment}
-						canEdit={canEdit}
-						onRegenerate={onRegenerate}
-						onUpdateProductPrep={onUpdateProductPrep}
-					/>
-
-					<div className="mt-7 grid gap-7 min-[640px]:grid-cols-2">
+				{/* RIGHT LOWER — messaging / notifications + session capture */}
+				<div className="px-5 pb-7 min-[1040px]:col-start-2 min-[1040px]:row-start-2 min-[760px]:px-8">
+					<div className="mt-7 grid grid-cols-1 gap-7 min-[640px]:grid-cols-2">
 						<MessagingPanel
 							canEdit={canEdit}
 							messages={messages}
@@ -463,7 +647,7 @@ function InteractiveDetail({
 								</span>
 							) : null}
 						</div>
-						<div className="grid gap-4 min-[640px]:grid-cols-2">
+						<div className="grid grid-cols-1 gap-4 min-[640px]:grid-cols-2">
 							<div>
 								<MetaLabel>Associate session notes</MetaLabel>
 								<textarea
@@ -506,7 +690,7 @@ function InteractiveDetail({
 			</div>
 
 			{/* footer */}
-			<div className="flex flex-col gap-3 border-line-subtle border-t px-5 py-4 min-[760px]:flex-row min-[760px]:items-center min-[760px]:justify-between min-[760px]:px-8">
+			<div className="sticky bottom-0 z-10 flex flex-col gap-3 border-line-subtle border-t bg-surface px-5 py-4 min-[760px]:static min-[760px]:flex-row min-[760px]:items-center min-[760px]:justify-between min-[760px]:px-8">
 				<span className="text-[12px] text-muted">
 					Save notes to persist this session
 				</span>
@@ -554,7 +738,7 @@ function PrepSegment({
 	onChange: (next: SuggestedProduct["prepStatus"]) => void;
 }) {
 	return (
-		<div className="inline-flex border border-line">
+		<div className="flex w-full border border-line min-[640px]:inline-flex min-[640px]:w-auto">
 			{PREP_OPTIONS.map((option, index) => {
 				const active = option.value === value;
 				return (
@@ -563,7 +747,7 @@ function PrepSegment({
 						type="button"
 						disabled={disabled}
 						aria-pressed={active}
-						className={`px-3 py-2 font-bold text-2xs uppercase tracking-[0.06em] transition-colors disabled:cursor-not-allowed ${
+						className={`flex-1 px-3 py-2 font-bold text-2xs uppercase tracking-[0.06em] transition-colors disabled:cursor-not-allowed min-[640px]:flex-none ${
 							index > 0 ? "border-line border-l" : ""
 						} ${active ? "bg-ink text-white" : "bg-surface text-body hover:text-ink disabled:text-muted"}`}
 						onClick={() => onChange(option.value)}
@@ -904,12 +1088,12 @@ function RecapDetail({
 			) : null}
 
 			{/* body */}
-			<div className="grid min-[900px]:grid-cols-[360px_1fr]">
-				<div className="border-line-subtle px-5 py-7 min-[900px]:border-r min-[760px]:px-7">
+			<div className="grid grid-cols-1 min-[1040px]:grid-cols-[360px_1fr]">
+				<div className="order-2 border-line-subtle px-5 py-7 min-[1040px]:order-none min-[1040px]:border-r min-[760px]:px-7">
 					<CustomerSnapshot appointment={appointment} />
 				</div>
 
-				<div className="px-5 py-7 min-[760px]:px-8">
+				<div className="order-1 px-5 py-7 min-[1040px]:order-none min-[760px]:px-8">
 					<SectionTitle>What Was Pulled</SectionTitle>
 					{pulled.length === 0 ? (
 						<p className="mb-7 text-[0.9rem] text-muted">

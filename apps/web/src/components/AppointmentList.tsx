@@ -284,8 +284,55 @@ function AppointmentListRow({
 			<span
 				className={`w-1 shrink-0 ${priority ? "bg-ink" : "bg-line-subtle"}`}
 			/>
-			<div className="flex flex-1 flex-col gap-4 px-5 py-4 min-[900px]:flex-row min-[900px]:items-center min-[900px]:gap-6 min-[900px]:px-6">
-				<div className="min-[900px]:w-[104px] min-[900px]:shrink-0">
+
+			{/* mobile card (phone) — stacked time/badge, avatar+name, muse+stylist footer */}
+			<div className="flex min-w-0 flex-1 flex-col gap-3 px-4 py-4 min-[1040px]:hidden">
+				<div className="flex items-center justify-between gap-3">
+					<div className="flex min-w-0 items-baseline gap-2">
+						<span className="font-display font-semibold text-[19px] text-ink leading-none">
+							{slot.big}
+						</span>
+						<span className="truncate text-[11px] text-muted">
+							{slot.eyebrow}
+						</span>
+					</div>
+					<Badge variant={statusBadgeVariant(appointment.status)}>
+						{statusLabel(appointment.status)}
+					</Badge>
+				</div>
+
+				<div className="flex items-center gap-3">
+					<span
+						className={`flex h-10 w-10 shrink-0 items-center justify-center font-display font-semibold text-[14px] text-white ${priority ? "bg-ink" : "bg-navy"}`}
+					>
+						{initials(appointment.customerName)}
+					</span>
+					<div className="min-w-0">
+						<p className="truncate font-bold text-[17px] text-ink leading-snug">
+							{appointment.customerName}
+						</p>
+						<p className="truncate text-[12px] text-muted">
+							{appointment.occasion}
+						</p>
+					</div>
+				</div>
+
+				<div className="flex items-center justify-between gap-3 border-line-subtle border-t pt-3">
+					<div className="flex min-w-0 items-center gap-2">
+						<span className="shrink-0 border border-navy/30 px-2 py-0.5 font-bold text-2xs text-navy uppercase tracking-label">
+							{appointment.museTag}
+						</span>
+						<span className="truncate text-[12px] text-muted">
+							{appointment.assignedStylist.displayName}
+						</span>
+					</div>
+					<ChevronRight className="shrink-0 text-ink" size={18} />
+				</div>
+			</div>
+
+			{/* desktop data-row (>=1040px) */}
+			<div className="hidden flex-1 flex-col gap-4 px-5 py-4 min-[1040px]:flex min-[1040px]:flex-row min-[1040px]:items-center min-[1040px]:gap-6 min-[1040px]:px-6">
+				<div className="min-[1040px]:w-[104px] min-[1040px]:shrink-0">
 					<p
 						className={`font-bold text-2xs uppercase tracking-label ${priority ? "text-navy" : "text-muted"}`}
 					>
@@ -296,10 +343,10 @@ function AppointmentListRow({
 					</p>
 				</div>
 
-				<span className="hidden h-[46px] w-px bg-line-subtle min-[900px]:block" />
+				<span className="hidden h-[46px] w-px bg-line-subtle min-[1040px]:block" />
 
 				<div
-					className={`hidden h-[46px] w-[46px] shrink-0 items-center justify-center font-display font-semibold text-[15px] text-white min-[900px]:flex ${priority ? "bg-ink" : "bg-navy"}`}
+					className={`hidden h-[46px] w-[46px] shrink-0 items-center justify-center font-display font-semibold text-[15px] text-white min-[1040px]:flex ${priority ? "bg-ink" : "bg-navy"}`}
 				>
 					{initials(appointment.customerName)}
 				</div>
@@ -321,7 +368,7 @@ function AppointmentListRow({
 					</div>
 				</div>
 
-				<div className="min-[900px]:w-[172px] min-[900px]:shrink-0">
+				<div className="min-[1040px]:w-[172px] min-[1040px]:shrink-0">
 					<p className="mb-1.5 font-bold text-2xs text-muted uppercase tracking-label">
 						Stylist
 					</p>
@@ -335,7 +382,7 @@ function AppointmentListRow({
 					</div>
 				</div>
 
-				<div className="min-[900px]:w-[150px] min-[900px]:shrink-0">
+				<div className="min-[1040px]:w-[150px] min-[1040px]:shrink-0">
 					<p className="mb-1.5 font-bold text-2xs text-muted uppercase tracking-label">
 						Store
 					</p>
@@ -344,7 +391,7 @@ function AppointmentListRow({
 					</span>
 				</div>
 
-				<div className="flex items-center justify-between gap-3 min-[900px]:w-auto min-[900px]:justify-end">
+				<div className="flex items-center justify-between gap-3 min-[1040px]:w-auto min-[1040px]:justify-end">
 					<Badge variant={statusBadgeVariant(appointment.status)}>
 						{statusLabel(appointment.status)}
 					</Badge>

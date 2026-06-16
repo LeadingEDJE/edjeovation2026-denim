@@ -14,13 +14,28 @@ live demo link / recorded video, ≤ 5 minutes).
 ### 1. Customer books a fitting (iOS app)
 
 The customer selects a store, picks a non-peak appointment slot, and completes a
-short intake: occasion, colors to focus on or avoid, and a style description that
-maps to an Abercrombie **Muse** (Clean / Romantic / Boyish / Statement Maker).
-They receive a confirmation with their assigned stylist.
+short intake: occasion, colors to focus on or avoid, the catalog to pull from
+(womens, mens, or both), and a style description that maps to an Abercrombie
+**Muse** (Clean / Romantic / Boyish / Statement Maker). They receive a
+confirmation with their assigned stylist.
 
+The iOS app is styled to the **Denim Fit brand system** — a navy/ink palette,
+square corners, bordered white cards on a neutral canvas, a navy full-bleed
+landing and confirmation, a navy hero on the appointment detail with grouped
+cards and chat bubbles, a 4-up fit-profile stat strip, a key/value review table,
+an eight-step segmented progress bar across the booking wizard, a per-booking
+catalog selector, and tappable swatch grids for the color step. The SwiftUI theme mirrors the tokens in
+`packages/design-system/src/theme.css` so the customer app and associate web
+dashboard share one visual language.
+
+<!-- SCREENSHOT: iOS landing (navy full-bleed) -->
 <!-- SCREENSHOT: iOS store selection + slot picker -->
-<!-- SCREENSHOT: iOS intake questionnaire (occasion, colors, style) -->
-<!-- SCREENSHOT: iOS confirmation showing assigned stylist -->
+<!-- SCREENSHOT: iOS intake — occasion + color swatch grids + style keywords + catalog selector (with step progress bar) -->
+<!-- SCREENSHOT: iOS review screen (key/value table) -->
+<!-- SCREENSHOT: iOS confirmation showing assigned stylist (navy full-bleed) -->
+<!-- SCREENSHOT: iOS appointment detail (navy hero + grouped cards, chat bubbles) -->
+<!-- SCREENSHOT: iOS fit profile stat strip -->
+
 
 *Why it matters:* a lightweight intake captures customer intent up front without
 burning them out, and the combined order-history + intake gives the store real
@@ -29,18 +44,29 @@ context before arrival.
 ### 2. Associate reviews upcoming appointments (web dashboard)
 
 The associate opens the dashboard's **Open** view, filters by store / date /
-stylist / status, and selects an appointment to prep.
+stylist / status, and selects an appointment to prep. On phone and small-tablet
+widths the view nav becomes a horizontal scroll rail with a right-edge fade, and
+each queue row collapses into a stacked **mobile card** (time + status, avatar +
+customer name + occasion, muse tag + stylist footer) so the same flow works on a
+handheld; on ≥ 1040 px the desktop multi-column data row returns.
 
-<!-- SCREENSHOT: dashboard Open list with filters -->
+<!-- SCREENSHOT: dashboard Open list with filters (desktop) -->
+<!-- SCREENSHOT: dashboard Open list on a phone (scrollable view nav + queue cards) -->
 
 ### 3. Associate reviews AI-curated suggestions
 
-The appointment detail shows the customer's profile and a **Suggested products**
-list — each item with a **thumbnail**, attributes (fit / rise / stretch / price),
-and a **rationale** explaining why it fits this customer. The shortlist is built
-by the rule-based scorer and re-ranked by Claude.
+The appointment detail shows the customer's profile, selected catalog, and a
+**Suggested products** list — each item with a **thumbnail**, attributes (fit /
+rise / stretch / price), and a **rationale** explaining why it fits this
+customer. The shortlist is built by the rule-based scorer and re-ranked by Claude. On phones, **Suggested
+Products lead** (the customer-snapshot column drops below them via a CSS grid
+order swap), the hero **Check In / No-Show** buttons go full-width, and the
+**Save / Complete** action bar sticks to the bottom of the viewport so the next
+step is always reachable. Above 1040 px the layout returns to the two-column
+desk frame (snapshot left, suggestions + messaging + capture right).
 
-<!-- SCREENSHOT: appointment detail with suggested products + rationale -->
+<!-- SCREENSHOT: appointment detail with suggested products + rationale (desktop) -->
+<!-- SCREENSHOT: appointment detail on a phone (suggestions first, sticky action bar) -->
 
 *Why it matters:* the associate arrives prepared with a curated set and talking
 points, not a cold start.
@@ -70,6 +96,12 @@ After the fitting, the associate **marks the appointment complete** and writes a
   <!-- SCREENSHOT: reassign stylist / no-show action -->
 - **Regenerate suggestions:** trigger a re-rank to refresh the shortlist.
   <!-- SCREENSHOT: regenerate suggestions -->
+- **Customer cancels their own appointment (iOS):** on the appointment detail,
+  the **Cancel Appointment** button (explicit copy, not a back-style "Cancel")
+  opens a confirmation dialog warning that the slot is given up and the store is
+  notified, with **Cancel Appointment** (destructive) vs **Keep Appointment** —
+  so it can't be mistaken for navigating back.
+  <!-- SCREENSHOT: iOS appointment detail cancel confirmation dialog -->
 - **AI-unavailable fallback:** with no API key configured, suggestions still
   appear using the deterministic rule-based ranking (rationale is scorer-derived).
 

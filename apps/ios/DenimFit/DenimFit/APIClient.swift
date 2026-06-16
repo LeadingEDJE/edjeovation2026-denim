@@ -1,9 +1,29 @@
 import Foundation
 
 final class APIClient: Sendable {
-    private let baseURL = URL(string: "http://localhost:4000")!
+    private static let defaultBaseURL = "http://localhost:4000"
+
+    private let baseURL: URL
     private let decoder = JSONDecoder()
     private let encoder = JSONEncoder()
+
+    init(baseURL: URL = APIClient.configuredBaseURL()) {
+        self.baseURL = baseURL
+    }
+
+    private static func configuredBaseURL() -> URL {
+        let environmentValue = ProcessInfo.processInfo.environment["DENIM_FIT_API_BASE_URL"]
+        let bundleValue = Bundle.main.object(forInfoDictionaryKey: "DENIM_FIT_API_BASE_URL") as? String
+        let rawValue = environmentValue ?? bundleValue ?? defaultBaseURL
+        let trimmedValue = rawValue.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        guard !trimmedValue.isEmpty, let url = URL(string: trimmedValue) else {
+            assertionFailure("Invalid DENIM_FIT_API_BASE_URL: \(rawValue)")
+            return URL(string: defaultBaseURL)!
+        }
+
+        return url
+    }
 
     func getCurrentUser() async throws -> CurrentUser {
         try await get(path: "/api/me")
@@ -67,6 +87,26 @@ final class APIClient: Sendable {
 
     func submitFeedback(id: String, rating: Int, comment: String) async throws -> AppointmentResponse {
         try await send(path: "/api/appointments/\(id)/feedback", method: "PUT", input: AppointmentFeedbackRequest(rating: rating, comment: comment))
+    }
+
+    // Sends the (downscaled, base64) outfit photo for analysis. The server never
+    // stores the image — only the returned text analysis.
+    func analyzeOutfit(imageBase64: String, mediaType: String) async throws -> OutfitAnalysis {
+        let response: OutfitAnalysisResponse = try await post(
+            path: "/api/outfit-analysis",
+            input: OutfitAnalysisRequest(imageBase64: imageBase64, mediaType: mediaType)
+        )
+        return response.analysis
+    }
+
+    // Attaches a signed-off outfit analysis to an existing appointment and re-runs
+    // the recommendation engine; returns the updated appointment.
+    func attachOutfitAnalysis(appointmentId: String, analysis: OutfitAnalysis) async throws -> AppointmentResponse {
+        try await send(
+            path: "/api/appointments/\(appointmentId)/outfit-analysis",
+            method: "PATCH",
+            input: AttachOutfitAnalysisRequest(outfitAnalysis: analysis)
+        )
     }
 
     private func get<T: Decodable>(path: String) async throws -> T {

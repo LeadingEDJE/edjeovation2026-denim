@@ -12,7 +12,8 @@
 			},
 			"preferences": {
 				"fitPreference": "straight",
-				"stretchPreference": "comfort-stretch"
+				"stretchPreference": "comfort-stretch",
+				"catalogAudiences": ["womens"]
 			}
 		},
 		{
@@ -27,7 +28,8 @@
 			},
 			"preferences": {
 				"fitPreference": "relaxed",
-				"stretchPreference": "rigid"
+				"stretchPreference": "rigid",
+				"catalogAudiences": ["womens", "mens"]
 			}
 		},
 		{
@@ -42,7 +44,8 @@
 			},
 			"preferences": {
 				"fitPreference": "slim",
-				"stretchPreference": "high-stretch"
+				"stretchPreference": "high-stretch",
+				"catalogAudiences": ["womens"]
 			}
 		},
 		{
@@ -57,7 +60,8 @@
 			},
 			"preferences": {
 				"fitPreference": "wide",
-				"stretchPreference": "comfort-stretch"
+				"stretchPreference": "comfort-stretch",
+				"catalogAudiences": ["womens"]
 			}
 		},
 		{
@@ -72,7 +76,8 @@
 			},
 			"preferences": {
 				"fitPreference": "skinny",
-				"stretchPreference": "high-stretch"
+				"stretchPreference": "high-stretch",
+				"catalogAudiences": ["womens"]
 			}
 		}
 	]
