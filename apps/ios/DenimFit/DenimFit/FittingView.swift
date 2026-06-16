@@ -1488,7 +1488,13 @@ private struct OutfitMatchView: View {
     }
 
     private var editor: some View {
-        VStack(alignment: .leading, spacing: 14) {
+        // Hoisted out of the PhotosPicker label closure, which is non-isolated and
+        // can't read main-actor @State directly.
+        let hasPhoto = previewImage != nil
+        let uploadTitle = hasPhoto ? "Replace photo" : "Add a photo"
+        let cameraTitle = hasPhoto ? "Retake" : "Take a photo"
+
+        return VStack(alignment: .leading, spacing: 14) {
             if let previewImage {
                 Image(uiImage: previewImage)
                     .resizable()
@@ -1497,6 +1503,33 @@ private struct OutfitMatchView: View {
                     .frame(maxWidth: .infinity)
                     .clipped()
                     .clipShape(RoundedRectangle(cornerRadius: 8))
+            }
+
+            // Let the customer (re)attach a photo at any time — re-analyzing
+            // replaces the pieces below with what we read from the new photo.
+            HStack(spacing: 12) {
+                PhotosPicker(selection: $photoItem, matching: .images, photoLibrary: .shared()) {
+                    Label(uploadTitle, systemImage: "photo.on.rectangle")
+                }
+                if cameraAvailable {
+                    Button {
+                        errorText = nil
+                        showCamera = true
+                    } label: {
+                        Label(cameraTitle, systemImage: "camera")
+                    }
+                }
+            }
+            .font(.subheadline)
+            .disabled(isAnalyzing)
+
+            if isAnalyzing {
+                HStack(spacing: 8) {
+                    ProgressView()
+                    Text("Analyzing your photo…")
+                        .foregroundStyle(.secondary)
+                }
+                .font(.footnote)
             }
 
             Text("For each piece, choose how it should shape your recommendations.")
