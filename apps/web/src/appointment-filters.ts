@@ -1,6 +1,5 @@
 import type { Appointment } from "./api";
-import type { AppointmentFilters } from "./components/AppointmentList";
-import type { DashboardView } from "./types";
+import type { AppointmentFilters, DashboardView } from "./types";
 
 export function isOpenAppointment(appointment: Appointment) {
 	return (
