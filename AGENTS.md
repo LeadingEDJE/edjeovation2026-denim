@@ -184,10 +184,14 @@ so it reuses the same key as the recommender. Configure these in repo settings:
 
 | Name | Kind | Purpose |
 |---|---|---|
-| `ANTHROPIC_API_KEY` | secret | LiteLLM key (sent as `x-api-key`) |
+| `ANTHROPIC_API_KEY` | secret | LiteLLM key (sent as `x-api-key`) — same key as the recommender |
 | `ANTHROPIC_BASE_URL` | secret | LiteLLM gateway URL |
-| `LITELLM_MODEL` | variable (optional) | Main model; defaults to `claude-opus-4.7` |
+| `RECOMMENDER_MODEL` | secret | Model the gateway serves; reused as the main model (falls back to `claude-opus-4.7`) |
 | `LITELLM_SMALL_FAST_MODEL` | variable (optional) | Haiku-class model for lightweight calls; falls back to the main model |
+
+`ANTHROPIC_API_KEY`, `ANTHROPIC_BASE_URL`, and `RECOMMENDER_MODEL` already exist
+as repo secrets (shared with the recommender), so no new setup is needed beyond
+the optional `LITELLM_SMALL_FAST_MODEL` variable.
 
 PRs from forks are skipped (no secret access, can't push). Commits are pushed
 with the workflow's `GITHUB_TOKEN`, which does **not** re-trigger the workflow,
