@@ -382,9 +382,9 @@ function InteractiveDetail({
 			</div>
 
 			{/* body */}
-			<div className="grid min-[900px]:grid-cols-[360px_1fr]">
+			<div className="grid min-[1040px]:grid-cols-[360px_1fr]">
 				{/* LEFT */}
-				<div className="border-line-subtle px-5 py-7 min-[900px]:border-r min-[760px]:px-7">
+				<div className="border-line-subtle px-5 py-7 min-[1040px]:border-r min-[760px]:px-7">
 					<CustomerSnapshot appointment={appointment} />
 
 					<div className="mt-7">
@@ -904,8 +904,8 @@ function RecapDetail({
 			) : null}
 
 			{/* body */}
-			<div className="grid min-[900px]:grid-cols-[360px_1fr]">
-				<div className="border-line-subtle px-5 py-7 min-[900px]:border-r min-[760px]:px-7">
+			<div className="grid min-[1040px]:grid-cols-[360px_1fr]">
+				<div className="border-line-subtle px-5 py-7 min-[1040px]:border-r min-[760px]:px-7">
 					<CustomerSnapshot appointment={appointment} />
 				</div>
 

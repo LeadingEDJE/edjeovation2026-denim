@@ -284,8 +284,8 @@ function AppointmentListRow({
 			<span
 				className={`w-1 shrink-0 ${priority ? "bg-ink" : "bg-line-subtle"}`}
 			/>
-			<div className="flex flex-1 flex-col gap-4 px-5 py-4 min-[900px]:flex-row min-[900px]:items-center min-[900px]:gap-6 min-[900px]:px-6">
-				<div className="min-[900px]:w-[104px] min-[900px]:shrink-0">
+			<div className="flex flex-1 flex-col gap-4 px-5 py-4 min-[1040px]:flex-row min-[1040px]:items-center min-[1040px]:gap-6 min-[1040px]:px-6">
+				<div className="min-[1040px]:w-[104px] min-[1040px]:shrink-0">
 					<p
 						className={`font-bold text-2xs uppercase tracking-label ${priority ? "text-navy" : "text-muted"}`}
 					>
@@ -296,10 +296,10 @@ function AppointmentListRow({
 					</p>
 				</div>
 
-				<span className="hidden h-[46px] w-px bg-line-subtle min-[900px]:block" />
+				<span className="hidden h-[46px] w-px bg-line-subtle min-[1040px]:block" />
 
 				<div
-					className={`hidden h-[46px] w-[46px] shrink-0 items-center justify-center font-display font-semibold text-[15px] text-white min-[900px]:flex ${priority ? "bg-ink" : "bg-navy"}`}
+					className={`hidden h-[46px] w-[46px] shrink-0 items-center justify-center font-display font-semibold text-[15px] text-white min-[1040px]:flex ${priority ? "bg-ink" : "bg-navy"}`}
 				>
 					{initials(appointment.customerName)}
 				</div>
@@ -321,7 +321,7 @@ function AppointmentListRow({
 					</div>
 				</div>
 
-				<div className="min-[900px]:w-[172px] min-[900px]:shrink-0">
+				<div className="min-[1040px]:w-[172px] min-[1040px]:shrink-0">
 					<p className="mb-1.5 font-bold text-2xs text-muted uppercase tracking-label">
 						Stylist
 					</p>
@@ -335,7 +335,7 @@ function AppointmentListRow({
 					</div>
 				</div>
 
-				<div className="min-[900px]:w-[150px] min-[900px]:shrink-0">
+				<div className="min-[1040px]:w-[150px] min-[1040px]:shrink-0">
 					<p className="mb-1.5 font-bold text-2xs text-muted uppercase tracking-label">
 						Store
 					</p>
@@ -344,7 +344,7 @@ function AppointmentListRow({
 					</span>
 				</div>
 
-				<div className="flex items-center justify-between gap-3 min-[900px]:w-auto min-[900px]:justify-end">
+				<div className="flex items-center justify-between gap-3 min-[1040px]:w-auto min-[1040px]:justify-end">
 					<Badge variant={statusBadgeVariant(appointment.status)}>
 						{statusLabel(appointment.status)}
 					</Badge>
