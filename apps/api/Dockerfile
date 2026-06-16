@@ -19,6 +19,7 @@ FROM deps AS build
 
 COPY apps/api apps/api
 COPY infra/db infra/db
+COPY infra/wiremock/__files infra/wiremock/__files
 RUN npm run build -w @denim-fit/api
 
 FROM node:24-alpine AS runtime
@@ -33,7 +34,9 @@ RUN npm ci --omit=dev --ignore-scripts
 
 COPY --from=build /app/apps/api/dist apps/api/dist
 COPY --from=build /app/apps/api/src/migrate.js apps/api/src/migrate.js
+COPY --from=build /app/apps/api/src/seed-local-appointments.js apps/api/src/seed-local-appointments.js
 COPY --from=build /app/infra/db infra/db
+COPY --from=build /app/infra/wiremock/__files infra/wiremock/__files
 
 EXPOSE 4000
 CMD ["sh", "-c", "npm run db:migrate -w @denim-fit/api && npm run start -w @denim-fit/api"]

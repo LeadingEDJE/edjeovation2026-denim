@@ -40,6 +40,8 @@ around a shared API and database:
   override also runs a small Alpine sidecar that watches the bind-mounted
   `infra/wiremock/` tree and POSTs `/__admin/mappings/reset` on change, so
   edited stubs/fixtures take effect without restarting the WireMock container.
+  API startup runs the idempotent database migration, refreshes the catalog
+  snapshot, and seeds deterministic local appointment history for demo/testing.
 - **Quality/tooling:** Biome (format/lint), Vitest (unit), Playwright (e2e),
   Husky git hooks, GitHub Actions CI.
 - **Cloud (provisioning defined):** Azure Container Apps (api, web, wiremock),
@@ -63,7 +65,7 @@ around a shared API and database:
 |---|---|---|---|
 | WireMock fixtures (`infra/wiremock/`) | Customers, order history, stores, stylist profiles, weekly schedules | Mocked | Available locally |
 | `catalog_products` (PostgreSQL, seeded `infra/db/`) | Abercrombie women's catalog (name, category, fit/rise/stretch, price, image URL) | Synthetic (scraped/seeded snapshot) | Available locally |
-| `appointments` (PostgreSQL) | Bookings, intake, assigned stylist, suggestions, lifecycle state, messages, recaps | Real (app-generated) | Available locally |
+| `appointments` (PostgreSQL) | Bookings, intake, assigned stylist, suggestions, lifecycle state, messages, recaps | Mixed: app-generated plus deterministic synthetic local seed history | Available locally |
 | Anthropic / LiteLLM | Re-ranking + rationale generation | Real external call | Optional; falls back to rule-based |
 
 ## Known Limitations & Risks
@@ -74,6 +76,9 @@ around a shared API and database:
   WireMock; there is no live integration or inventory/availability check.
 - **Catalog is a seeded snapshot**, not a live feed, and may drift from the real
   assortment; sizing rules are simplified.
+- **Appointment history is demo seed data locally.** Historical bookings,
+  messages, notifications, feedback, and prep states are deterministic and tied
+  to the mocked users/stylists/stores, but they are not real customer records.
 - **Single emulated store**, non-peak scope only; stylist-assignment rules are
   basic.
 - **AI dependency is bounded** — if the model/gateway is unavailable the engine
