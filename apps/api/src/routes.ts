@@ -1212,6 +1212,27 @@ function buildPairingInstruction(
 	return text || undefined;
 }
 
+/**
+ * Resolve the customer when re-running recommendations on an existing
+ * appointment. Prefers the live third-party profile, but falls back to the
+ * snapshot captured in source_payload at booking time — so a third-party hiccup
+ * (or a mock user that no longer exists locally) doesn't hard-fail regenerate the
+ * way booking already tolerates. Returns null only if neither is available.
+ */
+async function resolveAppointmentCustomer(
+	customerId: string,
+	sourcePayload: unknown,
+): Promise<CurrentUser | null> {
+	try {
+		return await fetchThirdPartyUser(customerId);
+	} catch {
+		const snapshot = parseJsonField<{ currentUser?: CurrentUser }>(
+			sourcePayload,
+		);
+		return snapshot?.currentUser ?? null;
+	}
+}
+
 async function buildSuggestedProducts(
 	customer: CurrentUser,
 	input: CreateAppointmentInput,
@@ -2861,7 +2882,15 @@ export async function registerRoutes(app: FastifyInstance) {
 			}
 
 			try {
-				const customer = await fetchThirdPartyUser(appointment.customerId);
+				const customer = await resolveAppointmentCustomer(
+					appointment.customerId,
+					existing.rows[0].source_payload,
+				);
+				if (!customer) {
+					return reply
+						.code(502)
+						.send({ message: "Unable to resolve customer for suggestions" });
+				}
 				const suggestedProducts = await buildSuggestedProducts(
 					customer,
 					{
@@ -3012,7 +3041,15 @@ export async function registerRoutes(app: FastifyInstance) {
 					return { appointment: mapAppointment(result.rows[0]) };
 				}
 
-				const customer = await fetchThirdPartyUser(appointment.customerId);
+				const customer = await resolveAppointmentCustomer(
+					appointment.customerId,
+					existing.rows[0].source_payload,
+				);
+				if (!customer) {
+					return reply
+						.code(502)
+						.send({ message: "Unable to resolve customer for suggestions" });
+				}
 				const suggestedProducts = await buildSuggestedProducts(
 					customer,
 					{
