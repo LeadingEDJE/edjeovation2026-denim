@@ -1,4 +1,6 @@
+import PhotosUI
 import SwiftUI
+import UIKit
 
 struct FittingView: View {
     @State private var currentUser: CurrentUser?
@@ -23,6 +25,8 @@ struct FittingView: View {
     @State private var cancelReason = ""
     @State private var feedbackRating = 5
     @State private var feedbackComment = ""
+    @State private var outfitAnalysis: OutfitAnalysis?
+    @State private var showOutfitSheet = false
     @State private var status = "Loading your profile"
     @State private var isLoading = false
 
@@ -103,7 +107,7 @@ struct FittingView: View {
             newJourneyLanding
         case .occasion:
             questionPage(
-                eyebrow: "Step 1 of 5",
+                eyebrow: "Step 1 of 7",
                 title: "What are you shopping for?",
                 subtitle: "Share any event, trip, or wardrobe moment so your stylist can prepare with purpose."
             ) {
@@ -113,7 +117,7 @@ struct FittingView: View {
             }
         case .colors:
             questionPage(
-                eyebrow: "Step 2 of 5",
+                eyebrow: "Step 2 of 7",
                 title: "Any color guardrails?",
                 subtitle: "Tell us what to focus on and what to avoid."
             ) {
@@ -122,7 +126,7 @@ struct FittingView: View {
             }
         case .style:
             questionPage(
-                eyebrow: "Step 3 of 6",
+                eyebrow: "Step 3 of 7",
                 title: "How would you describe your style?",
                 subtitle: "Choose the words that feel most like you."
             ) {
@@ -160,9 +164,24 @@ struct FittingView: View {
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
             }
+        case .outfit:
+            OutfitMatchView(
+                apiClient: apiClient,
+                eyebrow: "Step 4 of 7",
+                showBack: true,
+                onBack: { step = .style },
+                onSkip: {
+                    outfitAnalysis = nil
+                    step = .store
+                },
+                onDone: { analysis in
+                    outfitAnalysis = analysis
+                    step = .store
+                }
+            )
         case .store:
             questionPage(
-                eyebrow: "Step 4 of 6",
+                eyebrow: "Step 5 of 7",
                 title: "Choose a store",
                 subtitle: "Pick the fitting room location before choosing a time."
             ) {
@@ -199,7 +218,7 @@ struct FittingView: View {
             }
         case .schedule:
             questionPage(
-                eyebrow: "Step 5 of 6",
+                eyebrow: "Step 6 of 7",
                 title: "Choose a time",
                 subtitle: "We only show times when at least one stylist is scheduled."
             ) {
@@ -458,6 +477,24 @@ struct FittingView: View {
                     SummaryRow(label: "Muse", value: appointment.museTag)
                     SummaryRow(label: "Occasion", value: appointment.occasion)
                     SummaryRow(label: "Colors", value: "Focus: \(appointment.focusColors.isEmpty ? "None" : appointment.focusColors). Avoid: \(appointment.avoidColors.isEmpty ? "None" : appointment.avoidColors).")
+                    if let outfit = appointment.outfitAnalysis {
+                        SummaryRow(
+                            label: "Outfit to match",
+                            value: outfit.pairingContext.isEmpty ? outfit.styleSummary : outfit.pairingContext
+                        )
+                    }
+                    if canEdit {
+                        Button {
+                            showOutfitSheet = true
+                        } label: {
+                            Label(
+                                appointment.outfitAnalysis == nil ? "Add an outfit to match" : "Update outfit to match",
+                                systemImage: "tshirt"
+                            )
+                        }
+                        .buttonStyle(.bordered)
+                        .disabled(isLoading)
+                    }
                     if let currentUser {
                         fitProfileContext(currentUser)
                     }
@@ -517,6 +554,41 @@ struct FittingView: View {
         }
         .refreshable {
             await refreshCustomerData()
+        }
+        .sheet(isPresented: $showOutfitSheet) {
+            NavigationStack {
+                OutfitMatchView(
+                    apiClient: apiClient,
+                    eyebrow: "Outfit to match",
+                    initial: appointment.outfitAnalysis,
+                    showBack: false,
+                    onBack: {},
+                    onSkip: { showOutfitSheet = false },
+                    onDone: { analysis in
+                        showOutfitSheet = false
+                        Task { await attachOutfit(to: appointment.id, analysis: analysis) }
+                    }
+                )
+                .navigationTitle("Outfit to match")
+                .navigationBarTitleDisplayMode(.inline)
+            }
+        }
+    }
+
+    @MainActor
+    private func attachOutfit(to appointmentId: String, analysis: OutfitAnalysis) async {
+        isLoading = true
+        status = "Updating your outfit details"
+        defer { isLoading = false }
+        do {
+            let updated = try await apiClient.attachOutfitAnalysis(appointmentId: appointmentId, analysis: analysis)
+            detailAppointment = updated.appointment
+            if updated.appointment.id == appointment?.id {
+                appointment = updated.appointment
+            }
+            status = "Outfit added — your stylist will see it"
+        } catch {
+            status = "Could not update the outfit details"
         }
     }
 
@@ -662,7 +734,7 @@ struct FittingView: View {
         VStack(spacing: 0) {
             ScrollView {
                 VStack(alignment: .leading, spacing: 18) {
-                    Text("Step 6 of 6")
+                    Text("Step 7 of 7")
                         .font(.caption)
                         .fontWeight(.bold)
                         .foregroundStyle(.teal)
@@ -674,6 +746,12 @@ struct FittingView: View {
                     SummaryRow(label: "Focus colors", value: colorSummary(focusColors))
                     SummaryRow(label: "Avoid colors", value: colorSummary(avoidColors))
                     SummaryRow(label: "Muse", value: derivedMuse)
+                    if let outfitAnalysis {
+                        SummaryRow(
+                            label: "Outfit to match",
+                            value: outfitAnalysis.pairingContext.isEmpty ? outfitAnalysis.styleSummary : outfitAnalysis.pairingContext
+                        )
+                    }
                     SummaryRow(label: "Store", value: selectedStore?.name ?? "No store selected")
                     SummaryRow(label: "Appointment", value: selectedSlot.map(slotLabel) ?? "No time selected")
                     TextField("Optional note for your stylist", text: $guidance, axis: .vertical)
@@ -761,6 +839,9 @@ struct FittingView: View {
             return true
         case .style:
             return !selectedKeywords.isEmpty
+        case .outfit:
+            // The outfit step is optional and supplies its own controls.
+            return true
         case .store:
             return selectedStore != nil
         case .schedule:
@@ -874,7 +955,8 @@ struct FittingView: View {
                 avoidColors: colorPayload(avoidColors),
                 styleKeywords: selectedKeywords.sorted(),
                 guidance: guidance,
-                orderHistoryScenario: "standard"
+                orderHistoryScenario: "standard",
+                outfitAnalysis: outfitAnalysis
             )
             appointment = try await apiClient.createAppointment(input: request).appointment
             pastAppointments = try await apiClient.getPastAppointments()
@@ -939,6 +1021,7 @@ struct FittingView: View {
         selectedKeywords = []
         selectedSlot = nil
         guidance = ""
+        outfitAnalysis = nil
         messageDraft = ""
         cancelReason = ""
         feedbackRating = 5
@@ -1114,6 +1197,7 @@ private enum JourneyStep {
     case occasion
     case colors
     case style
+    case outfit
     case store
     case schedule
     case review
@@ -1132,11 +1216,12 @@ private enum JourneyStep {
 
     var progress: Double {
         switch self {
-        case .occasion: return 0.2
-        case .colors: return 0.35
-        case .style: return 0.5
-        case .store: return 0.65
-        case .schedule: return 0.82
+        case .occasion: return 0.16
+        case .colors: return 0.3
+        case .style: return 0.45
+        case .outfit: return 0.6
+        case .store: return 0.72
+        case .schedule: return 0.86
         case .review: return 1.0
         case .landing, .confirmation: return 0
         }
@@ -1147,7 +1232,8 @@ private enum JourneyStep {
         case .landing: return .occasion
         case .occasion: return .colors
         case .colors: return .style
-        case .style: return .store
+        case .style: return .outfit
+        case .outfit: return .store
         case .store: return .schedule
         case .schedule: return .review
         case .review: return .confirmation
@@ -1161,7 +1247,8 @@ private enum JourneyStep {
         case .occasion: return .landing
         case .colors: return .occasion
         case .style: return .colors
-        case .store: return .style
+        case .outfit: return .style
+        case .store: return .outfit
         case .schedule: return .store
         case .review: return .schedule
         case .confirmation: return .confirmation
@@ -1271,6 +1358,394 @@ private struct SummaryRow: View {
         .background(Color(.secondarySystemGroupedBackground))
         .clipShape(RoundedRectangle(cornerRadius: 8))
     }
+}
+
+// Two-path "outfit to match" capture + sign-off. The customer can analyze a photo
+// (taken or uploaded) or describe the piece manually; both produce an editable
+// OutfitAnalysis they confirm. Photos are downscaled on-device, sent for analysis,
+// and never persisted — only the resulting text leaves this view.
+private struct OutfitMatchView: View {
+    let apiClient: APIClient
+    var eyebrow: String = "Outfit to match"
+    var initial: OutfitAnalysis? = nil
+    var showBack: Bool = false
+    var onBack: () -> Void = {}
+    var onSkip: () -> Void = {}
+    var onDone: (OutfitAnalysis) -> Void
+
+    private enum Stage { case chooser, editing }
+
+    @State private var stage: Stage = .chooser
+    @State private var photoItem: PhotosPickerItem?
+    @State private var previewImage: UIImage?
+    @State private var isAnalyzing = false
+    @State private var showCamera = false
+    @State private var errorText: String?
+
+    // Editable, customer-facing fields — the sign-off surface.
+    @State private var summary = ""
+    @State private var focusColorsText = ""
+    @State private var keywordsText = ""
+    @State private var pairing = ""
+    @State private var garments: [OutfitGarment] = []
+    @State private var engine = "manual"
+
+    private var cameraAvailable: Bool {
+        UIImagePickerController.isSourceTypeAvailable(.camera)
+    }
+
+    private var canConfirm: Bool {
+        !pairing.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            || !summary.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            || !garments.isEmpty
+    }
+
+    var body: some View {
+        VStack(spacing: 0) {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 18) {
+                    Text(eyebrow)
+                        .font(.caption)
+                        .fontWeight(.bold)
+                        .foregroundStyle(.teal)
+                    Text("Want us to style around something?")
+                        .font(.title)
+                        .fontWeight(.bold)
+                    Text("Add a piece you already own — like a skirt you want a top for. Snap or upload a photo and we'll read the details, or just describe it. Photos are analyzed instantly and never saved.")
+                        .foregroundStyle(.secondary)
+
+                    if let errorText {
+                        Text(errorText)
+                            .font(.footnote)
+                            .foregroundStyle(.red)
+                    }
+
+                    switch stage {
+                    case .chooser:
+                        chooser
+                    case .editing:
+                        editor
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(20)
+            }
+            footer
+                .padding(20)
+                .background(.regularMaterial)
+        }
+        .onAppear {
+            if let initial, stage == .chooser { apply(initial) }
+        }
+        .task(id: photoItem) {
+            guard let photoItem else { return }
+            await analyze(item: photoItem)
+        }
+        .sheet(isPresented: $showCamera) {
+            CameraPicker { image in
+                Task { await analyze(image: image) }
+            }
+            .ignoresSafeArea()
+        }
+    }
+
+    private var chooser: some View {
+        VStack(spacing: 12) {
+            PhotosPicker(selection: $photoItem, matching: .images, photoLibrary: .shared()) {
+                OutfitChooserCard(icon: "photo.on.rectangle", title: "Upload a photo", subtitle: "Choose an outfit photo from your library")
+            }
+            .buttonStyle(.plain)
+            .disabled(isAnalyzing)
+
+            if cameraAvailable {
+                Button {
+                    errorText = nil
+                    showCamera = true
+                } label: {
+                    OutfitChooserCard(icon: "camera", title: "Take a photo", subtitle: "Capture the piece with your camera")
+                }
+                .buttonStyle(.plain)
+                .disabled(isAnalyzing)
+            }
+
+            Button {
+                beginManual()
+            } label: {
+                OutfitChooserCard(icon: "pencil", title: "Describe it myself", subtitle: "Skip the photo and type the details")
+            }
+            .buttonStyle(.plain)
+            .disabled(isAnalyzing)
+
+            if isAnalyzing {
+                HStack(spacing: 8) {
+                    ProgressView()
+                    Text("Analyzing your photo…")
+                        .foregroundStyle(.secondary)
+                }
+                .padding(.top, 4)
+            }
+        }
+    }
+
+    private var editor: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            if let previewImage {
+                Image(uiImage: previewImage)
+                    .resizable()
+                    .scaledToFill()
+                    .frame(height: 180)
+                    .frame(maxWidth: .infinity)
+                    .clipped()
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
+            }
+            if !garments.isEmpty {
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("What we spotted")
+                        .font(.caption)
+                        .fontWeight(.bold)
+                        .foregroundStyle(.secondary)
+                    ForEach(garments, id: \.self) { garment in
+                        Text("• \(garment.type)\(garment.colors.isEmpty ? "" : " — \(garment.colors.joined(separator: ", "))")")
+                            .font(.subheadline)
+                    }
+                }
+            }
+            Text("Review and edit before your stylist sees it.")
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+            labeledField("What you're matching", text: $pairing, prompt: "e.g. a dark indigo denim midi skirt")
+            labeledField("Style summary", text: $summary, prompt: "How would you describe the look?")
+            labeledField("Focus colors", text: $focusColorsText, prompt: "comma separated, e.g. cream, white")
+            labeledField("Style keywords", text: $keywordsText, prompt: "comma separated, e.g. casual-chic")
+            Button("Start over") { resetToChooser() }
+                .font(.footnote)
+        }
+    }
+
+    private var footer: some View {
+        HStack {
+            if showBack {
+                Button("Back", action: onBack)
+                    .buttonStyle(.bordered)
+            }
+            Button("Skip", action: onSkip)
+                .buttonStyle(.bordered)
+                .disabled(isAnalyzing)
+            Spacer()
+            if stage == .editing {
+                Button("Use this outfit") { confirm() }
+                    .buttonStyle(.borderedProminent)
+                    .disabled(!canConfirm)
+            }
+        }
+    }
+
+    private func labeledField(_ label: String, text: Binding<String>, prompt: String) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(label)
+                .font(.caption)
+                .fontWeight(.bold)
+                .foregroundStyle(.secondary)
+            TextField(prompt, text: text, axis: .vertical)
+                .textFieldStyle(.roundedBorder)
+                .lineLimit(2, reservesSpace: true)
+        }
+    }
+
+    private func beginManual() {
+        errorText = nil
+        engine = "manual"
+        garments = []
+        previewImage = nil
+        summary = ""
+        pairing = ""
+        focusColorsText = ""
+        keywordsText = ""
+        stage = .editing
+    }
+
+    private func resetToChooser() {
+        photoItem = nil
+        previewImage = nil
+        stage = .chooser
+    }
+
+    private func apply(_ analysis: OutfitAnalysis) {
+        summary = analysis.styleSummary
+        pairing = analysis.pairingContext
+        focusColorsText = analysis.suggestedFocusColors.joined(separator: ", ")
+        keywordsText = analysis.suggestedStyleKeywords.joined(separator: ", ")
+        garments = analysis.garments
+        engine = analysis.engine
+        stage = .editing
+    }
+
+    @MainActor
+    private func analyze(item: PhotosPickerItem) async {
+        errorText = nil
+        do {
+            guard let data = try await item.loadTransferable(type: Data.self) else {
+                errorText = "Couldn't read that photo."
+                return
+            }
+            await analyzeData(data)
+        } catch {
+            errorText = "Couldn't read that photo."
+        }
+    }
+
+    @MainActor
+    private func analyze(image: UIImage) async {
+        guard let data = image.jpegData(compressionQuality: 0.9) else {
+            errorText = "Couldn't read that photo."
+            return
+        }
+        await analyzeData(data)
+    }
+
+    @MainActor
+    private func analyzeData(_ data: Data) async {
+        guard let payload = outfitImagePayload(from: data) else {
+            errorText = "Couldn't process that photo."
+            return
+        }
+        previewImage = UIImage(data: data)?.outfitResized(maxDimension: 600)
+        isAnalyzing = true
+        defer { isAnalyzing = false }
+        do {
+            let analysis = try await apiClient.analyzeOutfit(
+                imageBase64: payload.base64,
+                mediaType: payload.mediaType
+            )
+            apply(analysis)
+        } catch {
+            // Fall back to manual entry so the customer is never stuck.
+            errorText = "We couldn't analyze that photo. You can describe the outfit instead."
+            engine = "manual"
+            garments = []
+            stage = .editing
+        }
+        // payload.base64 and data go out of scope here — the image is not retained.
+    }
+
+    private func confirm() {
+        let trimmedSummary = summary.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmedPairing = pairing.trimmingCharacters(in: .whitespacesAndNewlines)
+        let analysis = OutfitAnalysis(
+            garments: garments,
+            styleSummary: trimmedSummary,
+            suggestedFocusColors: splitList(focusColorsText),
+            suggestedStyleKeywords: splitList(keywordsText),
+            pairingContext: trimmedPairing.isEmpty ? trimmedSummary : trimmedPairing,
+            engine: engine
+        )
+        onDone(analysis)
+    }
+}
+
+// A tappable card used as the label for each capture option. A standalone View
+// (rather than a method on OutfitMatchView) so it can be constructed inside
+// PhotosPicker's non-isolated label closure under Swift strict concurrency.
+private struct OutfitChooserCard: View {
+    let icon: String
+    let title: String
+    let subtitle: String
+
+    var body: some View {
+        HStack(spacing: 12) {
+            Image(systemName: icon)
+                .font(.title3)
+                .foregroundStyle(.teal)
+                .frame(width: 28)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title)
+                    .font(.headline)
+                Text(subtitle)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            Spacer()
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding()
+        .background(Color(.secondarySystemGroupedBackground))
+        .clipShape(RoundedRectangle(cornerRadius: 8))
+        .overlay(
+            RoundedRectangle(cornerRadius: 8)
+                .stroke(Color(.separator), lineWidth: 1)
+        )
+    }
+}
+
+// Camera capture wrapper — SwiftUI has no native camera view, so bridge to
+// UIImagePickerController. Returns the captured UIImage via the callback.
+private struct CameraPicker: UIViewControllerRepresentable {
+    let onImage: (UIImage) -> Void
+    @Environment(\.dismiss) private var dismiss
+
+    func makeUIViewController(context: Context) -> UIImagePickerController {
+        let picker = UIImagePickerController()
+        picker.sourceType = .camera
+        picker.delegate = context.coordinator
+        return picker
+    }
+
+    func updateUIViewController(_ uiViewController: UIImagePickerController, context: Context) {}
+
+    func makeCoordinator() -> Coordinator { Coordinator(self) }
+
+    final class Coordinator: NSObject, UIImagePickerControllerDelegate, UINavigationControllerDelegate {
+        let parent: CameraPicker
+        init(_ parent: CameraPicker) { self.parent = parent }
+
+        func imagePickerController(
+            _ picker: UIImagePickerController,
+            didFinishPickingMediaWithInfo info: [UIImagePickerController.InfoKey: Any]
+        ) {
+            if let image = info[.originalImage] as? UIImage {
+                parent.onImage(image)
+            }
+            parent.dismiss()
+        }
+
+        func imagePickerControllerDidCancel(_ picker: UIImagePickerController) {
+            parent.dismiss()
+        }
+    }
+}
+
+private extension UIImage {
+    /// Downscale so the longest side is at most `maxDimension`, preserving aspect
+    /// ratio. Used to shrink uploads (and strip metadata via re-encoding).
+    func outfitResized(maxDimension: CGFloat) -> UIImage {
+        let longestSide = max(size.width, size.height)
+        guard longestSide > maxDimension, longestSide > 0 else { return self }
+        let scale = maxDimension / longestSide
+        let newSize = CGSize(width: size.width * scale, height: size.height * scale)
+        let format = UIGraphicsImageRendererFormat.default()
+        format.scale = 1
+        let renderer = UIGraphicsImageRenderer(size: newSize, format: format)
+        return renderer.image { _ in draw(in: CGRect(origin: .zero, size: newSize)) }
+    }
+}
+
+/// Downscale + JPEG-encode + base64 an image for upload. Returns nil if the data
+/// can't be decoded as an image.
+private func outfitImagePayload(
+    from data: Data,
+    maxDimension: CGFloat = 1024,
+    quality: CGFloat = 0.7
+) -> (base64: String, mediaType: String)? {
+    guard let image = UIImage(data: data) else { return nil }
+    let resized = image.outfitResized(maxDimension: maxDimension)
+    guard let jpeg = resized.jpegData(compressionQuality: quality) else { return nil }
+    return (jpeg.base64EncodedString(), "image/jpeg")
+}
+
+private func splitList(_ text: String) -> [String] {
+    text.split(separator: ",")
+        .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+        .filter { !$0.isEmpty }
 }
 
 #Preview {

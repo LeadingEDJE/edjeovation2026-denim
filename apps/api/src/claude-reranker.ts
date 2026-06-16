@@ -33,6 +33,9 @@ export type StyleContext = {
 	styleKeywords?: string[];
 	museTag?: string;
 	preferredSizes?: string[];
+	// A garment the customer already owns/is wearing and wants to build around
+	// (from an outfit photo or manual entry). Recommendations should complement it.
+	pairingContext?: string;
 };
 
 // Stable across all requests → safe to mark for prompt caching. The volatile
@@ -63,7 +66,7 @@ const OUTPUT_INSTRUCTION = `Return ONLY a JSON object (no markdown fences, no pr
 {"summary": string, "rankings": [{"productId": string, "rank": integer, "rationale": string}]}`;
 
 /** Pull a JSON object out of model text, tolerating markdown fences/prose. */
-function extractJson(text: string): string {
+export function extractJson(text: string): string {
 	const fenced = text.match(/```(?:json)?\s*([\s\S]*?)```/i);
 	const body = fenced ? fenced[1] : text;
 	const start = body.indexOf("{");
@@ -116,12 +119,19 @@ function buildUserPrompt(
 		.filter(Boolean)
 		.join(", ");
 
+	// An owned/worn garment to complement gets its own emphasized line rather than
+	// being folded into the comma-joined context, so the model treats it as a
+	// primary "complete the look" signal.
+	const pairing = style.pairingContext
+		? `\n\nOutfit to build around: ${style.pairingContext}\nFavor pieces that complete or complement this look (e.g. a top for a skirt), and reference the pairing in the rationale.`
+		: "";
+
 	const candidates = shortlist
 		.map((c, i) => `${i + 1}. ${candidateLine(c)}`)
 		.join("\n");
 
 	return `Customer profile: ${profile}
-Appointment style context: ${styleLines || "none provided"}
+Appointment style context: ${styleLines || "none provided"}${pairing}
 
 Candidate products (pre-scored shortlist):
 ${candidates}

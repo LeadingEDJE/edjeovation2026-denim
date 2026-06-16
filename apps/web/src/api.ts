@@ -48,6 +48,25 @@ export type StylistProfile = {
 	avatarUrl: string | null;
 };
 
+export type OutfitGarment = {
+	type: string;
+	colors: string[];
+	material?: string | null;
+	pattern?: string | null;
+	descriptors: string[];
+};
+
+// Text-only analysis of an outfit the customer wants to build around (from a
+// photo or typed manually). The photo itself is never stored or shown.
+export type OutfitAnalysis = {
+	garments: OutfitGarment[];
+	styleSummary: string;
+	suggestedFocusColors: string[];
+	suggestedStyleKeywords: string[];
+	pairingContext: string;
+	engine: "claude" | "sample" | "manual";
+};
+
 export type AppointmentStatus =
 	| "scheduled"
 	| "checked_in"
@@ -79,6 +98,7 @@ export type Appointment = {
 		preferredSizes: string[];
 	};
 	suggestedProducts: SuggestedProduct[];
+	outfitAnalysis: OutfitAnalysis | null;
 	notificationSummary: {
 		count: number;
 		confirmationStatus: "queued" | "sent" | null;

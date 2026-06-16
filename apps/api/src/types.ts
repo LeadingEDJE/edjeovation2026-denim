@@ -203,6 +203,30 @@ export type AppointmentSlot = {
 	availableStylistCount: number;
 };
 
+// One garment or accessory the customer is building around, as identified from a
+// photo (by Claude) or typed in by the customer. Material/pattern are optional
+// because not every look has them and manual entry may omit them.
+export type OutfitGarment = {
+	type: string;
+	colors: string[];
+	material?: string | null;
+	pattern?: string | null;
+	descriptors: string[];
+};
+
+// The "outfit to match" the customer signed off on. The SAME shape regardless of
+// origin — a photo analyzed by Claude, the canned no-key fallback, or text the
+// customer typed manually — so persistence, the reranker, and the stylist view
+// treat them identically. Images are never stored; only this text survives.
+export type OutfitAnalysis = {
+	garments: OutfitGarment[];
+	styleSummary: string;
+	suggestedFocusColors: string[];
+	suggestedStyleKeywords: string[];
+	pairingContext: string;
+	engine: "claude" | "sample" | "manual";
+};
+
 export type CreateAppointmentInput = {
 	storeId: string;
 	slotStart: string;
@@ -212,6 +236,7 @@ export type CreateAppointmentInput = {
 	styleKeywords: string[];
 	guidance?: string;
 	orderHistoryScenario?: OrderHistoryScenario;
+	outfitAnalysis?: OutfitAnalysis | null;
 };
 
 export type AppointmentMessage = {
@@ -259,6 +284,7 @@ export type Appointment = {
 		preferredSizes: string[];
 	};
 	suggestedProducts: SuggestedProduct[];
+	outfitAnalysis: OutfitAnalysis | null;
 	notificationSummary: {
 		count: number;
 		confirmationStatus: AppointmentNotificationStatus | null;

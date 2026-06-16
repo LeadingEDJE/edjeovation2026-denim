@@ -13,6 +13,7 @@ import type {
 	AppointmentMessage,
 	AppointmentNotification,
 	CatalogProduct,
+	OutfitAnalysis,
 	StylistProfile,
 	SuggestedProduct,
 } from "../api";
@@ -248,6 +249,10 @@ function CustomerSnapshot({ appointment }: { appointment: Appointment }) {
 				{appointment.guidance ? `“${appointment.guidance}”` : "None provided"}
 			</p>
 
+			{appointment.outfitAnalysis && (
+				<OutfitMatchBlock analysis={appointment.outfitAnalysis} />
+			)}
+
 			<div className="mt-7">
 				<SectionTitle>Order Signal</SectionTitle>
 			</div>
@@ -258,6 +263,81 @@ function CustomerSnapshot({ appointment }: { appointment: Appointment }) {
 				<Stat value={order.preferredSizes[0] ?? "—"} label="Preferred size" />
 			</div>
 		</>
+	);
+}
+
+/**
+ * Read-only summary of an outfit the customer wants to build around (from a photo
+ * or typed manually). Text only — the photo is never stored or shown — consistent
+ * with the customer-facing "we don't save your photo" promise.
+ */
+function OutfitMatchBlock({ analysis }: { analysis: OutfitAnalysis }) {
+	const source =
+		analysis.engine === "manual"
+			? "Described by customer"
+			: "From customer photo · AI analysis";
+
+	return (
+		<div className="mt-7">
+			<SectionTitle>Outfit To Match</SectionTitle>
+
+			<p className="mb-3 font-bold text-2xs text-muted uppercase tracking-label">
+				{source}
+			</p>
+
+			{analysis.pairingContext && (
+				<p className="mb-4 border-ink border-l-[3px] bg-surface-subtle px-3.5 py-3 text-[14px] text-body leading-relaxed">
+					{analysis.pairingContext}
+				</p>
+			)}
+
+			{analysis.garments.length > 0 && (
+				<>
+					<MetaLabel>Pieces</MetaLabel>
+					<ul className="mb-4 space-y-1">
+						{analysis.garments.map((garment) => (
+							<li
+								key={`${garment.type}-${garment.colors.join("-")}-${garment.material ?? ""}`}
+								className="text-[14px] text-body leading-relaxed"
+							>
+								{garment.type}
+								{garment.colors.length > 0
+									? ` — ${garment.colors.join(", ")}`
+									: ""}
+								{garment.material ? ` · ${garment.material}` : ""}
+							</li>
+						))}
+					</ul>
+				</>
+			)}
+
+			{analysis.styleSummary && (
+				<>
+					<MetaLabel>Stylist read</MetaLabel>
+					<p className="mb-4 text-[14px] text-body leading-relaxed">
+						{analysis.styleSummary}
+					</p>
+				</>
+			)}
+
+			{analysis.suggestedFocusColors.length > 0 && (
+				<>
+					<MetaLabel>Suggested focus colors</MetaLabel>
+					<div className="mb-4">
+						<SwatchRow value={analysis.suggestedFocusColors.join(", ")} />
+					</div>
+				</>
+			)}
+
+			{analysis.suggestedStyleKeywords.length > 0 && (
+				<>
+					<MetaLabel>Suggested style signals</MetaLabel>
+					<div className="mb-4">
+						<Chips items={analysis.suggestedStyleKeywords} />
+					</div>
+				</>
+			)}
+		</div>
 	);
 }
 
