@@ -1,18 +1,22 @@
 # AGENTS.md — Submission Documentation Generation
 
 This file instructs AI coding agents (Claude Code and the automated PR workflow)
-on how to keep the **Innovation Days submission artifacts** in `docs/submission/`
-accurate as the project evolves.
+on how to keep the **Innovation Days submission artifacts** accurate as the
+project evolves.
 
 A GitHub Actions workflow (`.github/workflows/generate-submission-docs.yml`)
 invokes an agent on every pull request. The agent reads this file, determines
 which submission docs are affected by the PR's changes, regenerates **only those
 docs**, and commits the result back to the PR branch.
 
-> **Important:** The files in `docs/submission/` currently contain the *template
-> instructions* (the required sections), not real content. The first time the
-> agent runs against a doc, it should **replace** the template with a real
-> drafted document that follows the section structure the template describes.
+> **Important — spec vs. output:** The files directly under `docs/submission/`
+> (e.g. `project_summary.md`) are **spec templates** describing the required
+> sections. They are read-only references and must **never** be modified.
+> Generated content is written to a parallel tree under
+> **`docs/submission/generated_docs/`**, using the same filenames
+> (e.g. the `project_summary.md` template produces
+> `docs/submission/generated_docs/project_summary.md`). On the first run a
+> generated file is created from scratch; on later runs it is updated in place.
 
 ---
 
@@ -62,14 +66,17 @@ this list in the same PR if it has drifted.
 
 ## The submission artifacts
 
-| File | Purpose | Primary repo sources |
-|---|---|---|
-| `docs/submission/project_summary.md` | Non-technical front door: problem, solution, users, key benefits | `README.md`, `QUICKSTART.md`, `docs/requirements/`, web/iOS features |
-| `docs/submission/architecture_overview.md` | Architecture, tech stack, AI models, data sources, limitations | `apps/**`, `infra/**`, `docker-compose*.yml`, `packages/**`, `apps/api/src/**` |
-| `docs/submission/ai_usage_explanation.md` | Where/why AI is used, dependency level, responsible-AI | `apps/api/src/claude-reranker.ts`, `recommendation-scoring.ts`, `config.ts` |
-| `docs/submission/market_impact_statement.md` | Persona, ROI, competitive alternatives, timing | `docs/requirements/`, `README.md`, product features |
-| `docs/submission/pitch_deck.md` | 5–7 slide summary (optional) | All of the above (it's a digest) |
-| `docs/submission/demo/demo_walkthrough.md` | Annotated walkthrough of key user flows / demo link | `apps/web/**`, `apps/ios/**`, `README.md` "Current Workflow" |
+Each row maps a **spec template** (read-only) to the **generated output** file
+the agent writes, plus the repo sources to draw from.
+
+| Spec template (read-only) | Generated output | Purpose | Primary repo sources |
+|---|---|---|---|
+| `docs/submission/project_summary.md` | `docs/submission/generated_docs/project_summary.md` | Non-technical front door: problem, solution, users, key benefits | `README.md`, `QUICKSTART.md`, `docs/requirements/`, web/iOS features |
+| `docs/submission/architecture_overview.md` | `docs/submission/generated_docs/architecture_overview.md` | Architecture, tech stack, AI models, data sources, limitations | `apps/**`, `infra/**`, `docker-compose*.yml`, `packages/**`, `apps/api/src/**` |
+| `docs/submission/ai_usage_explanation.md` | `docs/submission/generated_docs/ai_usage_explanation.md` | Where/why AI is used, dependency level, responsible-AI | `apps/api/src/claude-reranker.ts`, `recommendation-scoring.ts`, `config.ts` |
+| `docs/submission/market_impact_statement.md` | `docs/submission/generated_docs/market_impact_statement.md` | Persona, ROI, competitive alternatives, timing | `docs/requirements/`, `README.md`, product features |
+| `docs/submission/pitch_deck.md` | `docs/submission/generated_docs/pitch_deck.md` | 5–7 slide summary (optional) | All of the above (it's a digest) |
+| `docs/submission/demo/demo_walkthrough.md` | `docs/submission/generated_docs/demo/demo_walkthrough.md` | Annotated walkthrough of key user flows / demo link | `apps/web/**`, `apps/ios/**`, `README.md` "Current Workflow" |
 
 Each template lists **Required sections** — follow that structure exactly,
 including any stated word limits (e.g. Problem Statement ≤ 200 words, Proposed
@@ -92,17 +99,21 @@ Use this mapping; when in doubt, include the doc rather than skip it.
 | Changes to product scope / value proposition (new feature areas) | `market_impact_statement.md`, `project_summary.md` |
 | Any of the above materially changes the story | `pitch_deck.md` (keep it a digest of the others) |
 
-If a PR touches **only** `docs/submission/**`, tests, CI config, or formatting,
-regenerate **nothing** — exit cleanly.
+The doc names above refer to the **generated output** under
+`docs/submission/generated_docs/`. If a PR touches **only**
+`docs/submission/**` (templates or generated output), tests, CI config, or
+formatting, regenerate **nothing** — exit cleanly.
 
 ---
 
 ## How to generate each doc (per-doc guidance)
 
 General approach for every doc:
-1. Read the existing file. If it's still the template, replace it; if it's real
-   content, **update in place** — preserve human edits and only revise sections
-   the PR actually affects.
+1. Read the **spec template** in `docs/submission/<name>.md` for the required
+   section structure (never modify it). Then read the **generated output** in
+   `docs/submission/generated_docs/<name>.md` if it exists — update it in place,
+   preserving human edits and only revising sections the PR actually affects.
+   If it doesn't exist yet, create it.
 2. Read the listed primary sources from the repo to gather facts.
 3. Write to the template's required section structure and honor word limits.
 
@@ -151,7 +162,8 @@ General approach for every doc:
 - **Preserve human edits.** Update only what the PR changed; don't rewrite
   sections wholesale or churn unrelated content.
 - **No secrets.** Never read or echo `.env`, API keys, or tokens into docs.
-- **Stay within scope.** Only modify files under `docs/submission/`.
+- **Stay within scope.** Only write files under `docs/submission/generated_docs/`.
+  Never modify the spec templates directly under `docs/submission/`.
 
 ---
 
@@ -164,8 +176,9 @@ From a checkout, ask Claude Code:
 
 Or target one doc:
 
-> "Following AGENTS.md, draft `docs/submission/ai_usage_explanation.md` from the
-> current codebase."
+> "Following AGENTS.md, draft
+> `docs/submission/generated_docs/ai_usage_explanation.md` from the current
+> codebase."
 
 ---
 
@@ -177,7 +190,8 @@ Or target one doc:
 2. Determines files changed vs. the base branch.
 3. Runs the Claude Code Action with this file as its guide, scoped to the
    relevance mapping above.
-4. Commits any updated `docs/submission/**` files back to the PR branch.
+4. Commits any updated `docs/submission/generated_docs/**` files back to the PR
+   branch.
 
 The workflow runs through the project's **LiteLLM gateway** (Anthropic-compatible)
 so it reuses the same key as the recommender. Configure these in repo settings:

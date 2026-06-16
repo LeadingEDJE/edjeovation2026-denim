@@ -1,8 +1,10 @@
 name: Generate submission docs
 
-# Keeps docs/submission/** in sync with the codebase. On each PR an agent reads
-# AGENTS.md, figures out which submission artifacts the PR's changes affect,
-# regenerates only those, and commits them back to the PR branch.
+# Keeps docs/submission/generated_docs/** in sync with the codebase. On each PR
+# an agent reads AGENTS.md, figures out which submission artifacts the PR's
+# changes affect, regenerates only those (the templates in docs/submission/ are
+# the spec; generated content lands in docs/submission/generated_docs/), and
+# commits them back to the PR branch.
 #
 # Setup required: add an `ANTHROPIC_API_KEY` repository secret.
 
@@ -89,21 +91,24 @@ jobs:
 
             Steps:
             1. Read AGENTS.md, especially the "Relevance mapping" table.
-            2. Decide which files under docs/submission/ are affected by the
-               changed files above. If none are affected (e.g. the PR only
-               touches tests, CI, formatting, or docs/submission itself), make
-               NO changes and stop.
-            3. For each affected doc, read it and its primary repo sources, then
-               write real content following the template's required sections and
-               word limits. Replace template text on first generation; otherwise
-               update only the sections this PR affects and preserve human edits.
+            2. Decide which submission artifacts are affected by the changed
+               files above. If none are affected (e.g. the PR only touches tests,
+               CI, formatting, or docs/submission itself), make NO changes and
+               stop.
+            3. For each affected artifact, read the spec template in
+               docs/submission/<name>.md and its primary repo sources, then write
+               real content to docs/submission/generated_docs/<name>.md following
+               the template's required sections and word limits. The templates in
+               docs/submission/ are the spec and must NOT be modified. Update the
+               generated file in place when it already exists, preserving human
+               edits to sections this PR does not affect.
             4. Honor every guardrail in AGENTS.md (no fabricated facts, label ROI
                as estimates, no invented team names, mark mocked data, no secrets,
-               only touch docs/submission/**).
+               only write under docs/submission/generated_docs/**).
             5. If and only if you changed files, commit and push to the PR branch:
                  git config user.name "github-actions[bot]"
                  git config user.email "github-actions[bot]@users.noreply.github.com"
-                 git add docs/submission
+                 git add docs/submission/generated_docs
                  git commit -m "docs: regenerate submission artifacts for PR changes"
                  git push origin HEAD:${{ github.event.pull_request.head.ref }}
                If you changed nothing, do not commit.

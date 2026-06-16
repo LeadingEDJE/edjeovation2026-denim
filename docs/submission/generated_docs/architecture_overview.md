@@ -1,0 +1,82 @@
+# Architecture & Feasibility Overview
+
+## High-Level Architecture
+
+The system is a TypeScript monorepo (npm workspaces) with three clients/services
+around a shared API and database:
+
+```
+  iOS app (SwiftUI)  ─┐
+                      ├──HTTP──▶  Fastify API (apps/api) ──▶ PostgreSQL (appointments, catalog_products)
+  Web dashboard ──────┘                  │
+  (React + Vite)                         └──HTTP──▶ Mocked third-party services (WireMock)
+                                                      customers · order history · stores · stylists · schedules
+                                         │
+                                         └──HTTPS──▶ Claude (re-ranking) via LiteLLM gateway / Anthropic SDK
+```
+
+- **Clients:** the SwiftUI iOS app (customer booking, intake, messaging, recap,
+  feedback) and the React/Vite associate dashboard (appointment prep, lifecycle
+  actions, messaging, product prep, recaps) both call the same API.
+- **API (`apps/api`):** a Fastify service that persists appointments to
+  PostgreSQL, queries the `catalog_products` table for candidates, calls the
+  mocked third-party services for customer/order/store/stylist data, and runs the
+  two-stage recommendation pipeline. Exposes OpenAPI docs at `/docs`.
+- **Data flow for a booking:** client submits intake + slot → API assigns a
+  stylist, maps a Muse tag, summarizes order history, builds suggested products,
+  and stores the appointment → associate dashboard reads it for prep → lifecycle
+  actions (check-in, complete, etc.) and messages mutate the same record.
+
+## Technologies Used
+
+- **Frontend (web):** React 19, Vite, Tailwind CSS 4, a local
+  `@denim-fit/design-system` workspace package.
+- **Frontend (mobile):** SwiftUI (iOS), targeting the Xcode simulator.
+- **Backend:** Node.js + TypeScript, Fastify, `@fastify/swagger` (OpenAPI).
+- **Database:** PostgreSQL 16 (`appointments`, `catalog_products`).
+- **Third-party simulation:** WireMock (templated JSON fixtures).
+- **AI SDK:** `@anthropic-ai/sdk`, optionally routed through a LiteLLM gateway.
+- **Local orchestration:** Docker Compose, with a hot-reload dev override.
+- **Quality/tooling:** Biome (format/lint), Vitest (unit), Playwright (e2e),
+  Husky git hooks, GitHub Actions CI.
+- **Cloud (provisioning defined):** Azure Container Apps (api, web, wiremock),
+  Azure Container Registry, and Azure Database for PostgreSQL Flexible Server,
+  described in `infra/azure/*.bicep`.
+
+## AI Models / Tools Leveraged
+
+- **Model:** Claude (default `claude-opus-4-8` via the native API, or a model the
+  configured LiteLLM gateway serves, e.g. `claude-opus-4.7`). **Provider:**
+  Anthropic (directly or through an Anthropic-compatible LiteLLM proxy).
+- **What it does:** the second stage of the recommendation pipeline
+  (`apps/api/src/claude-reranker.ts`). Given the rule-based shortlist plus the
+  customer's fit profile, color context, and Muse, Claude re-orders the
+  candidates for the specific customer and writes a short per-item rationale.
+  Prompt caching is applied to the stable system prompt.
+
+## Data Sources
+
+| Source | Contents | Real / Mocked / Synthetic | Status |
+|---|---|---|---|
+| WireMock fixtures (`infra/wiremock/`) | Customers, order history, stores, stylist profiles, weekly schedules | Mocked | Available locally |
+| `catalog_products` (PostgreSQL, seeded `infra/db/`) | Abercrombie women's catalog (name, category, fit/rise/stretch, price, image URL) | Synthetic (scraped/seeded snapshot) | Available locally |
+| `appointments` (PostgreSQL) | Bookings, intake, assigned stylist, suggestions, lifecycle state, messages, recaps | Real (app-generated) | Available locally |
+| Anthropic / LiteLLM | Re-ranking + rationale generation | Real external call | Optional; falls back to rule-based |
+
+## Known Limitations & Risks
+
+- **No authentication / identity model.** A mocked "current user" stands in for
+  login; consent and privacy handling for measurements is not implemented.
+- **Mocked third parties.** Customer, order, store, and stylist data come from
+  WireMock; there is no live integration or inventory/availability check.
+- **Catalog is a seeded snapshot**, not a live feed, and may drift from the real
+  assortment; sizing rules are simplified.
+- **Single emulated store**, non-peak scope only; stylist-assignment rules are
+  basic.
+- **AI dependency is bounded** — if the model/gateway is unavailable the engine
+  returns the deterministic rule-based ranking, so prep still works, but rationale
+  quality is reduced. Some LiteLLM→Bedrock gateway configs reject structured
+  output, which the code handles defensively.
+- **Notifications are mock records** (no real email/push delivery).
+- **Cloud deployment is defined in Bicep but not a hardened, production
+  environment** (secrets, scaling, networking would need review).
