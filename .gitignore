@@ -23,5 +23,9 @@ DerivedData/
 .vscode/*
 !.vscode/extensions.json
 !.vscode/settings.json
+
+# Per-user Claude Code settings (not shared). Listed here so Biome's
+# useIgnoreFile skips it too — otherwise `biome ci .` lints this local file.
+.claude/settings.local.json
 apps/ios/DenimFit/DenimFit.xcodeproj/project.xcworkspace/contents.xcworkspacedata
 apps/ios/DenimFit/DenimFit.xcodeproj/xcuserdata/

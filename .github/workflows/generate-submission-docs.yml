@@ -1,0 +1,109 @@
+name: Generate submission docs
+
+# Keeps docs/submission/** in sync with the codebase. On each PR an agent reads
+# AGENTS.md, figures out which submission artifacts the PR's changes affect,
+# regenerates only those, and commits them back to the PR branch.
+#
+# Setup required: add an `ANTHROPIC_API_KEY` repository secret.
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+# Superseded runs on the same PR are cancelled to save minutes.
+concurrency:
+  group: gen-docs-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+permissions:
+  contents: write       # push doc updates back to the PR branch
+  pull-requests: write  # let the action interact with the PR
+  id-token: write       # claude-code-action requests an OIDC token
+
+jobs:
+  generate-docs:
+    runs-on: ubuntu-latest
+    # Skip PRs from forks: they can't access the secret and can't push to the
+    # branch. Internal branches only.
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    steps:
+      - name: Checkout PR branch
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+          fetch-depth: 0
+          # Keep credentials so the agent can push its doc commit. Commits pushed
+          # with GITHUB_TOKEN do NOT re-trigger this workflow, so there's no loop.
+          persist-credentials: true
+
+      - name: Determine changed files
+        id: changes
+        run: |
+          base_ref="${{ github.event.pull_request.base.ref }}"
+          # Fetch the base branch with full history (no --depth) so the three-dot
+          # diff can resolve a merge base against the (already full-depth) PR head.
+          git fetch --no-tags origin "+refs/heads/${base_ref}:refs/remotes/origin/${base_ref}"
+          changed="$(git diff --name-only "origin/${base_ref}...HEAD")"
+          echo "Changed files:"
+          echo "$changed"
+          {
+            echo 'files<<EOF'
+            echo "$changed"
+            echo 'EOF'
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Generate submission docs
+        uses: anthropics/claude-code-action@v1
+        env:
+          # Reuse the project's LiteLLM gateway (Anthropic-compatible) so the same
+          # API key works here as in the recommender. Claude Code sends the key as
+          # the x-api-key header, which LiteLLM accepts.
+          #   - ANTHROPIC_BASE_URL : secret  -> the LiteLLM gateway URL
+          #   - ANTHROPIC_API_KEY  : secret  -> the LiteLLM key (set on the input below)
+          #   - ANTHROPIC_MODEL    : reuses the existing RECOMMENDER_MODEL secret so
+          #       the same model the gateway serves for the recommender is used here.
+          #   - ANTHROPIC_SMALL_FAST_MODEL : Haiku-class model for lightweight
+          #       background calls; falls back to the main model if the gateway
+          #       doesn't serve a small one.
+          ANTHROPIC_BASE_URL: ${{ secrets.ANTHROPIC_BASE_URL }}
+          ANTHROPIC_MODEL: ${{ secrets.RECOMMENDER_MODEL || 'claude-opus-4.7' }}
+          ANTHROPIC_SMALL_FAST_MODEL: ${{ vars.LITELLM_SMALL_FAST_MODEL || secrets.RECOMMENDER_MODEL || 'claude-opus-4.7' }}
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          # Use the workflow token instead of the Claude GitHub App, so the app
+          # doesn't need to be installed on the repo. We auth the model via the
+          # LiteLLM key above; this token only covers GitHub API/git operations.
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          # Allow the agent to read the repo, edit docs, and commit/push.
+          claude_args: >-
+            --max-turns 40
+            --allowedTools "Read,Glob,Grep,Edit,Write,Bash(git:*)"
+          prompt: |
+            You are maintaining this repository's Innovation Days submission
+            documentation. Follow the instructions in AGENTS.md exactly.
+
+            This pull request changed the following files:
+            ---
+            ${{ steps.changes.outputs.files }}
+            ---
+
+            Steps:
+            1. Read AGENTS.md, especially the "Relevance mapping" table.
+            2. Decide which files under docs/submission/ are affected by the
+               changed files above. If none are affected (e.g. the PR only
+               touches tests, CI, formatting, or docs/submission itself), make
+               NO changes and stop.
+            3. For each affected doc, read it and its primary repo sources, then
+               write real content following the template's required sections and
+               word limits. Replace template text on first generation; otherwise
+               update only the sections this PR affects and preserve human edits.
+            4. Honor every guardrail in AGENTS.md (no fabricated facts, label ROI
+               as estimates, no invented team names, mark mocked data, no secrets,
+               only touch docs/submission/**).
+            5. If and only if you changed files, commit and push to the PR branch:
+                 git config user.name "github-actions[bot]"
+                 git config user.email "github-actions[bot]@users.noreply.github.com"
+                 git add docs/submission
+                 git commit -m "docs: regenerate submission artifacts for PR changes"
+                 git push origin HEAD:${{ github.event.pull_request.head.ref }}
+               If you changed nothing, do not commit.
