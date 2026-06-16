@@ -29,11 +29,28 @@ struct ActiveUserResponse: Codable {
     let user: CurrentUser
 }
 
+struct Store: Codable, Identifiable, Hashable {
+    let storeId: String
+    let name: String
+    let city: String
+    let state: String
+    let address: String
+    let phone: String
+    let timezone: String
+
+    var id: String { storeId }
+}
+
+struct StoresResponse: Codable {
+    let stores: [Store]
+}
+
 struct SetActiveUserRequest: Codable {
     let customerId: String
 }
 
 struct AppointmentSlot: Codable, Identifiable, Hashable {
+    let storeId: String
     let slotStart: String
     let slotEnd: String
     let date: String
@@ -48,6 +65,7 @@ struct AppointmentSlotsResponse: Codable {
 }
 
 struct CreateAppointmentRequest: Codable {
+    let storeId: String
     let slotStart: String
     let occasion: String
     let focusColors: String
@@ -73,6 +91,32 @@ struct UpdateAppointmentRequest: Codable {
     let guidance: String
 }
 
+struct CancelAppointmentRequest: Codable {
+    let cancelReason: String
+}
+
+struct AppointmentMessageRequest: Codable {
+    let authorType: String
+    let body: String
+}
+
+struct AppointmentMessageResponse: Codable {
+    let message: AppointmentMessage
+}
+
+struct AppointmentMessagesResponse: Codable {
+    let messages: [AppointmentMessage]
+}
+
+struct AppointmentNotificationsResponse: Codable {
+    let notifications: [AppointmentNotification]
+}
+
+struct AppointmentFeedbackRequest: Codable {
+    let rating: Int
+    let comment: String
+}
+
 struct Appointment: Codable, Identifiable {
     let id: String
     let customerId: String
@@ -80,6 +124,7 @@ struct Appointment: Codable, Identifiable {
     let customerName: String
     let slotStart: String
     let slotEnd: String
+    let store: Store
     let occasion: String
     let focusColors: String
     let avoidColors: String
@@ -91,7 +136,17 @@ struct Appointment: Codable, Identifiable {
     let assignedStylist: AppointmentStylist
     let orderHistorySummary: OrderHistorySummary
     let suggestedProducts: [SuggestedProduct]
+    let notificationSummary: NotificationSummary
+    let checkedInAt: String?
     let completedAt: String?
+    let cancelledAt: String?
+    let noShowAt: String?
+    let cancelReason: String?
+    let customerRecap: String
+    let associateFeedback: String
+    let customerFeedbackRating: Int?
+    let customerFeedbackComment: String
+    let customerFeedbackAt: String?
     let createdAt: String
 }
 
@@ -99,6 +154,10 @@ struct AppointmentStylist: Codable {
     let id: String
     let displayName: String
     let title: String
+    let pronouns: String?
+    let bio: String?
+    let specialties: [String]?
+    let stylePointOfView: [String]?
 }
 
 struct OrderHistorySummary: Codable {
@@ -113,4 +172,28 @@ struct SuggestedProduct: Codable, Identifiable {
     let name: String?
 
     var id: String { productId ?? name ?? "suggested-product" }
+}
+
+struct NotificationSummary: Codable {
+    let count: Int
+    let confirmationStatus: String?
+    let reminderStatus: String?
+}
+
+struct AppointmentMessage: Codable, Identifiable {
+    let id: String
+    let appointmentId: String
+    let authorType: String
+    let body: String
+    let createdAt: String
+}
+
+struct AppointmentNotification: Codable, Identifiable {
+    let id: String
+    let appointmentId: String
+    let type: String
+    let status: String
+    let scheduledFor: String
+    let sentAt: String?
+    let createdAt: String
 }

@@ -56,6 +56,16 @@ function makeStylist(overrides: Partial<StylistProfile> = {}): StylistProfile {
 	};
 }
 
+const store = {
+	storeId: "store-1",
+	name: "Flagship",
+	city: "Columbus",
+	state: "OH",
+	address: "160 Easton Town Center",
+	phone: "+1 614-555-0100",
+	timezone: "America/New_York",
+};
+
 function appointmentRow(overrides: Record<string, unknown> = {}) {
 	return {
 		id: "11111111-1111-4111-8111-111111111111",
@@ -64,6 +74,7 @@ function appointmentRow(overrides: Record<string, unknown> = {}) {
 		customer_name: "Avery Parker",
 		slot_start: "2026-06-16T15:00:00.000Z",
 		slot_end: "2026-06-16T16:00:00.000Z",
+		store_snapshot: store,
 		occasion: "Weekend trip",
 		focus_colors: "Dark wash",
 		avoid_colors: "White",
@@ -80,7 +91,19 @@ function appointmentRow(overrides: Record<string, unknown> = {}) {
 			preferredSizes: ["28"],
 		},
 		suggested_products: [],
+		notification_count: 0,
+		confirmation_status: null,
+		reminder_status: null,
+		checked_in_at: null,
 		completed_at: null,
+		cancelled_at: null,
+		no_show_at: null,
+		cancel_reason: null,
+		customer_recap: "",
+		associate_feedback: "",
+		customer_feedback_rating: null,
+		customer_feedback_comment: "",
+		customer_feedback_at: null,
 		created_at: "2026-06-01T12:00:00.000Z",
 		...overrides,
 	};
@@ -106,6 +129,29 @@ function currentUser() {
 	};
 }
 
+function storesResponse() {
+	return { stores: [store] };
+}
+
+function schedulePatternsResponse() {
+	return {
+		patterns: [
+			{
+				storeId: store.storeId,
+				timezone: "America/New_York",
+				weekly: [
+					{
+						dayOfWeek: "Tuesday",
+						openTime: "11:00",
+						closeTime: "19:00",
+						stylistIds: ["st-1", "st-2"],
+					},
+				],
+			},
+		],
+	};
+}
+
 async function buildApp(): Promise<FastifyInstance> {
 	const app = Fastify();
 	await registerRoutes(app);
@@ -122,6 +168,7 @@ beforeEach(async () => {
 
 afterEach(async () => {
 	await app.close();
+	vi.useRealTimers();
 	vi.unstubAllGlobals();
 	fetchMock.mockReset();
 	query.mockReset();
@@ -224,6 +271,44 @@ describe("GET /api/customers/:customerId/order-history", () => {
 	});
 });
 
+describe("GET /api/stores", () => {
+	it("returns configured appointment stores", async () => {
+		fetchMock.mockResolvedValueOnce(jsonResponse(storesResponse()));
+
+		const res = await app.inject({ method: "GET", url: "/api/stores" });
+
+		expect(res.statusCode).toBe(200);
+		expect(res.json().stores[0]).toMatchObject({ storeId: "store-1" });
+	});
+});
+
+describe("GET /api/appointments/slots", () => {
+	it("generates store-scoped slots from weekly patterns", async () => {
+		vi.useFakeTimers();
+		vi.setSystemTime(new Date("2026-06-16T12:00:00.000Z"));
+		fetchMock.mockResolvedValueOnce(jsonResponse(schedulePatternsResponse()));
+
+		const res = await app.inject({
+			method: "GET",
+			url: "/api/appointments/slots?storeId=store-1",
+		});
+
+		vi.useRealTimers();
+
+		expect(res.statusCode).toBe(200);
+		expect(res.json().slots).toEqual(
+			expect.arrayContaining([
+				expect.objectContaining({
+					storeId: "store-1",
+					date: "2026-06-16",
+					time: "11:00",
+					availableStylistCount: 2,
+				}),
+			]),
+		);
+	});
+});
+
 describe("GET /api/catalog", () => {
 	it("returns catalog products with totals", async () => {
 		(query as Mock)
@@ -274,6 +359,85 @@ describe("GET /api/catalog", () => {
 	});
 });
 
+describe("appointment lifecycle routes", () => {
+	it("checks in a scheduled appointment", async () => {
+		(query as Mock).mockResolvedValueOnce({
+			rows: [
+				appointmentRow({
+					status: "checked_in",
+					checked_in_at: "2026-06-16T15:05:00.000Z",
+				}),
+			],
+		});
+
+		const res = await app.inject({
+			method: "POST",
+			url: "/api/appointments/11111111-1111-4111-8111-111111111111/check-in",
+		});
+
+		expect(res.statusCode).toBe(200);
+		expect(res.json().appointment.status).toBe("checked_in");
+	});
+
+	it("marks a scheduled appointment no-show", async () => {
+		(query as Mock).mockResolvedValueOnce({
+			rows: [
+				appointmentRow({
+					status: "no_show",
+					no_show_at: "2026-06-16T16:15:00.000Z",
+				}),
+			],
+		});
+
+		const res = await app.inject({
+			method: "POST",
+			url: "/api/appointments/11111111-1111-4111-8111-111111111111/no-show",
+		});
+
+		expect(res.statusCode).toBe(200);
+		expect(res.json().appointment.status).toBe("no_show");
+	});
+});
+
+describe("appointment messaging", () => {
+	it("posts messages while an appointment is active", async () => {
+		(query as Mock)
+			.mockResolvedValueOnce({ rows: [{ status: "scheduled" }] })
+			.mockResolvedValueOnce({
+				rows: [
+					{
+						id: "22222222-2222-4222-8222-222222222222",
+						appointment_id: "11111111-1111-4111-8111-111111111111",
+						author_type: "customer",
+						body: "Can you pull black denim?",
+						created_at: "2026-06-16T13:00:00.000Z",
+					},
+				],
+			});
+
+		const res = await app.inject({
+			method: "POST",
+			url: "/api/appointments/11111111-1111-4111-8111-111111111111/messages",
+			payload: { authorType: "customer", body: "Can you pull black denim?" },
+		});
+
+		expect(res.statusCode).toBe(201);
+		expect(res.json().message.body).toBe("Can you pull black denim?");
+	});
+
+	it("locks messages after completion", async () => {
+		(query as Mock).mockResolvedValueOnce({ rows: [{ status: "completed" }] });
+
+		const res = await app.inject({
+			method: "POST",
+			url: "/api/appointments/11111111-1111-4111-8111-111111111111/messages",
+			payload: { authorType: "associate", body: "Late note" },
+		});
+
+		expect(res.statusCode).toBe(409);
+	});
+});
+
 describe("PATCH /api/appointments/:appointmentId/session-notes", () => {
 	it("updates associate notes for a non-completed appointment", async () => {
 		(query as Mock).mockResolvedValueOnce({
@@ -304,6 +468,108 @@ describe("PATCH /api/appointments/:appointmentId/session-notes", () => {
 		});
 
 		expect(res.statusCode).toBe(409);
+	});
+});
+
+describe("PUT /api/appointments/:appointmentId/feedback", () => {
+	it("accepts customer feedback after completion", async () => {
+		fetchMock.mockResolvedValueOnce(jsonResponse(currentUser()));
+		(query as Mock).mockResolvedValueOnce({
+			rows: [
+				appointmentRow({
+					status: "completed",
+					completed_at: "2026-06-16T16:00:00.000Z",
+					customer_recap: "Great fit.",
+					customer_feedback_rating: 5,
+					customer_feedback_comment: "Helpful appointment.",
+					customer_feedback_at: "2026-06-16T17:00:00.000Z",
+				}),
+			],
+		});
+
+		const res = await app.inject({
+			method: "PUT",
+			url: "/api/appointments/11111111-1111-4111-8111-111111111111/feedback",
+			payload: { rating: 5, comment: "Helpful appointment." },
+		});
+
+		expect(res.statusCode).toBe(200);
+		expect(res.json().appointment.customerFeedbackRating).toBe(5);
+	});
+
+	it("rejects feedback before completion", async () => {
+		fetchMock.mockResolvedValueOnce(jsonResponse(currentUser()));
+		(query as Mock)
+			.mockResolvedValueOnce({ rows: [] })
+			.mockResolvedValueOnce({ rows: [{ status: "scheduled" }] });
+
+		const res = await app.inject({
+			method: "PUT",
+			url: "/api/appointments/11111111-1111-4111-8111-111111111111/feedback",
+			payload: { rating: 4 },
+		});
+
+		expect(res.statusCode).toBe(409);
+	});
+});
+
+describe("PATCH /api/appointments/:appointmentId/suggested-products/:productId", () => {
+	it("updates product prep state while the appointment is active", async () => {
+		const suggestedProducts = [
+			{
+				rank: 1,
+				rationale: "Good fit",
+				score: 0.91,
+				prepStatus: "suggested",
+				associateNote: "",
+				product: {
+					productId: "sku-1",
+					source: "anf",
+					name: "Straight jean",
+					category: "jeans",
+					productUrl: "https://example.test/sku-1",
+					imageUrl: null,
+					description: null,
+					price: 89,
+					currency: "USD",
+					fit: "straight",
+					rise: "high",
+					stretch: "comfort-stretch",
+					sizes: ["28"],
+					colors: ["black"],
+					scrapedAt: "2026-06-01T12:00:00.000Z",
+				},
+			},
+		];
+		(query as Mock)
+			.mockResolvedValueOnce({
+				rows: [appointmentRow({ suggested_products: suggestedProducts })],
+			})
+			.mockResolvedValueOnce({
+				rows: [
+					appointmentRow({
+						suggested_products: [
+							{
+								...suggestedProducts[0],
+								prepStatus: "pulled",
+								associateNote: "In fitting room 2",
+							},
+						],
+					}),
+				],
+			});
+
+		const res = await app.inject({
+			method: "PATCH",
+			url: "/api/appointments/11111111-1111-4111-8111-111111111111/suggested-products/sku-1",
+			payload: { prepStatus: "pulled", associateNote: "In fitting room 2" },
+		});
+
+		expect(res.statusCode).toBe(200);
+		expect(res.json().appointment.suggestedProducts[0]).toMatchObject({
+			prepStatus: "pulled",
+			associateNote: "In fitting room 2",
+		});
 	});
 });
 
@@ -354,6 +620,8 @@ describe("POST /api/appointments/:appointmentId/complete", () => {
 					session_notes: "Purchased dark straight jeans",
 					status: "completed",
 					completed_at: "2026-06-16T16:00:00.000Z",
+					customer_recap: "The straight-leg dark wash had the best fit.",
+					associate_feedback: "Good prep accuracy.",
 				}),
 			],
 		});
@@ -361,16 +629,32 @@ describe("POST /api/appointments/:appointmentId/complete", () => {
 		const res = await app.inject({
 			method: "POST",
 			url: "/api/appointments/11111111-1111-4111-8111-111111111111/complete",
-			payload: { sessionNotes: "Purchased dark straight jeans" },
+			payload: {
+				sessionNotes: "Purchased dark straight jeans",
+				customerRecap: "The straight-leg dark wash had the best fit.",
+				associateFeedback: "Good prep accuracy.",
+			},
 		});
 
 		expect(res.statusCode).toBe(200);
 		expect(res.json().appointment).toMatchObject({
 			status: "completed",
 			sessionNotes: "Purchased dark straight jeans",
+			customerRecap: "The straight-leg dark wash had the best fit.",
+			associateFeedback: "Good prep accuracy.",
 			completedAt: "2026-06-16T16:00:00.000Z",
 			suggestedProducts: [],
 		});
+	});
+
+	it("rejects completion without a customer recap", async () => {
+		const res = await app.inject({
+			method: "POST",
+			url: "/api/appointments/11111111-1111-4111-8111-111111111111/complete",
+			payload: { sessionNotes: "Missing recap" },
+		});
+
+		expect(res.statusCode).toBe(400);
 	});
 });
 

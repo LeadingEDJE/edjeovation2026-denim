@@ -1,1 +1,6 @@
-export type DashboardView = "upcoming" | "completed" | "cancelled";
+export type DashboardView =
+	| "open"
+	| "in_progress"
+	| "completed"
+	| "cancelled"
+	| "no_show";

@@ -26,7 +26,7 @@
 			],
 			"availability": {
 				"status": "available",
-				"nextAvailableAt": "2026-06-15T18:00:00Z"
+				"nextAvailableAt": "2026-06-16T18:00:00Z"
 			},
 			"avatarUrl": null
 		},
@@ -51,8 +51,8 @@
 				"comfort-stretch-preference"
 			],
 			"availability": {
-				"status": "busy",
-				"nextAvailableAt": "2026-06-15T20:30:00Z"
+				"status": "available",
+				"nextAvailableAt": "2026-06-16T20:30:00Z"
 			},
 			"avatarUrl": null
 		},
@@ -62,10 +62,10 @@
 			"pronouns": "she/her",
 			"title": "Petite Denim Associate",
 			"store": {
-				"storeId": "anf_soho_001",
-				"name": "Abercrombie & Fitch SoHo",
-				"city": "New York",
-				"state": "NY"
+				"storeId": "anf_easton_002",
+				"name": "Abercrombie & Fitch Columbus/Easton",
+				"city": "Columbus",
+				"state": "OH"
 			},
 			"bio": "Store associate focused on petite proportions, inseam selection, and helping customers find ankle, cropped, and full-length denim balance.",
 			"specialties": [
@@ -82,7 +82,7 @@
 			],
 			"availability": {
 				"status": "available",
-				"nextAvailableAt": "2026-06-15T17:30:00Z"
+				"nextAvailableAt": "2026-06-16T17:30:00Z"
 			},
 			"avatarUrl": null
 		},
@@ -92,10 +92,10 @@
 			"pronouns": "he/him",
 			"title": "Trend Styling Associate",
 			"store": {
-				"storeId": "anf_soho_001",
-				"name": "Abercrombie & Fitch SoHo",
-				"city": "New York",
-				"state": "NY"
+				"storeId": "anf_century_003",
+				"name": "Abercrombie & Fitch Century City",
+				"city": "Los Angeles",
+				"state": "CA"
 			},
 			"bio": "Store associate specializing in trend-led denim, wide-leg silhouettes, and building complete outfits around statement fits.",
 			"specialties": ["trend-styling", "wide-leg-denim", "outfit-building"],
@@ -108,7 +108,7 @@
 			],
 			"availability": {
 				"status": "available",
-				"nextAvailableAt": "2026-06-15T19:00:00Z"
+				"nextAvailableAt": "2026-06-16T19:00:00Z"
 			},
 			"avatarUrl": null
 		},
@@ -118,10 +118,10 @@
 			"pronouns": "she/her",
 			"title": "Fit Recovery Associate",
 			"store": {
-				"storeId": "anf_soho_001",
-				"name": "Abercrombie & Fitch SoHo",
-				"city": "New York",
-				"state": "NY"
+				"storeId": "anf_easton_002",
+				"name": "Abercrombie & Fitch Columbus/Easton",
+				"city": "Columbus",
+				"state": "OH"
 			},
 			"bio": "Store associate focused on returns, exchanges, and helping customers recover from fit misses with clearer size confidence.",
 			"specialties": [
@@ -133,8 +133,34 @@
 			"supportedFits": ["skinny", "straight", "relaxed"],
 			"customerSignals": ["prior-return", "too-tight-waist", "too-short"],
 			"availability": {
-				"status": "offline",
+				"status": "available",
 				"nextAvailableAt": "2026-06-16T15:00:00Z"
+			},
+			"avatarUrl": null
+		},
+		{
+			"id": "sty_006",
+			"displayName": "Camila Reyes",
+			"pronouns": "she/her",
+			"title": "West Coast Fit Associate",
+			"store": {
+				"storeId": "anf_century_003",
+				"name": "Abercrombie & Fitch Century City",
+				"city": "Los Angeles",
+				"state": "CA"
+			},
+			"bio": "Store associate focused on polished LA styling, wide-leg proportions, and denim that moves from office to evening.",
+			"specialties": [
+				"wide-leg-denim",
+				"outfit-building",
+				"fit-troubleshooting"
+			],
+			"stylePointOfView": ["polished", "sunlit", "versatile"],
+			"supportedFits": ["wide", "straight", "slim"],
+			"customerSignals": ["outfit-needed", "between-sizes", "inseam-selection"],
+			"availability": {
+				"status": "available",
+				"nextAvailableAt": "2026-06-16T19:30:00Z"
 			},
 			"avatarUrl": null
 		}

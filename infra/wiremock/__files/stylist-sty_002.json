@@ -20,8 +20,8 @@
 			"comfort-stretch-preference"
 		],
 		"availability": {
-			"status": "busy",
-			"nextAvailableAt": "2026-06-15T20:30:00Z"
+			"status": "available",
+			"nextAvailableAt": "2026-06-16T20:30:00Z"
 		},
 		"avatarUrl": null
 	}

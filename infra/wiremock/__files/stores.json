@@ -1,0 +1,31 @@
+{
+	"stores": [
+		{
+			"storeId": "anf_soho_001",
+			"name": "Abercrombie & Fitch SoHo",
+			"city": "New York",
+			"state": "NY",
+			"address": "547 Broadway, New York, NY 10012",
+			"phone": "+1 212-625-0868",
+			"timezone": "America/New_York"
+		},
+		{
+			"storeId": "anf_easton_002",
+			"name": "Abercrombie & Fitch Columbus/Easton",
+			"city": "Columbus",
+			"state": "OH",
+			"address": "160 Easton Town Center, Columbus, OH 43219",
+			"phone": "+1 614-337-9000",
+			"timezone": "America/New_York"
+		},
+		{
+			"storeId": "anf_century_003",
+			"name": "Abercrombie & Fitch Century City",
+			"city": "Los Angeles",
+			"state": "CA",
+			"address": "10250 Santa Monica Blvd, Los Angeles, CA 90067",
+			"phone": "+1 310-556-1611",
+			"timezone": "America/Los_Angeles"
+		}
+	]
+}

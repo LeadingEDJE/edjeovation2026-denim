@@ -5,10 +5,14 @@ export function statusLabel(status: Appointment["status"]) {
 	switch (status) {
 		case "scheduled":
 			return "Scheduled";
+		case "checked_in":
+			return "Checked in";
 		case "completed":
 			return "Completed";
 		case "cancelled":
 			return "Cancelled";
+		case "no_show":
+			return "No-show";
 	}
 }
 
@@ -19,10 +23,13 @@ export function statusBadgeVariant(
 	switch (status) {
 		case "scheduled":
 			return "neutral";
-		case "completed":
+		case "checked_in":
 			return "new";
-		case "cancelled":
+		case "completed":
 			return "outline";
+		case "cancelled":
+		case "no_show":
+			return "sale";
 	}
 }
 

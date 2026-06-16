@@ -1,3 +1,13 @@
+export type Store = {
+	storeId: string;
+	name: string;
+	city: string;
+	state: string;
+	address: string;
+	phone: string;
+	timezone: string;
+};
+
 export type CatalogProduct = {
 	productId: string;
 	name: string;
@@ -15,8 +25,35 @@ export type SuggestedProduct = {
 	rank: number;
 	rationale: string;
 	score: number | null;
+	prepStatus: "suggested" | "pulled" | "skipped";
+	associateNote: string;
 	product: CatalogProduct;
 };
+
+export type StylistProfile = {
+	id: string;
+	displayName: string;
+	pronouns: string;
+	title: string;
+	store: Pick<Store, "storeId" | "name" | "city" | "state">;
+	bio: string;
+	specialties: string[];
+	stylePointOfView: string[];
+	supportedFits: string[];
+	customerSignals: string[];
+	availability: {
+		status: "available" | "busy" | "offline";
+		nextAvailableAt: string | null;
+	};
+	avatarUrl: string | null;
+};
+
+export type AppointmentStatus =
+	| "scheduled"
+	| "checked_in"
+	| "completed"
+	| "cancelled"
+	| "no_show";
 
 export type Appointment = {
 	id: string;
@@ -25,19 +62,16 @@ export type Appointment = {
 	customerName: string;
 	slotStart: string;
 	slotEnd: string;
+	store: Store;
 	occasion: string;
 	focusColors: string;
 	avoidColors: string;
 	styleKeywords: string[];
 	guidance: string;
 	sessionNotes: string;
-	status: "scheduled" | "completed" | "cancelled";
+	status: AppointmentStatus;
 	museTag: string;
-	assignedStylist: {
-		id: string;
-		displayName: string;
-		title: string;
-	};
+	assignedStylist: StylistProfile;
 	orderHistorySummary: {
 		totalOrders: number;
 		denimItems: number;
@@ -45,11 +79,74 @@ export type Appointment = {
 		preferredSizes: string[];
 	};
 	suggestedProducts: SuggestedProduct[];
+	notificationSummary: {
+		count: number;
+		confirmationStatus: "queued" | "sent" | null;
+		reminderStatus: "queued" | "sent" | null;
+	};
+	checkedInAt: string | null;
 	completedAt: string | null;
+	cancelledAt: string | null;
+	noShowAt: string | null;
+	cancelReason: string | null;
+	customerRecap: string;
+	associateFeedback: string;
+	customerFeedbackRating: number | null;
+	customerFeedbackComment: string;
+	customerFeedbackAt: string | null;
+	createdAt: string;
+};
+
+export type AppointmentMessage = {
+	id: string;
+	appointmentId: string;
+	authorType: "customer" | "associate";
+	body: string;
+	createdAt: string;
+};
+
+export type AppointmentNotification = {
+	id: string;
+	appointmentId: string;
+	type: "confirmation" | "reminder";
+	status: "queued" | "sent";
+	scheduledFor: string;
+	sentAt: string | null;
 	createdAt: string;
 };
 
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:4000";
+
+async function parseAppointment(response: Response, fallbackMessage: string) {
+	if (!response.ok) {
+		throw new Error(fallbackMessage);
+	}
+
+	const data = (await response.json()) as { appointment: Appointment };
+	return data.appointment;
+}
+
+export async function listStores(): Promise<Store[]> {
+	const response = await fetch(`${apiBaseUrl}/api/stores`);
+
+	if (!response.ok) {
+		throw new Error("Could not load stores");
+	}
+
+	const data = (await response.json()) as { stores: Store[] };
+	return data.stores;
+}
+
+export async function listStylists(): Promise<StylistProfile[]> {
+	const response = await fetch(`${apiBaseUrl}/api/stylists`);
+
+	if (!response.ok) {
+		throw new Error("Could not load stylists");
+	}
+
+	const data = (await response.json()) as { stylists: StylistProfile[] };
+	return data.stylists;
+}
 
 export async function listAppointments(): Promise<Appointment[]> {
 	const response = await fetch(`${apiBaseUrl}/api/appointments`);
@@ -75,33 +172,65 @@ export async function updateSessionNotes(
 		},
 	);
 
-	if (!response.ok) {
-		throw new Error("Could not save session notes");
-	}
-
-	const data = (await response.json()) as { appointment: Appointment };
-	return data.appointment;
+	return parseAppointment(response, "Could not save session notes");
 }
 
 export async function completeAppointment(
 	appointmentId: string,
-	sessionNotes: string,
+	payload: {
+		sessionNotes: string;
+		customerRecap: string;
+		associateFeedback: string;
+	},
 ): Promise<Appointment> {
 	const response = await fetch(
 		`${apiBaseUrl}/api/appointments/${appointmentId}/complete`,
 		{
 			method: "POST",
 			headers: { "content-type": "application/json" },
-			body: JSON.stringify({ sessionNotes }),
+			body: JSON.stringify(payload),
 		},
 	);
 
-	if (!response.ok) {
-		throw new Error("Could not complete appointment");
-	}
+	return parseAppointment(response, "Could not complete appointment");
+}
 
-	const data = (await response.json()) as { appointment: Appointment };
-	return data.appointment;
+export async function checkInAppointment(
+	appointmentId: string,
+): Promise<Appointment> {
+	const response = await fetch(
+		`${apiBaseUrl}/api/appointments/${appointmentId}/check-in`,
+		{ method: "POST" },
+	);
+
+	return parseAppointment(response, "Could not check in appointment");
+}
+
+export async function markNoShowAppointment(
+	appointmentId: string,
+): Promise<Appointment> {
+	const response = await fetch(
+		`${apiBaseUrl}/api/appointments/${appointmentId}/no-show`,
+		{ method: "POST" },
+	);
+
+	return parseAppointment(response, "Could not mark no-show");
+}
+
+export async function reassignAppointmentStylist(
+	appointmentId: string,
+	stylistId: string,
+): Promise<Appointment> {
+	const response = await fetch(
+		`${apiBaseUrl}/api/appointments/${appointmentId}/stylist`,
+		{
+			method: "PATCH",
+			headers: { "content-type": "application/json" },
+			body: JSON.stringify({ stylistId }),
+		},
+	);
+
+	return parseAppointment(response, "Could not reassign stylist");
 }
 
 export async function regenerateSuggestions(
@@ -112,10 +241,76 @@ export async function regenerateSuggestions(
 		{ method: "POST" },
 	);
 
+	return parseAppointment(response, "Could not regenerate suggestions");
+}
+
+export async function updateSuggestedProductPrep(
+	appointmentId: string,
+	productId: string,
+	prepStatus: SuggestedProduct["prepStatus"],
+	associateNote: string,
+): Promise<Appointment> {
+	const response = await fetch(
+		`${apiBaseUrl}/api/appointments/${appointmentId}/suggested-products/${encodeURIComponent(productId)}`,
+		{
+			method: "PATCH",
+			headers: { "content-type": "application/json" },
+			body: JSON.stringify({ prepStatus, associateNote }),
+		},
+	);
+
+	return parseAppointment(response, "Could not update product prep");
+}
+
+export async function listAppointmentMessages(
+	appointmentId: string,
+): Promise<AppointmentMessage[]> {
+	const response = await fetch(
+		`${apiBaseUrl}/api/appointments/${appointmentId}/messages`,
+	);
+
 	if (!response.ok) {
-		throw new Error("Could not regenerate suggestions");
+		throw new Error("Could not load appointment messages");
 	}
 
-	const data = (await response.json()) as { appointment: Appointment };
-	return data.appointment;
+	const data = (await response.json()) as { messages: AppointmentMessage[] };
+	return data.messages;
+}
+
+export async function postAppointmentMessage(
+	appointmentId: string,
+	body: string,
+): Promise<AppointmentMessage> {
+	const response = await fetch(
+		`${apiBaseUrl}/api/appointments/${appointmentId}/messages`,
+		{
+			method: "POST",
+			headers: { "content-type": "application/json" },
+			body: JSON.stringify({ authorType: "associate", body }),
+		},
+	);
+
+	if (!response.ok) {
+		throw new Error("Could not post appointment message");
+	}
+
+	const data = (await response.json()) as { message: AppointmentMessage };
+	return data.message;
+}
+
+export async function listAppointmentNotifications(
+	appointmentId: string,
+): Promise<AppointmentNotification[]> {
+	const response = await fetch(
+		`${apiBaseUrl}/api/appointments/${appointmentId}/notifications`,
+	);
+
+	if (!response.ok) {
+		throw new Error("Could not load notification records");
+	}
+
+	const data = (await response.json()) as {
+		notifications: AppointmentNotification[];
+	};
+	return data.notifications;
 }

@@ -1,37 +1,92 @@
-import { Badge, Button, Price } from "@denim-fit/design-system";
-import { ArrowLeft, CheckCircle2, Save, Sparkles } from "lucide-react";
-import type { Appointment } from "../api";
+import { Badge, Button, Price, Rating } from "@denim-fit/design-system";
+import {
+	ArrowLeft,
+	CheckCircle2,
+	ImageOff,
+	MessageSquarePlus,
+	Save,
+	Sparkles,
+	UserCheck,
+	UserX,
+} from "lucide-react";
+import { useEffect, useState } from "react";
+import type {
+	Appointment,
+	AppointmentMessage,
+	AppointmentNotification,
+	StylistProfile,
+	SuggestedProduct,
+} from "../api";
 import {
 	formatAppointmentDateTime,
 	statusBadgeVariant,
 	statusLabel,
 } from "../formatters";
 
+const fieldClass =
+	"rounded-none border border-line bg-surface text-ink focus:border-ink focus:outline-none disabled:bg-canvas disabled:text-muted";
+
 type AppointmentDetailProps = {
 	appointment: Appointment;
+	stylists: StylistProfile[];
+	messages: AppointmentMessage[];
+	notifications: AppointmentNotification[];
 	isLoading: boolean;
 	sessionNote: string;
+	customerRecap: string;
+	associateFeedback: string;
+	messageDraft: string;
 	onBack: () => void;
 	onSessionNoteChange: (appointmentId: string, value: string) => void;
+	onCustomerRecapChange: (appointmentId: string, value: string) => void;
+	onAssociateFeedbackChange: (appointmentId: string, value: string) => void;
+	onMessageDraftChange: (appointmentId: string, value: string) => void;
 	onSaveNotes: (appointment: Appointment) => void;
 	onCompleteSession: (appointment: Appointment) => void;
 	onRegenerate: (appointment: Appointment) => void;
+	onCheckIn: (appointment: Appointment) => void;
+	onNoShow: (appointment: Appointment) => void;
+	onReassign: (appointment: Appointment, stylistId: string) => void;
+	onPostMessage: (appointment: Appointment) => void;
+	onUpdateProductPrep: (
+		appointment: Appointment,
+		suggestion: SuggestedProduct,
+		prepStatus: SuggestedProduct["prepStatus"],
+		associateNote: string,
+	) => void;
 };
 
 export function AppointmentDetail({
 	appointment,
+	stylists,
+	messages,
+	notifications,
 	isLoading,
 	sessionNote,
+	customerRecap,
+	associateFeedback,
+	messageDraft,
 	onBack,
 	onSessionNoteChange,
+	onCustomerRecapChange,
+	onAssociateFeedbackChange,
+	onMessageDraftChange,
 	onSaveNotes,
 	onCompleteSession,
 	onRegenerate,
+	onCheckIn,
+	onNoShow,
+	onReassign,
+	onPostMessage,
+	onUpdateProductPrep,
 }: AppointmentDetailProps) {
-	const canEdit = appointment.status === "scheduled" && !isLoading;
+	const canEdit = isActiveAppointment(appointment) && !isLoading;
+	const sameStoreStylists = stylists.filter(
+		(stylist) => stylist.store.storeId === appointment.store.storeId,
+	);
 
 	return (
-		<section className="rounded-lg border border-line bg-surface p-[18px]">
+		<section className="rounded-none border border-line bg-surface p-[18px]">
 			<div className="mb-5 flex flex-col gap-3 min-[720px]:flex-row min-[720px]:items-start min-[720px]:justify-between">
 				<div className="grid gap-2">
 					<Button
@@ -62,11 +117,47 @@ export function AppointmentDetail({
 						value={formatAppointmentDateTime(appointment)}
 					/>
 					<DetailItem
-						label="Stylist"
-						value={`${appointment.assignedStylist.displayName}, ${appointment.assignedStylist.title}`}
+						label="Store"
+						value={`${appointment.store.name}, ${appointment.store.city}`}
 					/>
 					<DetailItem label="Muse tag" value={appointment.museTag} />
 					<DetailItem label="Occasion" value={appointment.occasion} />
+					{canEdit ? (
+						<label className="grid gap-1">
+							<span className="font-bold text-[0.72rem] text-muted uppercase">
+								Reassign stylist
+							</span>
+							<select
+								className={`h-10 px-3 ${fieldClass}`}
+								value={appointment.assignedStylist.id}
+								onChange={(event) =>
+									onReassign(appointment, event.target.value)
+								}
+							>
+								{sameStoreStylists.map((stylist) => (
+									<option key={stylist.id} value={stylist.id}>
+										{stylist.displayName}
+									</option>
+								))}
+							</select>
+						</label>
+					) : null}
+				</DetailSection>
+
+				<DetailSection title="Stylist Profile">
+					<DetailItem
+						label="Stylist"
+						value={`${appointment.assignedStylist.displayName}, ${appointment.assignedStylist.title}`}
+					/>
+					<DetailItem label="Bio" value={appointment.assignedStylist.bio} />
+					<DetailItem
+						label="Specialties"
+						value={appointment.assignedStylist.specialties.join(", ")}
+					/>
+					<DetailItem
+						label="Point of view"
+						value={appointment.assignedStylist.stylePointOfView.join(", ")}
+					/>
 				</DetailSection>
 
 				<DetailSection title="Customer Preferences">
@@ -110,20 +201,35 @@ export function AppointmentDetail({
 					/>
 				</DetailSection>
 
+				<MessagingPanel
+					canEdit={canEdit}
+					messageDraft={messageDraft}
+					messages={messages}
+					onMessageDraftChange={(value) =>
+						onMessageDraftChange(appointment.id, value)
+					}
+					onPostMessage={() => onPostMessage(appointment)}
+				/>
+
+				<NotificationPanel notifications={notifications} />
+
 				<SuggestedProducts
 					appointment={appointment}
 					canEdit={canEdit}
 					onRegenerate={onRegenerate}
+					onUpdateProductPrep={onUpdateProductPrep}
 				/>
+
+				<FeedbackPanel appointment={appointment} />
 			</div>
 
-			<section className="mt-4 grid gap-2">
+			<section className="mt-4 grid gap-3">
 				<label className="grid gap-1.5">
 					<span className="font-extrabold text-[0.85rem] text-ink">
 						Associate session notes
 					</span>
 					<textarea
-						className="min-h-32 w-full resize-y rounded-lg border border-line bg-surface p-2.5 text-ink focus:border-accent focus:outline-none disabled:bg-canvas disabled:text-muted"
+						className={`min-h-28 w-full resize-y p-2.5 ${fieldClass}`}
 						value={sessionNote}
 						onChange={(event) =>
 							onSessionNoteChange(appointment.id, event.target.value)
@@ -132,7 +238,53 @@ export function AppointmentDetail({
 						placeholder="Summarize fit feedback, products tried, and follow-up recommendations."
 					/>
 				</label>
+				<label className="grid gap-1.5">
+					<span className="font-extrabold text-[0.85rem] text-ink">
+						Customer recap
+					</span>
+					<textarea
+						className={`min-h-24 w-full resize-y p-2.5 ${fieldClass}`}
+						value={customerRecap}
+						onChange={(event) =>
+							onCustomerRecapChange(appointment.id, event.target.value)
+						}
+						disabled={!canEdit}
+						placeholder="Customer-visible fit recap and next best denim guidance."
+					/>
+				</label>
+				<label className="grid gap-1.5">
+					<span className="font-extrabold text-[0.85rem] text-ink">
+						Associate feedback
+					</span>
+					<textarea
+						className={`min-h-20 w-full resize-y p-2.5 ${fieldClass}`}
+						value={associateFeedback}
+						onChange={(event) =>
+							onAssociateFeedbackChange(appointment.id, event.target.value)
+						}
+						disabled={!canEdit}
+						placeholder="Internal notes on prep quality, fit confidence, and recommendation gaps."
+					/>
+				</label>
 				<div className="flex flex-wrap justify-end gap-2">
+					<Button
+						variant="secondary"
+						size="sm"
+						leadingIcon={<UserCheck size={16} />}
+						onClick={() => onCheckIn(appointment)}
+						disabled={appointment.status !== "scheduled" || isLoading}
+					>
+						Check in
+					</Button>
+					<Button
+						variant="secondary"
+						size="sm"
+						leadingIcon={<UserX size={16} />}
+						onClick={() => onNoShow(appointment)}
+						disabled={appointment.status !== "scheduled" || isLoading}
+					>
+						No-show
+					</Button>
 					<Button
 						variant="secondary"
 						size="sm"
@@ -147,13 +299,19 @@ export function AppointmentDetail({
 						size="sm"
 						leadingIcon={<CheckCircle2 size={16} />}
 						onClick={() => onCompleteSession(appointment)}
-						disabled={!canEdit}
+						disabled={!canEdit || !customerRecap.trim()}
 					>
-						Mark complete
+						Complete
 					</Button>
 				</div>
 			</section>
 		</section>
+	);
+}
+
+function isActiveAppointment(appointment: Appointment) {
+	return (
+		appointment.status === "scheduled" || appointment.status === "checked_in"
 	);
 }
 
@@ -165,7 +323,7 @@ function DetailSection({
 	children: React.ReactNode;
 }) {
 	return (
-		<section className="grid gap-3 rounded-lg border border-rowline p-3">
+		<section className="grid gap-3 rounded-none border border-rowline p-3">
 			<h3 className="font-semibold text-base">{title}</h3>
 			<div className="grid gap-2">{children}</div>
 		</section>
@@ -183,17 +341,114 @@ function DetailItem({ label, value }: { label: string; value: string }) {
 	);
 }
 
+function MessagingPanel({
+	canEdit,
+	messages,
+	messageDraft,
+	onMessageDraftChange,
+	onPostMessage,
+}: {
+	canEdit: boolean;
+	messages: AppointmentMessage[];
+	messageDraft: string;
+	onMessageDraftChange: (value: string) => void;
+	onPostMessage: () => void;
+}) {
+	return (
+		<DetailSection title="Messages">
+			<div className="grid max-h-[240px] gap-2 overflow-y-auto pr-1">
+				{messages.length === 0 ? (
+					<p className="text-[0.9rem] text-muted">No messages yet.</p>
+				) : (
+					messages.map((message) => (
+						<div key={message.id} className="rounded-none bg-canvas p-2">
+							<div className="mb-1 flex justify-between gap-2 text-[0.75rem] text-muted">
+								<strong className="capitalize">{message.authorType}</strong>
+								<span>{new Date(message.createdAt).toLocaleString()}</span>
+							</div>
+							<p className="text-[0.9rem]">{message.body}</p>
+						</div>
+					))
+				)}
+			</div>
+			<div className="grid gap-2">
+				<textarea
+					className={`min-h-20 p-2.5 text-sm ${fieldClass}`}
+					value={messageDraft}
+					onChange={(event) => onMessageDraftChange(event.target.value)}
+					disabled={!canEdit}
+					placeholder="Message the customer about appointment prep."
+				/>
+				<Button
+					className="w-fit"
+					variant="secondary"
+					size="sm"
+					leadingIcon={<MessageSquarePlus size={15} />}
+					onClick={onPostMessage}
+					disabled={!canEdit || !messageDraft.trim()}
+				>
+					Send message
+				</Button>
+			</div>
+		</DetailSection>
+	);
+}
+
+function NotificationPanel({
+	notifications,
+}: {
+	notifications: AppointmentNotification[];
+}) {
+	return (
+		<DetailSection title="Mock Notifications">
+			{notifications.length === 0 ? (
+				<p className="text-[0.9rem] text-muted">No notification records.</p>
+			) : (
+				notifications.map((notification) => (
+					<DetailItem
+						key={notification.id}
+						label={notification.type}
+						value={`${notification.status} for ${new Date(
+							notification.scheduledFor,
+						).toLocaleString()}`}
+					/>
+				))
+			)}
+		</DetailSection>
+	);
+}
+
 function SuggestedProducts({
 	appointment,
 	canEdit,
 	onRegenerate,
+	onUpdateProductPrep,
 }: {
 	appointment: Appointment;
 	canEdit: boolean;
 	onRegenerate: (appointment: Appointment) => void;
+	onUpdateProductPrep: (
+		appointment: Appointment,
+		suggestion: SuggestedProduct,
+		prepStatus: SuggestedProduct["prepStatus"],
+		associateNote: string,
+	) => void;
 }) {
+	const [notes, setNotes] = useState<Record<string, string>>({});
+
+	useEffect(() => {
+		setNotes(
+			Object.fromEntries(
+				appointment.suggestedProducts.map((suggestion) => [
+					suggestion.product.productId,
+					suggestion.associateNote,
+				]),
+			),
+		);
+	}, [appointment.suggestedProducts]);
+
 	return (
-		<section className="grid gap-3 rounded-lg border border-suggestline border-dashed bg-suggest p-3">
+		<section className="grid gap-3 rounded-none border border-suggestline border-dashed bg-suggest p-3">
 			<div className="flex items-center justify-between gap-2">
 				<h3 className="font-semibold text-base">Suggested products</h3>
 				<div className="flex items-center gap-2">
@@ -214,42 +469,146 @@ function SuggestedProducts({
 					No suggested products for this appointment.
 				</p>
 			) : (
-				<ol className="grid gap-2.5">
-					{appointment.suggestedProducts.map((suggestion) => (
-						<li
-							key={suggestion.rank}
-							className="grid gap-0.5 border-rowline border-b pb-2.5 last:border-b-0 last:pb-0"
-						>
-							<a
-								className="font-bold text-ink hover:underline"
-								href={suggestion.product.productUrl}
-								target="_blank"
-								rel="noreferrer"
+				<ol className="grid gap-3">
+					{appointment.suggestedProducts.map((suggestion) => {
+						const productId = suggestion.product.productId;
+						const note = notes[productId] ?? "";
+						return (
+							<li
+								key={productId}
+								className="grid grid-cols-[64px_1fr] items-start gap-3 border-rowline border-b pb-3 last:border-b-0 last:pb-0"
 							>
-								{suggestion.rank}. {suggestion.product.name}
-							</a>
-							<div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-								<small className="text-[0.8rem] text-muted capitalize">
-									{[
-										suggestion.product.category,
-										suggestion.product.fit,
-										suggestion.product.rise,
-										suggestion.product.stretch,
-									]
-										.filter(Boolean)
-										.join(" · ")}
-								</small>
-								{suggestion.product.price != null && (
-									<Price price={suggestion.product.price} />
-								)}
-							</div>
-							<p className="text-[0.85rem] text-muted">
-								{suggestion.rationale}
-							</p>
-						</li>
-					))}
+								<a
+									className="block h-16 w-16 shrink-0 overflow-hidden rounded-none border border-rowline bg-surface"
+									href={suggestion.product.productUrl}
+									target="_blank"
+									rel="noreferrer"
+								>
+									{suggestion.product.imageUrl ? (
+										<img
+											className="h-full w-full object-cover"
+											src={suggestion.product.imageUrl}
+											alt={suggestion.product.name}
+											loading="lazy"
+										/>
+									) : (
+										<span className="flex h-full w-full items-center justify-center text-muted">
+											<ImageOff size={20} />
+										</span>
+									)}
+								</a>
+								<div className="grid gap-2">
+									<a
+										className="font-bold text-ink hover:underline"
+										href={suggestion.product.productUrl}
+										target="_blank"
+										rel="noreferrer"
+									>
+										{suggestion.rank}. {suggestion.product.name}
+									</a>
+									<div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+										<small className="text-[0.8rem] text-muted capitalize">
+											{[
+												suggestion.product.category,
+												suggestion.product.fit,
+												suggestion.product.rise,
+												suggestion.product.stretch,
+											]
+												.filter(Boolean)
+												.join(" · ")}
+										</small>
+										{suggestion.product.price != null && (
+											<Price price={suggestion.product.price} />
+										)}
+									</div>
+									<p className="text-[0.85rem] text-muted">
+										{suggestion.rationale}
+									</p>
+									<div className="grid gap-2 min-[640px]:grid-cols-[150px_1fr_auto]">
+										<select
+											className={`h-10 px-3 text-sm ${fieldClass}`}
+											value={suggestion.prepStatus}
+											disabled={!canEdit}
+											onChange={(event) =>
+												onUpdateProductPrep(
+													appointment,
+													suggestion,
+													event.target.value as SuggestedProduct["prepStatus"],
+													note,
+												)
+											}
+										>
+											<option value="suggested">Suggested</option>
+											<option value="pulled">Pulled</option>
+											<option value="skipped">Skipped</option>
+										</select>
+										<input
+											className={`h-10 px-3 text-sm ${fieldClass}`}
+											value={note}
+											disabled={!canEdit}
+											placeholder="Associate product note"
+											onChange={(event) =>
+												setNotes((current) => ({
+													...current,
+													[productId]: event.target.value,
+												}))
+											}
+										/>
+										<Button
+											variant="secondary"
+											size="sm"
+											leadingIcon={<Save size={14} />}
+											disabled={!canEdit}
+											onClick={() =>
+												onUpdateProductPrep(
+													appointment,
+													suggestion,
+													suggestion.prepStatus,
+													note,
+												)
+											}
+										>
+											Save
+										</Button>
+									</div>
+								</div>
+							</li>
+						);
+					})}
 				</ol>
 			)}
 		</section>
+	);
+}
+
+function FeedbackPanel({ appointment }: { appointment: Appointment }) {
+	return (
+		<DetailSection title="Customer Feedback">
+			{appointment.customerFeedbackRating == null ? (
+				<p className="text-[0.9rem] text-muted">No customer feedback yet.</p>
+			) : (
+				<>
+					<div className="grid gap-0.5">
+						<span className="font-bold text-[0.72rem] text-muted uppercase">
+							Rating
+						</span>
+						<Rating value={appointment.customerFeedbackRating} />
+					</div>
+					<DetailItem
+						label="Comment"
+						value={appointment.customerFeedbackComment || "No comment"}
+					/>
+				</>
+			)}
+			{appointment.customerRecap ? (
+				<DetailItem label="Recap" value={appointment.customerRecap} />
+			) : null}
+			{appointment.associateFeedback ? (
+				<DetailItem
+					label="Associate feedback"
+					value={appointment.associateFeedback}
+				/>
+			) : null}
+		</DetailSection>
 	);
 }

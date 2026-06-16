@@ -1,15 +1,16 @@
 # Requirements Review
 
-The client PDF could not be text-extracted with the tools available in this environment. It appears to be a Google Docs-rendered PDF with encoded embedded fonts, and local OCR tools are not installed. The scaffold therefore reflects the stated product shape and a practical initial domain model for a personalized denim fitting experience.
+This review tracks the MVP scope for the personalized denim fitting experience and the product gaps that remain after the current appointment-workflow slice.
 
 ## Covered In Scaffold
 
 - iOS SwiftUI application scaffold for simulator-based work in Xcode.
-- Web UI for reviewing guided appointment prep data.
+- Web associate dashboard for reviewing guided appointment prep data, filtering by store/date/stylist/status, managing open appointment lifecycle, messaging, product prep, recaps, and feedback display.
 - API shared by the web UI and iOS app.
 - PostgreSQL persistence for guided fitting appointments.
-- WireMock simulation of third-party customer, order-history, stylist, and availability services.
+- WireMock simulation of third-party customer, order-history, store, stylist, and schedule-pattern services.
 - Docker Compose local orchestration for the web UI, API, PostgreSQL, and WireMock.
+- iOS booking flow with store selection, store-scoped slots, fit profile context, messages, mock notification records, cancellation reasons, recap viewing, and customer feedback after completion.
 
 ## Likely Missing Or Needs Product Decisions
 

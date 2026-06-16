@@ -1,0 +1,24 @@
+{
+	"stylist": {
+		"id": "sty_006",
+		"displayName": "Camila Reyes",
+		"pronouns": "she/her",
+		"title": "West Coast Fit Associate",
+		"store": {
+			"storeId": "anf_century_003",
+			"name": "Abercrombie & Fitch Century City",
+			"city": "Los Angeles",
+			"state": "CA"
+		},
+		"bio": "Store associate focused on polished LA styling, wide-leg proportions, and denim that moves from office to evening.",
+		"specialties": ["wide-leg-denim", "outfit-building", "fit-troubleshooting"],
+		"stylePointOfView": ["polished", "sunlit", "versatile"],
+		"supportedFits": ["wide", "straight", "slim"],
+		"customerSignals": ["outfit-needed", "between-sizes", "inseam-selection"],
+		"availability": {
+			"status": "available",
+			"nextAvailableAt": "2026-06-16T19:30:00Z"
+		},
+		"avatarUrl": null
+	}
+}
