@@ -81,5 +81,10 @@ customer signals. (~250 words)
   screens (queue cards, scrollable view nav, sticky action bar) so a stylist can
   prep, message, and complete an appointment from a handheld device, not just a
   back-room workstation.
+- **One brand voice across surfaces** — the customer iOS app and the associate
+  web dashboard share the same Denim Fit visual system (navy/ink palette, square
+  corners, bordered white cards on a neutral canvas), with the SwiftUI theme
+  mirroring the tokens in `packages/design-system` so the experience feels like
+  one product, not two.
 - **Resilient by design** — the recommendation engine degrades gracefully to a
   deterministic ranking when AI is unavailable.
