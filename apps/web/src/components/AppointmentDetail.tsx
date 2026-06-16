@@ -1,7 +1,11 @@
-import { Button } from "@denim-fit/design-system";
+import { Badge, Button, Price } from "@denim-fit/design-system";
 import { ArrowLeft, CheckCircle2, Save, Sparkles } from "lucide-react";
 import type { Appointment } from "../api";
-import { formatAppointmentDateTime, statusLabel } from "../formatters";
+import {
+	formatAppointmentDateTime,
+	statusBadgeVariant,
+	statusLabel,
+} from "../formatters";
 
 type AppointmentDetailProps = {
 	appointment: Appointment;
@@ -46,9 +50,9 @@ export function AppointmentDetail({
 						<h2 className="font-bold text-2xl">{appointment.customerName}</h2>
 					</div>
 				</div>
-				<span className="w-fit rounded-full bg-tag px-3 py-1 font-extrabold text-[0.85rem] text-accent">
+				<Badge variant={statusBadgeVariant(appointment.status)}>
 					{statusLabel(appointment.status)}
-				</span>
+				</Badge>
 			</div>
 
 			<div className="grid gap-4 min-[900px]:grid-cols-[1fr_1fr]">
@@ -202,9 +206,7 @@ function SuggestedProducts({
 					>
 						Regenerate
 					</Button>
-					<span className="min-w-[24px] rounded-full bg-ink px-2 py-0.5 text-center font-extrabold text-[0.78rem] text-white">
-						{appointment.suggestedProducts.length}
-					</span>
+					<Badge variant="new">{appointment.suggestedProducts.length}</Badge>
 				</div>
 			</div>
 			{appointment.suggestedProducts.length === 0 ? (
@@ -226,19 +228,21 @@ function SuggestedProducts({
 							>
 								{suggestion.rank}. {suggestion.product.name}
 							</a>
-							<small className="text-[0.8rem] text-muted capitalize">
-								{[
-									suggestion.product.category,
-									suggestion.product.fit,
-									suggestion.product.rise,
-									suggestion.product.stretch,
-								]
-									.filter(Boolean)
-									.join(" · ")}
-								{suggestion.product.price != null
-									? ` · $${suggestion.product.price}`
-									: ""}
-							</small>
+							<div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+								<small className="text-[0.8rem] text-muted capitalize">
+									{[
+										suggestion.product.category,
+										suggestion.product.fit,
+										suggestion.product.rise,
+										suggestion.product.stretch,
+									]
+										.filter(Boolean)
+										.join(" · ")}
+								</small>
+								{suggestion.product.price != null && (
+									<Price price={suggestion.product.price} />
+								)}
+							</div>
 							<p className="text-[0.85rem] text-muted">
 								{suggestion.rationale}
 							</p>

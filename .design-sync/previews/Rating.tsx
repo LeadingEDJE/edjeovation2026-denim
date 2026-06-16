@@ -1,6 +1,10 @@
 import { Rating } from "@denim-fit/design-system";
 
-const col: React.CSSProperties = { display: "flex", flexDirection: "column", gap: 10 };
+const col: React.CSSProperties = {
+	display: "flex",
+	flexDirection: "column",
+	gap: 10,
+};
 
 export const Default = () => <Rating value={4} count={128} />;
 

@@ -1,7 +1,12 @@
 import { Button } from "@denim-fit/design-system";
 import { ArrowRight, ShoppingBag } from "lucide-react";
 
-const row: React.CSSProperties = { display: "flex", gap: 12, flexWrap: "wrap", alignItems: "center" };
+const row: React.CSSProperties = {
+	display: "flex",
+	gap: 12,
+	flexWrap: "wrap",
+	alignItems: "center",
+};
 
 export const Primary = () => <Button variant="primary">Add to Bag</Button>;
 

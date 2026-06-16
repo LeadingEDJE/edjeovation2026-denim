@@ -1,6 +1,11 @@
 import { Badge } from "@denim-fit/design-system";
 
-const row: React.CSSProperties = { display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" };
+const row: React.CSSProperties = {
+	display: "flex",
+	gap: 10,
+	flexWrap: "wrap",
+	alignItems: "center",
+};
 
 export const Variants = () => (
 	<div style={row}>

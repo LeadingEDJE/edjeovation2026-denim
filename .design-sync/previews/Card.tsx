@@ -29,8 +29,24 @@ export const Bordered = () => (
 );
 
 export const Row = () => (
-	<div style={{ display: "grid", gridTemplateColumns: "repeat(2, 300px)", gap: 24 }}>
-		<Card imageSrc={img("WOMEN", "%23253746")} eyebrow="Women" title="Shop Women" ctaLabel="Shop Now" />
-		<Card imageSrc={img("MEN", "%2327455c")} eyebrow="Men" title="Shop Men" ctaLabel="Shop Now" />
+	<div
+		style={{
+			display: "grid",
+			gridTemplateColumns: "repeat(2, 300px)",
+			gap: 24,
+		}}
+	>
+		<Card
+			imageSrc={img("WOMEN", "%23253746")}
+			eyebrow="Women"
+			title="Shop Women"
+			ctaLabel="Shop Now"
+		/>
+		<Card
+			imageSrc={img("MEN", "%2327455c")}
+			eyebrow="Men"
+			title="Shop Men"
+			ctaLabel="Shop Now"
+		/>
 	</div>
 );

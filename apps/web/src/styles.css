@@ -17,10 +17,8 @@
 	--color-accent: var(--color-navy); /* teal → secondary navy */
 	--color-clay: var(--color-muted); /* eyebrow */
 	--color-rowline: var(--color-line-subtle); /* appointment row border */
-	--color-tag: #eef2f4; /* status chip — light navy tint */
 	--color-suggest: var(--color-surface-subtle); /* suggested-products bg */
 	--color-suggestline: var(--color-line); /* suggested-products border */
-	--color-control: var(--color-line); /* secondary button border */
 
 	--font-sans: var(--font-body);
 }

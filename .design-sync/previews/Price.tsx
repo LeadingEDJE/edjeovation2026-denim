@@ -1,6 +1,11 @@
 import { Price } from "@denim-fit/design-system";
 
-const row: React.CSSProperties = { display: "flex", gap: 24, flexWrap: "wrap", alignItems: "center" };
+const row: React.CSSProperties = {
+	display: "flex",
+	gap: 24,
+	flexWrap: "wrap",
+	alignItems: "center",
+};
 
 export const Regular = () => <Price price={89} />;
 

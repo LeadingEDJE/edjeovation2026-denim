@@ -14,7 +14,11 @@ export const Selected = () => <ColorSwatch options={denim} selectedIndex={2} />;
 
 export const Overflow = () => (
 	<ColorSwatch
-		options={[...denim, { name: "Stone", value: "#c6c6c6" }, { name: "Olive", value: "#5b6248" }]}
+		options={[
+			...denim,
+			{ name: "Stone", value: "#c6c6c6" },
+			{ name: "Olive", value: "#5b6248" },
+		]}
 		maxVisible={4}
 	/>
 );

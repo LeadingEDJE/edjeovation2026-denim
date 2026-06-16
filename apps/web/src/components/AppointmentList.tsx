@@ -1,6 +1,11 @@
+import { Badge } from "@denim-fit/design-system";
 import { ChevronRight } from "lucide-react";
 import type { Appointment } from "../api";
-import { formatAppointmentTime, statusLabel } from "../formatters";
+import {
+	formatAppointmentTime,
+	statusBadgeVariant,
+	statusLabel,
+} from "../formatters";
 import type { DashboardView } from "../types";
 
 type AppointmentListProps = {
@@ -67,8 +72,10 @@ function AppointmentListRow({
 					value={appointment.assignedStylist.displayName}
 				/>
 				<RowField label="Time" value={formatAppointmentTime(appointment)} />
-				<span className="w-fit rounded-full bg-tag px-2.5 py-1 font-extrabold text-[0.8rem] text-accent">
-					{statusLabel(appointment.status)}
+				<span className="w-fit">
+					<Badge variant={statusBadgeVariant(appointment.status)}>
+						{statusLabel(appointment.status)}
+					</Badge>
 				</span>
 				<ChevronRight
 					className="hidden justify-self-end text-muted min-[720px]:block"
