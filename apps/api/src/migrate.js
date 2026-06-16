@@ -1,9 +1,39 @@
 import { readFile } from "node:fs/promises";
 import pg from "pg";
 
-const databaseUrl =
-	process.env.DATABASE_URL ?? "postgres://denim:denim@localhost:5432/denim_fit";
-const pool = new pg.Pool({ connectionString: databaseUrl });
+function sslConfig() {
+	return process.env.PGSSLMODE === "require"
+		? { rejectUnauthorized: false }
+		: undefined;
+}
+
+function poolConfig() {
+	if (process.env.DATABASE_URL) {
+		return {
+			connectionString: process.env.DATABASE_URL,
+			ssl: process.env.DATABASE_URL.includes("sslmode=require")
+				? { rejectUnauthorized: false }
+				: sslConfig(),
+		};
+	}
+
+	if (process.env.PGHOST) {
+		return {
+			host: process.env.PGHOST,
+			port: Number(process.env.PGPORT ?? 5432),
+			database: process.env.PGDATABASE,
+			user: process.env.PGUSER,
+			password: process.env.PGPASSWORD,
+			ssl: sslConfig(),
+		};
+	}
+
+	return {
+		connectionString: "postgres://denim:denim@localhost:5432/denim_fit",
+	};
+}
+
+const pool = new pg.Pool(poolConfig());
 
 // Schema first, then replace catalog seed data. The catalog is generated data,
 // so startup should make the table match infra/db/seed-catalog.sql even when an

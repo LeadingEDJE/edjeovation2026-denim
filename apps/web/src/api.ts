@@ -115,7 +115,10 @@ export type AppointmentNotification = {
 	createdAt: string;
 };
 
-const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:4000";
+const apiBaseUrl =
+	window.__DENIM_FIT_CONFIG__?.apiBaseUrl ||
+	import.meta.env.VITE_API_BASE_URL ||
+	"http://localhost:4000";
 
 async function parseAppointment(response: Response, fallbackMessage: string) {
 	if (!response.ok) {

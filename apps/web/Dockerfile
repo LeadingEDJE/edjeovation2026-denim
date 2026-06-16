@@ -29,6 +29,7 @@ FROM node:24-alpine AS runtime
 
 WORKDIR /app
 ENV NODE_ENV=production
+ENV VITE_API_BASE_URL=""
 
 COPY package.json package-lock.json ./
 COPY apps/api/package.json apps/api/package.json
@@ -36,6 +37,7 @@ COPY apps/web/package.json apps/web/package.json
 RUN npm ci --omit=dev
 
 COPY --from=build /app/apps/web/dist apps/web/dist
+COPY apps/web/scripts/write-runtime-env.mjs apps/web/scripts/write-runtime-env.mjs
 
 EXPOSE 5173
-CMD ["npm", "run", "start", "-w", "@denim-fit/web"]
+CMD ["sh", "-c", "node apps/web/scripts/write-runtime-env.mjs && npm run start -w @denim-fit/web"]

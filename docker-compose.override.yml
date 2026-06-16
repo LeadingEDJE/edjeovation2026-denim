@@ -36,3 +36,8 @@ services:
       - ./packages:/app/packages
       - /app/node_modules
     command: npm run dev -w @denim-fit/web
+
+  wiremock:
+    volumes:
+      - ./infra/wiremock/mappings:/home/wiremock/mappings:ro
+      - ./infra/wiremock/__files:/home/wiremock/__files:ro

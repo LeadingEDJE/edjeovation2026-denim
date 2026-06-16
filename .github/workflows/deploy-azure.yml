@@ -1,0 +1,160 @@
+name: Deploy to Azure
+
+on:
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: azure-deploy-main
+  cancel-in-progress: false
+
+env:
+  APP_NAME: denimfit
+  AZURE_CORE_OUTPUT: none
+  AZURE_LOCATION: centralus
+  AZURE_RESOURCE_GROUP: AnF-2026
+
+jobs:
+  deploy:
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+
+      - name: Ensure main branch deployment
+        run: |
+          if [ "${GITHUB_REF}" != "refs/heads/main" ]; then
+            echo "Azure OIDC is configured for refs/heads/main; run this workflow from main."
+            exit 1
+          fi
+
+      - name: Azure login
+        uses: azure/login@v3
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Check Azure providers
+        run: |
+          set -euo pipefail
+          for namespace in \
+            Microsoft.App \
+            Microsoft.ContainerRegistry \
+            Microsoft.DBforPostgreSQL \
+            Microsoft.ManagedIdentity \
+            Microsoft.OperationalInsights
+          do
+            if ! state="$(az provider show --namespace "$namespace" --query registrationState --output tsv)"; then
+              echo "Could not read provider state for $namespace; continuing."
+              continue
+            fi
+            if [ "$state" != "Registered" ]; then
+              echo "$namespace is $state. Ask a subscription admin to register it before deployment."
+              exit 1
+            fi
+          done
+
+      - name: Deploy shared Azure resources
+        env:
+          POSTGRES_ADMIN_PASSWORD: ${{ secrets.POSTGRES_ADMIN_PASSWORD }}
+        run: |
+          set -euo pipefail
+          deployment_name="${APP_NAME}-core-${GITHUB_RUN_ID}"
+
+          az deployment group create \
+            --name "$deployment_name" \
+            --resource-group "$AZURE_RESOURCE_GROUP" \
+            --template-file infra/azure/core.bicep \
+            --parameters \
+              location="$AZURE_LOCATION" \
+              appName="$APP_NAME" \
+              postgresAdminPassword="$POSTGRES_ADMIN_PASSWORD" \
+            --output none
+
+          {
+            echo "CORE_DEPLOYMENT_NAME=$deployment_name"
+            echo "ACR_NAME=$(az deployment group show --name "$deployment_name" --resource-group "$AZURE_RESOURCE_GROUP" --query properties.outputs.acrName.value --output tsv)"
+            echo "ACR_LOGIN_SERVER=$(az deployment group show --name "$deployment_name" --resource-group "$AZURE_RESOURCE_GROUP" --query properties.outputs.acrLoginServer.value --output tsv)"
+            echo "ACR_PULL_IDENTITY_NAME=$(az deployment group show --name "$deployment_name" --resource-group "$AZURE_RESOURCE_GROUP" --query properties.outputs.acrPullIdentityName.value --output tsv)"
+            echo "CONTAINERAPPS_ENVIRONMENT_NAME=$(az deployment group show --name "$deployment_name" --resource-group "$AZURE_RESOURCE_GROUP" --query properties.outputs.containerAppsEnvironmentName.value --output tsv)"
+            echo "POSTGRES_HOST=$(az deployment group show --name "$deployment_name" --resource-group "$AZURE_RESOURCE_GROUP" --query properties.outputs.postgresHost.value --output tsv)"
+            echo "POSTGRES_ADMIN_LOGIN=$(az deployment group show --name "$deployment_name" --resource-group "$AZURE_RESOURCE_GROUP" --query properties.outputs.postgresAdminLogin.value --output tsv)"
+            echo "POSTGRES_DATABASE_NAME=$(az deployment group show --name "$deployment_name" --resource-group "$AZURE_RESOURCE_GROUP" --query properties.outputs.postgresDatabaseName.value --output tsv)"
+          } >> "$GITHUB_ENV"
+
+      - name: Build and push container images
+        run: |
+          set -euo pipefail
+          image_tag="$(git rev-parse HEAD)"
+
+          echo "API_IMAGE=${ACR_LOGIN_SERVER}/${APP_NAME}-api:${image_tag}" >> "$GITHUB_ENV"
+          echo "WEB_IMAGE=${ACR_LOGIN_SERVER}/${APP_NAME}-web:${image_tag}" >> "$GITHUB_ENV"
+          echo "WIREMOCK_IMAGE=${ACR_LOGIN_SERVER}/${APP_NAME}-wiremock:${image_tag}" >> "$GITHUB_ENV"
+
+          az acr login --name "$ACR_NAME"
+
+          docker build --file apps/api/Dockerfile --tag "${ACR_LOGIN_SERVER}/${APP_NAME}-api:${image_tag}" .
+          docker build --file apps/web/Dockerfile --tag "${ACR_LOGIN_SERVER}/${APP_NAME}-web:${image_tag}" .
+          docker build --file infra/wiremock/Dockerfile --tag "${ACR_LOGIN_SERVER}/${APP_NAME}-wiremock:${image_tag}" infra/wiremock
+
+          docker push "${ACR_LOGIN_SERVER}/${APP_NAME}-api:${image_tag}"
+          docker push "${ACR_LOGIN_SERVER}/${APP_NAME}-web:${image_tag}"
+          docker push "${ACR_LOGIN_SERVER}/${APP_NAME}-wiremock:${image_tag}"
+
+      - name: Deploy Container Apps
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          ANTHROPIC_BASE_URL: ${{ secrets.ANTHROPIC_BASE_URL }}
+          POSTGRES_ADMIN_PASSWORD: ${{ secrets.POSTGRES_ADMIN_PASSWORD }}
+          RECOMMENDER_MODEL: ${{ secrets.RECOMMENDER_MODEL }}
+        run: |
+          set -euo pipefail
+          deployment_name="${APP_NAME}-apps-${GITHUB_RUN_ID}"
+          recommender_model="${RECOMMENDER_MODEL:-claude-opus-4-8}"
+
+          az deployment group create \
+            --name "$deployment_name" \
+            --resource-group "$AZURE_RESOURCE_GROUP" \
+            --template-file infra/azure/apps.bicep \
+            --parameters \
+              location="$AZURE_LOCATION" \
+              appName="$APP_NAME" \
+              containerAppsEnvironmentName="$CONTAINERAPPS_ENVIRONMENT_NAME" \
+              acrLoginServer="$ACR_LOGIN_SERVER" \
+              acrPullIdentityName="$ACR_PULL_IDENTITY_NAME" \
+              apiImage="$API_IMAGE" \
+              webImage="$WEB_IMAGE" \
+              wiremockImage="$WIREMOCK_IMAGE" \
+              postgresHost="$POSTGRES_HOST" \
+              postgresAdminLogin="$POSTGRES_ADMIN_LOGIN" \
+              postgresAdminPassword="$POSTGRES_ADMIN_PASSWORD" \
+              postgresDatabaseName="$POSTGRES_DATABASE_NAME" \
+              anthropicApiKey="$ANTHROPIC_API_KEY" \
+              anthropicBaseUrl="$ANTHROPIC_BASE_URL" \
+              recommenderModel="$recommender_model" \
+            --output none
+
+          {
+            echo "APPS_DEPLOYMENT_NAME=$deployment_name"
+            echo "API_URL=$(az deployment group show --name "$deployment_name" --resource-group "$AZURE_RESOURCE_GROUP" --query properties.outputs.apiUrl.value --output tsv)"
+            echo "WEB_URL=$(az deployment group show --name "$deployment_name" --resource-group "$AZURE_RESOURCE_GROUP" --query properties.outputs.webUrl.value --output tsv)"
+          } >> "$GITHUB_ENV"
+
+      - name: Smoke test deployment
+        run: |
+          set -euo pipefail
+          curl --fail --retry 12 --retry-delay 10 --retry-all-errors "$API_URL/health"
+          curl --fail --retry 12 --retry-delay 10 --retry-all-errors "$WEB_URL"
+          echo "Web URL: $WEB_URL"
+          echo "API URL: $API_URL"

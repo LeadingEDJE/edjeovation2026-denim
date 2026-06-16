@@ -3,6 +3,7 @@ services:
     build:
       context: .
       dockerfile: apps/api/Dockerfile
+      target: runtime
     environment:
       API_PORT: 4000
       DATABASE_URL: postgres://denim:denim@postgres:5432/denim_fit
@@ -26,6 +27,7 @@ services:
     build:
       context: .
       dockerfile: apps/web/Dockerfile
+      target: runtime
       args:
         VITE_API_BASE_URL: http://localhost:4000
     environment:
@@ -53,13 +55,12 @@ services:
       retries: 10
 
   wiremock:
-    image: wiremock/wiremock:3.13.1
-    command: ["--global-response-templating", "--verbose"]
+    build:
+      context: ./infra/wiremock
+      dockerfile: Dockerfile
+    image: edjeovation-wiremock:local
     ports:
       - "8080:8080"
-    volumes:
-      - ./infra/wiremock/mappings:/home/wiremock/mappings:ro
-      - ./infra/wiremock/__files:/home/wiremock/__files:ro
 
 volumes:
   postgres-data:
