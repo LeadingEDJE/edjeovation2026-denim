@@ -333,7 +333,7 @@ function InteractiveDetail({
 			? "Complete · check in first"
 			: "Complete";
 	const heroAction =
-		"inline-flex items-center gap-2 px-5 py-3 font-bold text-2xs uppercase tracking-label transition-colors disabled:cursor-not-allowed disabled:opacity-50";
+		"inline-flex flex-1 items-center justify-center gap-2 px-5 py-3 font-bold text-2xs uppercase tracking-label transition-colors disabled:cursor-not-allowed disabled:opacity-50 min-[760px]:flex-none";
 
 	return (
 		<>
@@ -359,7 +359,7 @@ function InteractiveDetail({
 						<span>{appointment.occasion}</span>
 					</div>
 				</div>
-				<div className="flex shrink-0 gap-2.5">
+				<div className="flex w-full shrink-0 gap-2.5 min-[760px]:w-auto">
 					<button
 						type="button"
 						className={`${heroAction} bg-white text-ink hover:bg-white/90`}
@@ -382,9 +382,19 @@ function InteractiveDetail({
 			</div>
 
 			{/* body */}
-			<div className="grid min-[1040px]:grid-cols-[360px_1fr]">
-				{/* LEFT */}
-				<div className="border-line-subtle px-5 py-7 min-[1040px]:border-r min-[760px]:px-7">
+			<div className="grid grid-cols-1 min-[1040px]:grid-cols-[360px_1fr]">
+				{/* SUGGESTED PRODUCTS — centerpiece, first on mobile */}
+				<div className="px-5 pt-7 min-[760px]:px-8 min-[1040px]:col-start-2 min-[1040px]:row-start-1">
+					<SuggestedProducts
+						appointment={appointment}
+						canEdit={canEdit}
+						onRegenerate={onRegenerate}
+						onUpdateProductPrep={onUpdateProductPrep}
+					/>
+				</div>
+
+				{/* LEFT INFO — customer snapshot + stylist */}
+				<div className="border-line-subtle px-5 py-7 min-[760px]:px-7 min-[1040px]:col-start-1 min-[1040px]:row-start-1 min-[1040px]:row-span-2 min-[1040px]:border-r">
 					<CustomerSnapshot appointment={appointment} />
 
 					<div className="mt-7">
@@ -429,16 +439,9 @@ function InteractiveDetail({
 					) : null}
 				</div>
 
-				{/* RIGHT */}
-				<div className="px-5 py-7 min-[760px]:px-8">
-					<SuggestedProducts
-						appointment={appointment}
-						canEdit={canEdit}
-						onRegenerate={onRegenerate}
-						onUpdateProductPrep={onUpdateProductPrep}
-					/>
-
-					<div className="mt-7 grid gap-7 min-[640px]:grid-cols-2">
+				{/* RIGHT LOWER — messaging / notifications + session capture */}
+				<div className="px-5 pb-7 min-[760px]:px-8 min-[1040px]:col-start-2 min-[1040px]:row-start-2">
+					<div className="mt-7 grid grid-cols-1 gap-7 min-[640px]:grid-cols-2">
 						<MessagingPanel
 							canEdit={canEdit}
 							messages={messages}
@@ -463,7 +466,7 @@ function InteractiveDetail({
 								</span>
 							) : null}
 						</div>
-						<div className="grid gap-4 min-[640px]:grid-cols-2">
+						<div className="grid grid-cols-1 gap-4 min-[640px]:grid-cols-2">
 							<div>
 								<MetaLabel>Associate session notes</MetaLabel>
 								<textarea
@@ -506,7 +509,7 @@ function InteractiveDetail({
 			</div>
 
 			{/* footer */}
-			<div className="flex flex-col gap-3 border-line-subtle border-t px-5 py-4 min-[760px]:flex-row min-[760px]:items-center min-[760px]:justify-between min-[760px]:px-8">
+			<div className="sticky bottom-0 z-10 flex flex-col gap-3 border-line-subtle border-t bg-surface px-5 py-4 min-[760px]:static min-[760px]:flex-row min-[760px]:items-center min-[760px]:justify-between min-[760px]:px-8">
 				<span className="text-[12px] text-muted">
 					Save notes to persist this session
 				</span>
@@ -554,7 +557,7 @@ function PrepSegment({
 	onChange: (next: SuggestedProduct["prepStatus"]) => void;
 }) {
 	return (
-		<div className="inline-flex border border-line">
+		<div className="flex w-full border border-line min-[640px]:inline-flex min-[640px]:w-auto">
 			{PREP_OPTIONS.map((option, index) => {
 				const active = option.value === value;
 				return (
@@ -563,7 +566,7 @@ function PrepSegment({
 						type="button"
 						disabled={disabled}
 						aria-pressed={active}
-						className={`px-3 py-2 font-bold text-2xs uppercase tracking-[0.06em] transition-colors disabled:cursor-not-allowed ${
+						className={`flex-1 px-3 py-2 font-bold text-2xs uppercase tracking-[0.06em] transition-colors disabled:cursor-not-allowed min-[640px]:flex-none ${
 							index > 0 ? "border-line border-l" : ""
 						} ${active ? "bg-ink text-white" : "bg-surface text-body hover:text-ink disabled:text-muted"}`}
 						onClick={() => onChange(option.value)}
@@ -904,12 +907,12 @@ function RecapDetail({
 			) : null}
 
 			{/* body */}
-			<div className="grid min-[1040px]:grid-cols-[360px_1fr]">
-				<div className="border-line-subtle px-5 py-7 min-[1040px]:border-r min-[760px]:px-7">
+			<div className="grid grid-cols-1 min-[1040px]:grid-cols-[360px_1fr]">
+				<div className="order-2 border-line-subtle px-5 py-7 min-[760px]:px-7 min-[1040px]:order-none min-[1040px]:border-r">
 					<CustomerSnapshot appointment={appointment} />
 				</div>
 
-				<div className="px-5 py-7 min-[760px]:px-8">
+				<div className="order-1 px-5 py-7 min-[760px]:px-8 min-[1040px]:order-none">
 					<SectionTitle>What Was Pulled</SectionTitle>
 					{pulled.length === 0 ? (
 						<p className="mb-7 text-[0.9rem] text-muted">
