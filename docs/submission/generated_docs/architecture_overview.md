@@ -36,7 +36,10 @@ around a shared API and database:
 - **Database:** PostgreSQL 16 (`appointments`, `catalog_products`).
 - **Third-party simulation:** WireMock (templated JSON fixtures).
 - **AI SDK:** `@anthropic-ai/sdk`, optionally routed through a LiteLLM gateway.
-- **Local orchestration:** Docker Compose, with a hot-reload dev override.
+- **Local orchestration:** Docker Compose, with a hot-reload dev override. The
+  override also runs a small Alpine sidecar that watches the bind-mounted
+  `infra/wiremock/` tree and POSTs `/__admin/mappings/reset` on change, so
+  edited stubs/fixtures take effect without restarting the WireMock container.
 - **Quality/tooling:** Biome (format/lint), Vitest (unit), Playwright (e2e),
   Husky git hooks, GitHub Actions CI.
 - **Cloud (provisioning defined):** Azure Container Apps (api, web, wiremock),
