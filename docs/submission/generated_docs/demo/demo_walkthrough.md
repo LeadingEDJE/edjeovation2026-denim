@@ -29,18 +29,29 @@ context before arrival.
 ### 2. Associate reviews upcoming appointments (web dashboard)
 
 The associate opens the dashboard's **Open** view, filters by store / date /
-stylist / status, and selects an appointment to prep.
+stylist / status, and selects an appointment to prep. On phone and small-tablet
+widths the view nav becomes a horizontal scroll rail with a right-edge fade, and
+each queue row collapses into a stacked **mobile card** (time + status, avatar +
+customer name + occasion, muse tag + stylist footer) so the same flow works on a
+handheld; on ≥ 1040 px the desktop multi-column data row returns.
 
-<!-- SCREENSHOT: dashboard Open list with filters -->
+<!-- SCREENSHOT: dashboard Open list with filters (desktop) -->
+<!-- SCREENSHOT: dashboard Open list on a phone (scrollable view nav + queue cards) -->
 
 ### 3. Associate reviews AI-curated suggestions
 
 The appointment detail shows the customer's profile and a **Suggested products**
 list — each item with a **thumbnail**, attributes (fit / rise / stretch / price),
 and a **rationale** explaining why it fits this customer. The shortlist is built
-by the rule-based scorer and re-ranked by Claude.
+by the rule-based scorer and re-ranked by Claude. On phones, **Suggested
+Products lead** (the customer-snapshot column drops below them via a CSS grid
+order swap), the hero **Check In / No-Show** buttons go full-width, and the
+**Save / Complete** action bar sticks to the bottom of the viewport so the next
+step is always reachable. Above 1040 px the layout returns to the two-column
+desk frame (snapshot left, suggestions + messaging + capture right).
 
-<!-- SCREENSHOT: appointment detail with suggested products + rationale -->
+<!-- SCREENSHOT: appointment detail with suggested products + rationale (desktop) -->
+<!-- SCREENSHOT: appointment detail on a phone (suggestions first, sticky action bar) -->
 
 *Why it matters:* the associate arrives prepared with a curated set and talking
 points, not a cold start.
