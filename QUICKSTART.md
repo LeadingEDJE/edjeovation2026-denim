@@ -278,6 +278,14 @@ The SwiftUI app loads the mocked loyalty customer, shows view-only fit profile c
 
 The SwiftUI app is configured to call `http://localhost:4000`, which maps to the API container from the simulator.
 
+To point the local simulator at the deployed Azure API instead, select the `DenimFit Production API` scheme in Xcode. That scheme sets `DENIM_FIT_API_BASE_URL` to:
+
+```text
+https://ca-denimfit-api.delightfulglacier-70865650.centralus.azurecontainerapps.io
+```
+
+Use the production API scheme only when you intentionally want simulator actions to read or write deployed data. The default `DenimFit` scheme remains the local-development profile.
+
 ## Optional macOS Xcode Setup
 
 Use this section only if you are on macOS and do not have full Xcode installed. Command Line Tools alone are not enough to run the SwiftUI app in the iOS simulator.

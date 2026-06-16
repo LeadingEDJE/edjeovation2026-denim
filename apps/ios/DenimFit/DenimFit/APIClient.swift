@@ -1,9 +1,29 @@
 import Foundation
 
 final class APIClient: Sendable {
-    private let baseURL = URL(string: "http://localhost:4000")!
+    private static let defaultBaseURL = "http://localhost:4000"
+
+    private let baseURL: URL
     private let decoder = JSONDecoder()
     private let encoder = JSONEncoder()
+
+    init(baseURL: URL = APIClient.configuredBaseURL()) {
+        self.baseURL = baseURL
+    }
+
+    private static func configuredBaseURL() -> URL {
+        let environmentValue = ProcessInfo.processInfo.environment["DENIM_FIT_API_BASE_URL"]
+        let bundleValue = Bundle.main.object(forInfoDictionaryKey: "DENIM_FIT_API_BASE_URL") as? String
+        let rawValue = environmentValue ?? bundleValue ?? defaultBaseURL
+        let trimmedValue = rawValue.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        guard !trimmedValue.isEmpty, let url = URL(string: trimmedValue) else {
+            assertionFailure("Invalid DENIM_FIT_API_BASE_URL: \(rawValue)")
+            return URL(string: defaultBaseURL)!
+        }
+
+        return url
+    }
 
     func getCurrentUser() async throws -> CurrentUser {
         try await get(path: "/api/me")
