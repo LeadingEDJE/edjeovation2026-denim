@@ -13,6 +13,10 @@ live demo link / recorded video, ≤ 5 minutes).
 
 ### 1. Customer books a fitting (iOS app)
 
+On launch the app shows a brief branded splash — an "A&F" serif mark fading in
+over a navy gradient with a "stylist" wordmark that types in letter-by-letter —
+then transitions to the booking flow; the app also ships the full set of
+home-screen icon assets, so installs no longer show the placeholder Xcode icon.
 The customer selects a store, picks a non-peak appointment slot, and completes a
 short intake: occasion, colors to focus on or avoid, the catalog to pull from
 (womens, mens, or both), and a style description that maps to an Abercrombie
@@ -28,6 +32,7 @@ catalog selector, and tappable swatch grids for the color step. The SwiftUI them
 `packages/design-system/src/theme.css` so the customer app and associate web
 dashboard share one visual language.
 
+<!-- SCREENSHOT: iOS launch splash (A&F serif mark + animated "stylist" wordmark on navy gradient) -->
 <!-- SCREENSHOT: iOS landing (navy full-bleed) -->
 <!-- SCREENSHOT: iOS store selection + slot picker -->
 <!-- SCREENSHOT: iOS intake — occasion + color swatch grids + style keywords + catalog selector (with step progress bar) -->
