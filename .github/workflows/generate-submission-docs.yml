@@ -38,9 +38,11 @@ jobs:
       - name: Determine changed files
         id: changes
         run: |
-          base="origin/${{ github.event.pull_request.base.ref }}"
-          git fetch origin "${{ github.event.pull_request.base.ref }}" --depth=1
-          changed="$(git diff --name-only "$base"...HEAD)"
+          base_ref="${{ github.event.pull_request.base.ref }}"
+          # Fetch the base branch with full history (no --depth) so the three-dot
+          # diff can resolve a merge base against the (already full-depth) PR head.
+          git fetch --no-tags origin "+refs/heads/${base_ref}:refs/remotes/origin/${base_ref}"
+          changed="$(git diff --name-only "origin/${base_ref}...HEAD")"
           echo "Changed files:"
           echo "$changed"
           {
