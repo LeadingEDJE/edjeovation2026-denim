@@ -21,7 +21,14 @@ around a shared API and database:
 - **API (`apps/api`):** a Fastify service that persists appointments to
   PostgreSQL, queries the `catalog_products` table for candidates, calls the
   mocked third-party services for customer/order/store/stylist data, and runs the
-  two-stage recommendation pipeline. Exposes OpenAPI docs at `/docs`.
+  two-stage recommendation pipeline. Exposes OpenAPI docs at `/docs`. Internally
+  the service is split into thin layers: domain route plugins under
+  `apps/api/src/routes/` (one per area — health, catalog, admin, user, stores,
+  appointments, order-history, stylists) register against a shared schema/helpers
+  module; a `repository.ts` data-access layer owns every SQL statement as a named
+  function wrapping a single `pool.query`; and a central error handler in
+  `errors.ts` maps `HttpError` / upstream / unexpected errors to consistent
+  `{ message }` responses so handlers don't repeat log/reply boilerplate.
 - **Data flow for a booking:** client submits intake + slot → API assigns a
   stylist, maps a Muse tag, summarizes order history, builds suggested products,
   and stores the appointment → associate dashboard reads it for prep → lifecycle
@@ -42,8 +49,10 @@ around a shared API and database:
   edited stubs/fixtures take effect without restarting the WireMock container.
   API startup runs the idempotent database migration, refreshes the catalog
   snapshot, and seeds deterministic local appointment history for demo/testing.
-- **Quality/tooling:** Biome (format/lint), Vitest (unit), Playwright (e2e),
-  Husky git hooks, GitHub Actions CI.
+- **Quality/tooling:** Biome (format/lint), Vitest (unit — covers API routes,
+  recommendation scoring, and the React dashboard's API client, formatters,
+  filter/sort logic, and key components via `@testing-library/react`), Playwright
+  (e2e), Husky git hooks, GitHub Actions CI.
 - **Cloud (provisioning defined):** Azure Container Apps (api, web, wiremock),
   Azure Container Registry, and Azure Database for PostgreSQL Flexible Server,
   described in `infra/azure/*.bicep`.
