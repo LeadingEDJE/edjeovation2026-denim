@@ -58,6 +58,10 @@ around a shared API and database:
   customer's fit profile, color context, and Muse, Claude re-orders the
   candidates for the specific customer and writes a short per-item rationale.
   Prompt caching is applied to the stable system prompt.
+- **Shortlist shaping (no AI):** before re-ranking, the API picks the candidate
+  pool based on the outfit-piece intents — a category-diverse shortlist by
+  default, or a category-restricted top-N (`rankCandidates`) when every active
+  piece is tagged `"similar"` so suggestions stay in like categories.
 
 ## Data Sources
 
@@ -73,7 +77,11 @@ around a shared API and database:
 - **No authentication / identity model.** A mocked "current user" stands in for
   login; consent and privacy handling for measurements is not implemented.
 - **Mocked third parties.** Customer, order, store, and stylist data come from
-  WireMock; there is no live integration or inventory/availability check.
+  WireMock; there is no live integration or inventory/availability check. The
+  regenerate-suggestions path tolerates a failed third-party customer lookup by
+  falling back to the customer snapshot stored in the appointment's
+  `source_payload` at booking time, but a real production deployment would still
+  need a stable identity source.
 - **Catalog is a seeded snapshot**, not a live feed, and may drift from the real
   assortment; sizing rules are simplified.
 - **Appointment history is demo seed data locally.** Historical bookings,

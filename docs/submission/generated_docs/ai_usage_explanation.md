@@ -9,7 +9,13 @@ recommendation pipeline** that prepares product suggestions for each appointment
    `apps/api/src/recommendation-scoring.ts` scores catalog products against the
    customer's fit profile (fit, rise, stretch, sizes) and the appointment's color
    context, then assembles a **category-diverse shortlist** (bottoms, dresses,
-   tops, outerwear). Pure, testable functions — no model involved.
+   tops, outerwear) by default. When the customer has marked outfit pieces and
+   every active piece is tagged `"similar"` (none `"complement"`), the API
+   restricts the candidate pool to the coarse categories of those pieces — e.g.
+   tops-only if every piece is a top — and ranks by score directly instead of
+   enforcing cross-category diversity. The category-bucketing logic for free-text
+   garment wording lives in `coarseCategoryFromText` and is shared with the
+   shortlist builder. Pure, testable functions — no model involved.
 
 2. **Stage 2 — Claude re-ranking + rationale (AI).**
    `apps/api/src/claude-reranker.ts` sends the shortlist plus the customer's fit
@@ -62,6 +68,12 @@ degrade. It is therefore Integrated, not Core/AI-dependent.
   would need explicit consent and retention policies — see limitations.)
 - **Out-of-scope / edge cases:** an empty or low-quality shortlist, a missing API
   key, an unreachable gateway, or a gateway that rejects structured output all
-  resolve to the rule-based path rather than failing the appointment.
+  resolve to the rule-based path rather than failing the appointment. When
+  regenerating suggestions for an existing appointment, a third-party customer
+  lookup that fails now falls back to the customer snapshot captured in the
+  appointment's `source_payload` at booking time, so a transient mock/upstream
+  hiccup no longer 502s the regenerate flow. If the category restriction implied
+  by "similar"-only pieces would leave zero candidates, the engine reverts to the
+  full diverse shortlist instead of returning nothing.
 - **Transparency:** suggestions are presented as system-generated prep aids for
   the associate, not as autonomous decisions to the customer.

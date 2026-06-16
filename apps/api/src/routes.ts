@@ -9,8 +9,12 @@ import {
 	supportedMediaTypes,
 } from "./outfit-analysis.js";
 import {
+	type CoarseCategory,
+	coarseCategory,
+	coarseCategoryFromText,
 	parseColors,
 	type RecommendationContext,
+	rankCandidates,
 	shortlistDiverse,
 } from "./recommendation-scoring.js";
 import {
@@ -1208,6 +1212,27 @@ function buildPairingInstruction(
 	return text || undefined;
 }
 
+/**
+ * Resolve the customer when re-running recommendations on an existing
+ * appointment. Prefers the live third-party profile, but falls back to the
+ * snapshot captured in source_payload at booking time — so a third-party hiccup
+ * (or a mock user that no longer exists locally) doesn't hard-fail regenerate the
+ * way booking already tolerates. Returns null only if neither is available.
+ */
+async function resolveAppointmentCustomer(
+	customerId: string,
+	sourcePayload: unknown,
+): Promise<CurrentUser | null> {
+	try {
+		return await fetchThirdPartyUser(customerId);
+	} catch {
+		const snapshot = parseJsonField<{ currentUser?: CurrentUser }>(
+			sourcePayload,
+		);
+		return snapshot?.currentUser ?? null;
+	}
+}
+
 async function buildSuggestedProducts(
 	customer: CurrentUser,
 	input: CreateAppointmentInput,
@@ -1237,9 +1262,36 @@ async function buildSuggestedProducts(
 		avoidColors: parseColors(input.avoidColors),
 	};
 
+	// "Similar"-only mode: when the customer marked pieces and NONE are
+	// "complement" (ignored pieces don't count at all), restrict suggestions to
+	// the coarse categories of those pieces — all tops if every piece is a top,
+	// tops+bottoms for a top+bottom mix, etc. Any "complement" piece disables this
+	// and we fall back to the full, cross-category pool.
+	const activeGarments = (analysis?.garments ?? []).filter(
+		(g) => g.intent !== "ignore",
+	);
+	const similarOnly =
+		activeGarments.length > 0 &&
+		activeGarments.every((g) => g.intent === "similar");
+	const allowedCategories: Set<CoarseCategory> | null = similarOnly
+		? new Set(activeGarments.map((g) => coarseCategoryFromText(g.type)))
+		: null;
+
 	const catalogResult = await pool.query("SELECT * FROM catalog_products");
-	const candidates = catalogResult.rows.map(mapCatalogProduct);
-	const shortlist = shortlistDiverse(context, candidates, 4, 12);
+	const allCandidates = catalogResult.rows.map(mapCatalogProduct);
+
+	// Apply the category restriction, but only if it leaves something to suggest.
+	const restricted = allowedCategories
+		? allCandidates.filter((p) => allowedCategories.has(coarseCategory(p)))
+		: [];
+	const useRestricted = restricted.length > 0;
+	const candidates = useRestricted ? restricted : allCandidates;
+
+	// When restricted to like categories, category diversity is moot — just take
+	// the best matches. Otherwise keep the cross-category diverse shortlist.
+	const shortlist = useRestricted
+		? rankCandidates(context, candidates, 12)
+		: shortlistDiverse(context, candidates, 4, 12);
 
 	const style: StyleContext = {
 		occasion: input.occasion,
@@ -2830,7 +2882,15 @@ export async function registerRoutes(app: FastifyInstance) {
 			}
 
 			try {
-				const customer = await fetchThirdPartyUser(appointment.customerId);
+				const customer = await resolveAppointmentCustomer(
+					appointment.customerId,
+					existing.rows[0].source_payload,
+				);
+				if (!customer) {
+					return reply
+						.code(502)
+						.send({ message: "Unable to resolve customer for suggestions" });
+				}
 				const suggestedProducts = await buildSuggestedProducts(
 					customer,
 					{
@@ -2981,7 +3041,15 @@ export async function registerRoutes(app: FastifyInstance) {
 					return { appointment: mapAppointment(result.rows[0]) };
 				}
 
-				const customer = await fetchThirdPartyUser(appointment.customerId);
+				const customer = await resolveAppointmentCustomer(
+					appointment.customerId,
+					existing.rows[0].source_payload,
+				);
+				if (!customer) {
+					return reply
+						.code(502)
+						.send({ message: "Unable to resolve customer for suggestions" });
+				}
 				const suggestedProducts = await buildSuggestedProducts(
 					customer,
 					{

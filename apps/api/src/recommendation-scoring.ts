@@ -16,14 +16,45 @@ export type CoarseCategory =
 	| "other";
 
 /**
- * Bucket a product into a coarse garment category from its name + category
- * text. Used to keep the shortlist diverse across product types. Order matters:
- * more specific buckets (bottoms, dresses, outerwear) are checked before tops.
+ * Bucket free-text garment wording into a coarse category. Order matters: more
+ * specific buckets (outerwear, dresses, bottoms) are checked before tops so a
+ * "denim jacket" or "denim dress" isn't miscategorized as bottoms by "denim".
+ */
+export function coarseCategoryFromText(text: string): CoarseCategory {
+	const lower = text.toLowerCase();
+	// Stems are anchored at a word start (\b) but NOT at the end, so plural and
+	// suffixed forms still match ("pants", "jeans", "dresses", "jackets"). This is
+	// for free-text garment wording (customer/Claude phrasing), which is commonly
+	// plural — unlike catalog product names, which coarseCategory() handles.
+	if (/\b(jacket|coat|blazer|outerwear|parka|trench|bomber)/.test(lower)) {
+		return "outerwear";
+	}
+	if (/\b(dress|jumpsuit|romper|gown)/.test(lower)) return "dresses";
+	if (
+		/\b(jean|denim|pant|trouser|short|skort|skirt|legging|chino|cargo|bottom)/.test(
+			lower,
+		)
+	) {
+		return "bottoms";
+	}
+	if (
+		/\b(top|tee|t-shirt|shirt|blouse|cami|tank|bodysuit|sweater|sweatshirt|hoodie|knit|cardigan|polo|corset|bustier|vest|henley|crewneck)/.test(
+			lower,
+		)
+	) {
+		return "tops";
+	}
+	return "other";
+}
+
+/**
+ * Bucket a product into a coarse garment category from its name + category text.
+ * Used to keep the shortlist diverse across product types. Uses tighter word
+ * boundaries than coarseCategoryFromText since catalog names/categories follow
+ * singular conventions and shouldn't over-match.
  */
 export function coarseCategory(product: CatalogProduct): CoarseCategory {
 	const text = `${product.name} ${product.category ?? ""}`.toLowerCase();
-	// Outerwear and dresses are checked before bottoms so a "denim jacket" or
-	// "denim dress" isn't miscategorized as bottoms by the "denim" keyword.
 	if (/\b(jacket|coat|blazer|outerwear|parka|trench|bomber)\b/.test(text)) {
 		return "outerwear";
 	}
