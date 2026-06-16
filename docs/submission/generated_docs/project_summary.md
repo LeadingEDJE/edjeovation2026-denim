@@ -77,5 +77,9 @@ customer signals. (~250 words)
   fit profile, color preferences, and Muse.
 - **Async communication** via a shared stylist inbox keeps the customer connected
   without requiring the associate to be available in real time.
+- **Works on the floor** — the associate dashboard reflows to phone and tablet
+  screens (queue cards, scrollable view nav, sticky action bar) so a stylist can
+  prep, message, and complete an appointment from a handheld device, not just a
+  back-room workstation.
 - **Resilient by design** — the recommendation engine degrades gracefully to a
   deterministic ranking when AI is unavailable.
