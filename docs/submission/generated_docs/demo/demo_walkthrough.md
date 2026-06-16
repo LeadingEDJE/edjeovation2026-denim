@@ -18,9 +18,23 @@ short intake: occasion, colors to focus on or avoid, and a style description tha
 maps to an Abercrombie **Muse** (Clean / Romantic / Boyish / Statement Maker).
 They receive a confirmation with their assigned stylist.
 
+The iOS app is styled to the **Denim Fit brand system** — a navy/ink palette,
+square corners, bordered white cards on a neutral canvas, a navy full-bleed
+landing and confirmation, a navy hero on the appointment detail with grouped
+cards and chat bubbles, a 4-up fit-profile stat strip, a key/value review table,
+a six-step segmented progress bar across the booking wizard, and tappable
+swatch grids for the color step. The SwiftUI theme mirrors the tokens in
+`packages/design-system/src/theme.css` so the customer app and associate web
+dashboard share one visual language.
+
+<!-- SCREENSHOT: iOS landing (navy full-bleed) -->
 <!-- SCREENSHOT: iOS store selection + slot picker -->
-<!-- SCREENSHOT: iOS intake questionnaire (occasion, colors, style) -->
-<!-- SCREENSHOT: iOS confirmation showing assigned stylist -->
+<!-- SCREENSHOT: iOS intake — occasion + color swatch grids + style keywords (with step progress bar) -->
+<!-- SCREENSHOT: iOS review screen (key/value table) -->
+<!-- SCREENSHOT: iOS confirmation showing assigned stylist (navy full-bleed) -->
+<!-- SCREENSHOT: iOS appointment detail (navy hero + grouped cards, chat bubbles) -->
+<!-- SCREENSHOT: iOS fit profile stat strip -->
+
 
 *Why it matters:* a lightweight intake captures customer intent up front without
 burning them out, and the combined order-history + intake gives the store real
