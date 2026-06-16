@@ -2,6 +2,7 @@ import { z } from "zod";
 
 export type FitPreference = "skinny" | "slim" | "straight" | "relaxed" | "wide";
 export type StretchPreference = "rigid" | "comfort-stretch" | "high-stretch";
+export type CatalogAudience = "womens" | "mens";
 
 export type CurrentUser = {
 	customerId: string;
@@ -16,6 +17,7 @@ export type CurrentUser = {
 	preferences: {
 		fitPreference: FitPreference;
 		stretchPreference: StretchPreference;
+		catalogAudiences?: CatalogAudience[];
 	};
 };
 
@@ -144,6 +146,7 @@ export const catalogQuerySchema = z.object({
 	rise: z.enum(["ultra-high", "high", "mid", "low"]).optional(),
 	stretch: z.enum(["rigid", "comfort-stretch", "high-stretch"]).optional(),
 	category: z.string().min(1).max(120).optional(),
+	catalogAudience: z.enum(["womens", "mens"]).optional(),
 	q: z.string().min(1).max(120).optional(),
 	limit: z.coerce.number().int().min(1).max(200).default(50),
 	offset: z.coerce.number().int().min(0).default(0),
@@ -156,6 +159,7 @@ export type CatalogProduct = {
 	source: string;
 	name: string;
 	category: string | null;
+	catalogAudiences: CatalogAudience[];
 	productUrl: string;
 	imageUrl: string | null;
 	description: string | null;
@@ -248,6 +252,7 @@ export type CreateAppointmentInput = {
 	focusColors: string;
 	avoidColors: string;
 	styleKeywords: string[];
+	catalogAudiences?: CatalogAudience[];
 	guidance?: string;
 	orderHistoryScenario?: OrderHistoryScenario;
 	outfitAnalysis?: OutfitAnalysis | null;
@@ -286,6 +291,7 @@ export type Appointment = {
 	focusColors: string;
 	avoidColors: string;
 	styleKeywords: string[];
+	catalogAudiences: CatalogAudience[];
 	guidance: string;
 	sessionNotes: string;
 	status: AppointmentStatus;

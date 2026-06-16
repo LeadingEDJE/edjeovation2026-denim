@@ -12,6 +12,7 @@ export type CatalogProduct = {
 	productId: string;
 	name: string;
 	category: string | null;
+	catalogAudiences: string[];
 	productUrl: string;
 	imageUrl: string | null;
 	price: number | null;
@@ -90,6 +91,7 @@ export type Appointment = {
 	focusColors: string;
 	avoidColors: string;
 	styleKeywords: string[];
+	catalogAudiences: string[];
 	guidance: string;
 	sessionNotes: string;
 	status: AppointmentStatus;

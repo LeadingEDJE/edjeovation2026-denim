@@ -11,7 +11,8 @@
 		},
 		"preferences": {
 			"fitPreference": "straight",
-			"stretchPreference": "comfort-stretch"
+			"stretchPreference": "comfort-stretch",
+			"catalogAudiences": ["womens"]
 		}
 	}
 }

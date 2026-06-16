@@ -1,7 +1,7 @@
 /**
- * Two-phase Abercrombie women's catalog scraper.
+ * Two-phase Abercrombie catalog scraper.
  *
- *   Phase 1 (PLP): for each women's category grid, scroll to load the products
+ *   Phase 1 (PLP): for each category grid, scroll to load the products
  *                  and collect their product-detail URLs.
  *   Phase 2 (PDP): visit each product page, read the stable schema.org ld+json
  *                  plus on-page sizes/colors, derive fit/rise/stretch, and
@@ -12,8 +12,9 @@
  *
  * Configuration (env):
  *   DATABASE_URL       Postgres connection (default: local Compose db)
+ *   CATALOG_AUDIENCES  comma-separated audiences to scrape: womens,mens (default: womens)
  *   CATEGORIES         comma-separated PLP URLs; overrides auto-discovery
- *   MAX_CATEGORIES     cap number of categories crawled (default: 25)
+ *   MAX_CATEGORIES     cap number of categories crawled (default: 25; 0 = no cap)
  *   MAX_PER_CATEGORY   cap PDP visits per category (default: 40; 0 = no cap)
  *   THROTTLE_MS        delay between PDP visits (default: 750)
  *   HEADLESS           "false" to watch the browser (default: true)
@@ -32,11 +33,21 @@ import {
 } from "./extract.js";
 
 const ORIGIN = "https://www.abercrombie.com";
-const WOMENS_URL = `${ORIGIN}/shop/us/womens`;
 const UA =
 	"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36";
 
+export const catalogAudiences = ["womens", "mens"] as const;
+export type CatalogAudience = (typeof catalogAudiences)[number];
+
+type CategoryTarget = {
+	audience: CatalogAudience;
+	url: string;
+};
+
 const config = {
+	catalogAudiences: parseCatalogAudiences(
+		process.env.CATALOG_AUDIENCES ?? "womens",
+	),
 	categories: (process.env.CATEGORIES ?? "")
 		.split(",")
 		.map((s) => s.trim())
@@ -71,24 +82,34 @@ async function main() {
 		return route.continue();
 	});
 
-	let categories = config.categories;
-	if (categories.length === 0) {
-		categories = await discoverCategories(page);
-		console.log(`Discovered ${categories.length} women's categories.`);
+	let categories: CategoryTarget[];
+	if (config.categories.length > 0) {
+		categories = config.categories.map((url) =>
+			categoryTargetFromUrl(url, config.catalogAudiences),
+		);
+	} else {
+		categories = [];
+		for (const audience of config.catalogAudiences) {
+			const discovered = await discoverCategories(page, audience);
+			console.log(`Discovered ${discovered.length} ${audience} categories.`);
+			categories.push(...discovered);
+		}
 	}
-	categories = categories.slice(0, config.maxCategories);
+	if (config.maxCategories > 0) {
+		categories = categories.slice(0, config.maxCategories);
+	}
 
 	let totalUpserted = 0;
 	const seen = new Set<string>();
 
-	for (const [i, categoryUrl] of categories.entries()) {
-		const categoryName = categoryNameFromUrl(categoryUrl);
+	for (const [i, category] of categories.entries()) {
+		const categoryName = categoryNameFromUrl(category.url, category.audience);
 		console.log(
-			`\n[category ${i + 1}/${categories.length}] ${categoryName} — ${categoryUrl}`,
+			`\n[category ${i + 1}/${categories.length}] ${category.audience}/${categoryName} — ${category.url}`,
 		);
 		let productUrls: string[];
 		try {
-			productUrls = await collectProductUrls(page, categoryUrl);
+			productUrls = await collectProductUrls(page, category.url);
 		} catch (err) {
 			console.warn(`  ! failed to load PLP: ${(err as Error).message}`);
 			continue;
@@ -101,10 +122,16 @@ async function main() {
 
 		for (const url of productUrls) {
 			const id = productIdFromUrl(url);
-			if (id && seen.has(id)) continue;
-			if (id) seen.add(id);
+			const seenKey = `${category.audience}:${id ?? url}`;
+			if (seen.has(seenKey)) continue;
+			seen.add(seenKey);
 			try {
-				const product = await scrapeProduct(page, url, categoryName);
+				const product = await scrapeProduct(
+					page,
+					url,
+					categoryName,
+					category.audience,
+				);
 				if (product) {
 					await upsertProduct(product);
 					totalUpserted++;
@@ -127,29 +154,76 @@ async function main() {
 	);
 }
 
-/** Pull women's category PLP URLs from the landing page navigation. */
-async function discoverCategories(page: Page): Promise<string[]> {
-	await page.goto(WOMENS_URL, {
+export function parseCatalogAudiences(value: string): CatalogAudience[] {
+	const parsed = value
+		.split(",")
+		.map((s) => s.trim().toLowerCase())
+		.filter(Boolean);
+	const unique = Array.from(new Set(parsed));
+	if (unique.length === 0) return ["womens"];
+	for (const audience of unique) {
+		if (!catalogAudiences.includes(audience as CatalogAudience)) {
+			throw new Error(
+				`Invalid CATALOG_AUDIENCES value "${audience}". Expected womens, mens, or both.`,
+			);
+		}
+	}
+	return unique as CatalogAudience[];
+}
+
+export function audienceFromUrl(url: string): CatalogAudience | null {
+	const path = new URL(url, ORIGIN).pathname;
+	if (/\/shop\/us\/womens(?:-|$)/i.test(path)) return "womens";
+	if (/\/shop\/us\/mens(?:-|$)/i.test(path)) return "mens";
+	return null;
+}
+
+export function categoryTargetFromUrl(
+	url: string,
+	configuredAudiences: CatalogAudience[],
+): CategoryTarget {
+	const audience = audienceFromUrl(url);
+	if (audience) return { audience, url: new URL(url, ORIGIN).toString() };
+	if (configuredAudiences.length === 1) {
+		return {
+			audience: configuredAudiences[0],
+			url: new URL(url, ORIGIN).toString(),
+		};
+	}
+	throw new Error(
+		`Cannot infer catalog audience from category URL "${url}". Use /womens-* or /mens-* URLs when CATALOG_AUDIENCES has multiple values.`,
+	);
+}
+
+/** Pull category PLP URLs from the configured landing page navigation. */
+async function discoverCategories(
+	page: Page,
+	audience: CatalogAudience,
+): Promise<CategoryTarget[]> {
+	const landingUrl = `${ORIGIN}/shop/us/${audience}`;
+	await page.goto(landingUrl, {
 		waitUntil: "domcontentloaded",
 		timeout: 60000,
 	});
 	await page.waitForTimeout(3000);
 	const hrefs = await page.evaluate(() => {
 		const anchors = Array.from(
-			document.querySelectorAll('a[href*="/shop/us/womens"]'),
+			document.querySelectorAll('a[href*="/shop/us/"]'),
 		) as HTMLAnchorElement[];
 		return anchors.map((a) => a.getAttribute("href") ?? "");
 	});
-	const cats = new Set<string>();
+	const pathRe = new RegExp(`/shop/us/${audience}-[a-z0-9-]+$`, "i");
+	const cats = new Map<string, CategoryTarget>();
 	for (const href of hrefs) {
 		if (!href) continue;
 		const path = href.split("?")[0];
-		// Category PLPs look like /shop/us/womens-<slug>; exclude product pages and the bare landing page.
-		if (/\/shop\/us\/womens-[a-z0-9-]+$/i.test(path) && !path.includes("/p/")) {
-			cats.add(new URL(path, "https://www.abercrombie.com").toString());
+		// Category PLPs look like /shop/us/<audience>-<slug>; exclude product pages and the bare landing page.
+		if (pathRe.test(path) && !path.includes("/p/")) {
+			const url = new URL(path, ORIGIN).toString();
+			cats.set(url, { audience, url });
 		}
 	}
-	return [...cats];
+	return [...cats.values()];
 }
 
 /** Phase 1: scroll a category page and collect unique product-detail URLs. */
@@ -192,6 +266,7 @@ async function scrapeProduct(
 	page: Page,
 	url: string,
 	categoryName: string,
+	audience: CatalogAudience,
 ): Promise<CatalogProduct | null> {
 	const resp = await page.goto(url, {
 		waitUntil: "domcontentloaded",
@@ -249,6 +324,7 @@ async function scrapeProduct(
 		source: "abercrombie",
 		name,
 		category: categoryName,
+		catalogAudiences: [audience],
 		productUrl: ld?.url ?? url,
 		imageUrl: ld?.image ?? null,
 		description: ld?.description ?? null,
@@ -261,6 +337,7 @@ async function scrapeProduct(
 		colors: onPage.colors,
 		raw: {
 			ld,
+			catalogAudiences: [audience],
 			derived: { fit, rise, stretch },
 			sizes: { waist: onPage.waist, length: onPage.length },
 			colors: onPage.colors,
@@ -269,18 +346,23 @@ async function scrapeProduct(
 	};
 }
 
-function categoryNameFromUrl(url: string): string {
+export function categoryNameFromUrl(
+	url: string,
+	audience: CatalogAudience,
+): string {
 	const slug = url.split("?")[0].replace(/\/$/, "").split("/").pop() ?? "";
 	return (
 		slug
-			.replace(/^womens-?/, "")
+			.replace(new RegExp(`^${audience}-?`), "")
 			.replace(/-/g, " ")
-			.trim() || "womens"
+			.trim() || audience
 	);
 }
 
-main().catch(async (err) => {
-	console.error(err);
-	await closeDb().catch(() => {});
-	process.exit(1);
-});
+if (import.meta.url === `file://${process.argv[1]}`) {
+	main().catch(async (err) => {
+		console.error(err);
+		await closeDb().catch(() => {});
+		process.exit(1);
+	});
+}

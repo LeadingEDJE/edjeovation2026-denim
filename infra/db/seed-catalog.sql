@@ -1,8 +1,9 @@
--- Seed data for catalog_products: scraped Abercrombie women's catalog.
+-- Seed data for catalog_products: scraped Abercrombie womens/mens catalog.
 -- GENERATED FILE — do not edit by hand. Applied by apps/api/src/migrate.js
 -- on every API startup; idempotent via ON CONFLICT DO NOTHING.
 --
 -- Regenerate after a fresh scrape with:
+--   CATALOG_AUDIENCES=womens,mens MAX_CATEGORIES=0 MAX_PER_CATEGORY=0 npm run scrape -w @denim-fit/scraper
 --   docker exec <postgres-container> pg_dump -U denim -d denim_fit \
 --     --data-only --table=catalog_products --column-inserts \
 --     --on-conflict-do-nothing --no-owner --no-privileges \
@@ -534,5 +535,4 @@ INSERT INTO public.catalog_products (product_id, source, name, category, product
 --
 -- PostgreSQL database dump complete
 --
-
 

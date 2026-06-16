@@ -16,9 +16,17 @@ const { query, connect } = vi.hoisted(() => ({
 	connect: vi.fn(),
 }));
 
+const { rerankMock } = vi.hoisted(() => ({
+	rerankMock: vi.fn(),
+}));
+
 vi.mock("./db.js", () => ({
 	pool: { query, connect },
 	closeDb: vi.fn(),
+}));
+
+vi.mock("./claude-reranker.js", () => ({
+	rerank: rerankMock,
 }));
 
 const { registerRoutes } = await import("./routes.js");
@@ -79,6 +87,7 @@ function appointmentRow(overrides: Record<string, unknown> = {}) {
 		focus_colors: "Dark wash",
 		avoid_colors: "White",
 		style_keywords: ["minimal"],
+		catalog_audiences: ["womens"],
 		guidance: "Customer note",
 		session_notes: "",
 		status: "scheduled",
@@ -124,6 +133,7 @@ function currentUser() {
 			preferences: {
 				fitPreference: "straight",
 				stretchPreference: "comfort-stretch",
+				catalogAudiences: ["womens"],
 			},
 		},
 	};
@@ -163,6 +173,22 @@ let app: FastifyInstance;
 
 beforeEach(async () => {
 	vi.stubGlobal("fetch", fetchMock);
+	rerankMock.mockImplementation(
+		async (
+			_context: unknown,
+			_style: unknown,
+			shortlist: Array<{ product: { productId: string } }>,
+			limit: number,
+		) => ({
+			engine: "rule-based",
+			summary: "Test rankings",
+			rankings: shortlist.slice(0, limit).map((candidate, index) => ({
+				productId: candidate.product.productId,
+				rank: index + 1,
+				rationale: "Test rationale",
+			})),
+		}),
+	);
 	app = await buildApp();
 });
 
@@ -173,6 +199,7 @@ afterEach(async () => {
 	fetchMock.mockReset();
 	query.mockReset();
 	connect.mockReset();
+	rerankMock.mockReset();
 });
 
 describe("GET /health", () => {
@@ -309,6 +336,102 @@ describe("GET /api/appointments/slots", () => {
 	});
 });
 
+describe("POST /api/appointments", () => {
+	it("persists a per-booking catalog audience override", async () => {
+		vi.useFakeTimers({ toFake: ["Date"] });
+		vi.setSystemTime(new Date("2026-06-16T12:00:00.000Z"));
+		fetchMock
+			.mockResolvedValueOnce(jsonResponse(currentUser()))
+			.mockResolvedValueOnce(jsonResponse(storesResponse()))
+			.mockResolvedValueOnce(jsonResponse(schedulePatternsResponse()))
+			.mockResolvedValueOnce(
+				jsonResponse({
+					stylists: [makeStylist(), makeStylist({ id: "st-2" })],
+				}),
+			)
+			.mockResolvedValueOnce(
+				jsonResponse({
+					customerId: "cust_avery_001",
+					scenario: "standard",
+					orders: [],
+				}),
+			);
+		(query as Mock)
+			.mockResolvedValueOnce({ rows: [] })
+			.mockResolvedValueOnce({
+				rows: [
+					{
+						product_id: "mens-1",
+						source: "anf",
+						name: "Mens Straight Jean",
+						category: "mens jeans",
+						catalog_audiences: ["mens"],
+						product_url: "https://example.test/mens-1",
+						image_url: null,
+						description: null,
+						price: 89,
+						currency: "USD",
+						fit: "straight",
+						rise: null,
+						stretch: "comfort-stretch",
+						sizes: ["28", "30"],
+						colors: ["dark wash"],
+						scraped_at: "2026-06-01T12:00:00.000Z",
+					},
+					{
+						product_id: "womens-1",
+						source: "anf",
+						name: "Womens Straight Jean",
+						category: "womens jeans",
+						catalog_audiences: ["womens"],
+						product_url: "https://example.test/womens-1",
+						image_url: null,
+						description: null,
+						price: 89,
+						currency: "USD",
+						fit: "straight",
+						rise: null,
+						stretch: "comfort-stretch",
+						sizes: ["28", "Regular"],
+						colors: ["dark wash"],
+						scraped_at: "2026-06-01T12:00:00.000Z",
+					},
+				],
+			})
+			.mockResolvedValueOnce({
+				rows: [appointmentRow({ catalog_audiences: ["mens"] })],
+			})
+			.mockResolvedValueOnce({ rows: [] })
+			.mockResolvedValueOnce({
+				rows: [appointmentRow({ catalog_audiences: ["mens"] })],
+			});
+
+		const res = await app.inject({
+			method: "POST",
+			url: "/api/appointments",
+			payload: {
+				storeId: "store-1",
+				slotStart: "2026-06-16T15:00:00.000Z",
+				occasion: "Weekend trip",
+				focusColors: "dark wash",
+				avoidColors: "",
+				styleKeywords: ["minimal"],
+				catalogAudiences: ["mens"],
+			},
+		});
+
+		expect(res.statusCode).toBe(201);
+		expect(res.json().appointment.catalogAudiences).toEqual(["mens"]);
+		const insertCall = (query as Mock).mock.calls.find(([sql]) =>
+			String(sql).includes("INSERT INTO appointments"),
+		);
+		expect(JSON.parse(insertCall?.[1][11] as string)).toEqual(["mens"]);
+		expect(JSON.parse(insertCall?.[1][16] as string)[0].product.productId).toBe(
+			"mens-1",
+		);
+	});
+});
+
 describe("GET /api/catalog", () => {
 	it("returns catalog products with totals", async () => {
 		(query as Mock)
@@ -320,6 +443,7 @@ describe("GET /api/catalog", () => {
 						source: "anf",
 						name: "High Rise Straight Jean",
 						category: "jeans",
+						catalog_audiences: ["womens"],
 						product_url: "https://example.test/p/sku-1",
 						image_url: null,
 						description: "Straight jean",
@@ -345,8 +469,28 @@ describe("GET /api/catalog", () => {
 			total: 1,
 			limit: 10,
 			offset: 0,
-			products: [{ productId: "sku-1", fit: "straight" }],
+			products: [
+				{ productId: "sku-1", fit: "straight", catalogAudiences: ["womens"] },
+			],
 		});
+	});
+
+	it("filters catalog products by audience", async () => {
+		(query as Mock)
+			.mockResolvedValueOnce({ rows: [{ count: "1" }] })
+			.mockResolvedValueOnce({ rows: [] });
+
+		const res = await app.inject({
+			method: "GET",
+			url: "/api/catalog?catalogAudience=mens",
+		});
+
+		expect(res.statusCode).toBe(200);
+		expect(query).toHaveBeenNthCalledWith(
+			1,
+			expect.stringContaining("catalog_audiences ? $1"),
+			["mens"],
+		);
 	});
 
 	it("returns 400 for invalid catalog filters", async () => {
@@ -527,6 +671,7 @@ describe("PATCH /api/appointments/:appointmentId/suggested-products/:productId",
 					source: "anf",
 					name: "Straight jean",
 					category: "jeans",
+					catalogAudiences: ["womens"],
 					productUrl: "https://example.test/sku-1",
 					imageUrl: null,
 					description: null,

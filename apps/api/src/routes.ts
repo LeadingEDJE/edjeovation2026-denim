@@ -27,6 +27,7 @@ import {
 import {
 	type Appointment,
 	type AppointmentSlot,
+	type CatalogAudience,
 	type CatalogProduct,
 	type CreateAppointmentInput,
 	type CurrentUser,
@@ -60,6 +61,7 @@ const stretchPreferenceEnum = [
 	"comfort-stretch",
 	"high-stretch",
 ] as const;
+const catalogAudienceEnum = ["womens", "mens"] as const;
 const orderHistoryScenarioEnum = [
 	"standard",
 	"denim-heavy",
@@ -128,6 +130,12 @@ const currentUserJsonSchema = {
 			properties: {
 				fitPreference: { type: "string", enum: fitPreferenceEnum },
 				stretchPreference: { type: "string", enum: stretchPreferenceEnum },
+				catalogAudiences: {
+					type: "array",
+					minItems: 1,
+					uniqueItems: true,
+					items: { type: "string", enum: catalogAudienceEnum },
+				},
 			},
 		},
 	},
@@ -497,6 +505,12 @@ const createAppointmentJsonSchema = {
 			minItems: 1,
 			items: { type: "string", enum: styleKeywordEnum },
 		},
+		catalogAudiences: {
+			type: "array",
+			minItems: 1,
+			uniqueItems: true,
+			items: { type: "string", enum: catalogAudienceEnum },
+		},
 		guidance: { type: "string" },
 		orderHistoryScenario: {
 			type: "string",
@@ -644,6 +658,7 @@ const appointmentSummaryJsonSchema = {
 		"focusColors",
 		"avoidColors",
 		"styleKeywords",
+		"catalogAudiences",
 		"guidance",
 		"sessionNotes",
 		"status",
@@ -677,6 +692,11 @@ const appointmentSummaryJsonSchema = {
 		focusColors: { type: "string" },
 		avoidColors: { type: "string" },
 		styleKeywords: { type: "array", items: { type: "string" } },
+		catalogAudiences: {
+			type: "array",
+			minItems: 1,
+			items: { type: "string", enum: catalogAudienceEnum },
+		},
 		guidance: { type: "string" },
 		sessionNotes: { type: "string" },
 		status: { type: "string", enum: appointmentStatusEnum },
@@ -1022,6 +1042,12 @@ function normalizeSuggestedProducts(
 ): SuggestedProduct[] {
 	return suggestedProducts.map((suggestion) => ({
 		...suggestion,
+		product: {
+			...suggestion.product,
+			catalogAudiences: normalizeCatalogAudiences(
+				suggestion.product.catalogAudiences,
+			),
+		},
 		prepStatus: productPrepStatusEnum.includes(
 			suggestion.prepStatus as SuggestedProductPrepStatus,
 		)
@@ -1081,6 +1107,7 @@ function mapAppointment(row: Record<string, unknown>): Appointment {
 		focusColors: String(row.focus_colors),
 		avoidColors: String(row.avoid_colors),
 		styleKeywords: parseJsonField<string[]>(row.style_keywords),
+		catalogAudiences: normalizeCatalogAudiences(row.catalog_audiences),
 		guidance: String(row.guidance),
 		sessionNotes: String(row.session_notes ?? ""),
 		status: String(row.status ?? "scheduled") as Appointment["status"],
@@ -1139,8 +1166,48 @@ function mapAppointmentNotification(row: Record<string, unknown>) {
 	};
 }
 
+function normalizeCatalogAudiences(value: unknown): CatalogAudience[] {
+	let raw: unknown[];
+	if (Array.isArray(value)) {
+		raw = value;
+	} else if (typeof value === "string") {
+		try {
+			const parsed = JSON.parse(value) as unknown;
+			raw = Array.isArray(parsed) ? parsed : [value];
+		} catch {
+			raw = [value];
+		}
+	} else {
+		raw = [];
+	}
+	const audiences = Array.from(
+		new Set(
+			raw.filter((audience): audience is CatalogAudience =>
+				catalogAudienceEnum.includes(audience as CatalogAudience),
+			),
+		),
+	);
+	return audiences.length ? audiences : ["womens"];
+}
+
+function normalizeCurrentUser(user: CurrentUser): CurrentUser {
+	return {
+		...user,
+		preferences: {
+			...user.preferences,
+			catalogAudiences: normalizeCatalogAudiences(
+				user.preferences.catalogAudiences,
+			),
+		},
+	};
+}
+
+function normalizeUserList(users: UserList): UserList {
+	return { users: users.users.map(normalizeCurrentUser) };
+}
+
 async function getActiveUser() {
-	return fetchThirdPartyUser(activeUserId);
+	return normalizeCurrentUser(await fetchThirdPartyUser(activeUserId));
 }
 
 function userExists(users: UserList, customerId: string) {
@@ -1153,6 +1220,7 @@ function mapCatalogProduct(row: Record<string, unknown>): CatalogProduct {
 		source: String(row.source),
 		name: String(row.name),
 		category: row.category == null ? null : String(row.category),
+		catalogAudiences: normalizeCatalogAudiences(row.catalog_audiences),
 		productUrl: String(row.product_url),
 		imageUrl: row.image_url == null ? null : String(row.image_url),
 		description: row.description == null ? null : String(row.description),
@@ -1166,6 +1234,15 @@ function mapCatalogProduct(row: Record<string, unknown>): CatalogProduct {
 		colors: Array.isArray(row.colors) ? (row.colors as string[]) : [],
 		scrapedAt: new Date(String(row.scraped_at)).toISOString(),
 	};
+}
+
+function productMatchesCatalogAudiences(
+	product: CatalogProduct,
+	selectedAudiences: CatalogAudience[],
+): boolean {
+	return product.catalogAudiences.some((audience) =>
+		selectedAudiences.includes(audience),
+	);
 }
 
 /**
@@ -1236,9 +1313,16 @@ async function buildSuggestedProducts(
 		focusColors: parseColors(focusColorsText),
 		avoidColors: parseColors(input.avoidColors),
 	};
+	const selectedAudiences = normalizeCatalogAudiences(
+		input.catalogAudiences ?? customer.preferences.catalogAudiences,
+	);
 
 	const catalogResult = await pool.query("SELECT * FROM catalog_products");
-	const candidates = catalogResult.rows.map(mapCatalogProduct);
+	const candidates = catalogResult.rows
+		.map(mapCatalogProduct)
+		.filter((product) =>
+			productMatchesCatalogAudiences(product, selectedAudiences),
+		);
 	const shortlist = shortlistDiverse(context, candidates, 4, 12);
 
 	const style: StyleContext = {
@@ -1371,7 +1455,8 @@ export async function registerRoutes(app: FastifyInstance) {
 			});
 		}
 
-		const { fit, rise, stretch, category, q, limit, offset } = parsed.data;
+		const { fit, rise, stretch, category, catalogAudience, q, limit, offset } =
+			parsed.data;
 		const conditions: string[] = [];
 		const params: unknown[] = [];
 
@@ -1388,6 +1473,10 @@ export async function registerRoutes(app: FastifyInstance) {
 		if (rise) eq("rise", rise);
 		if (stretch) eq("stretch", stretch);
 		if (category) like("category", category);
+		if (catalogAudience) {
+			params.push(catalogAudience);
+			conditions.push(`catalog_audiences ? $${params.length}`);
+		}
 		if (q) {
 			params.push(`%${q}%`);
 			const i = params.length;
@@ -1442,7 +1531,7 @@ export async function registerRoutes(app: FastifyInstance) {
 		},
 		async (request, reply) => {
 			try {
-				return await fetchThirdPartyUsers();
+				return normalizeUserList(await fetchThirdPartyUsers());
 			} catch (error) {
 				request.log.error(error);
 				return reply.code(502).send({ message: "Unable to load mock users" });
@@ -1886,9 +1975,12 @@ export async function registerRoutes(app: FastifyInstance) {
 					input.orderHistoryScenario ?? "standard",
 				);
 				const orderHistorySummary = summarizeOrderHistory(orderHistory);
+				const catalogAudiences = normalizeCatalogAudiences(
+					input.catalogAudiences ?? currentUser.preferences.catalogAudiences,
+				);
 				const suggestedProducts = await buildSuggestedProducts(
 					currentUser,
-					input,
+					{ ...input, catalogAudiences },
 					museTag,
 					orderHistorySummary,
 				);
@@ -1897,11 +1989,11 @@ export async function registerRoutes(app: FastifyInstance) {
 					`
 						INSERT INTO appointments (
 							id, customer_id, loyalty_id, customer_name, slot_start, slot_end, store_snapshot,
-							occasion, focus_colors, avoid_colors, style_keywords, guidance,
+							occasion, focus_colors, avoid_colors, style_keywords, catalog_audiences, guidance,
 							session_notes, status, muse_tag, assigned_stylist,
 							order_history_summary, suggested_products, source_payload, outfit_analysis
 						)
-						VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, '', 'scheduled', $13, $14, $15, $16, $17, $18)
+						VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, '', 'scheduled', $14, $15, $16, $17, $18, $19)
 						RETURNING *
 					`,
 					[
@@ -1916,13 +2008,14 @@ export async function registerRoutes(app: FastifyInstance) {
 						input.focusColors,
 						input.avoidColors,
 						JSON.stringify(input.styleKeywords),
+						JSON.stringify(catalogAudiences),
 						input.guidance ?? "",
 						museTag,
 						JSON.stringify(assignedStylist),
 						JSON.stringify(orderHistorySummary),
 						JSON.stringify(suggestedProducts),
 						JSON.stringify({
-							input,
+							input: { ...input, catalogAudiences },
 							currentUser,
 							orderHistory,
 							store: selectedStore,
@@ -2840,6 +2933,7 @@ export async function registerRoutes(app: FastifyInstance) {
 						focusColors: appointment.focusColors,
 						avoidColors: appointment.avoidColors,
 						styleKeywords: appointment.styleKeywords,
+						catalogAudiences: appointment.catalogAudiences,
 						guidance: appointment.guidance,
 						outfitAnalysis: appointment.outfitAnalysis,
 					},

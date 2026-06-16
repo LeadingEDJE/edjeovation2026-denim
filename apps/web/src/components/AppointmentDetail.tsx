@@ -104,6 +104,14 @@ function specLine(product: CatalogProduct) {
 		.join(" · ");
 }
 
+function catalogAudienceLabel(audiences: string[]) {
+	if (audiences.includes("womens") && audiences.includes("mens")) {
+		return "Womens + Mens";
+	}
+	if (audiences.includes("mens")) return "Mens";
+	return "Womens";
+}
+
 /* ------------------------------------------------------------------ chrome */
 
 function DetailTopBar({
@@ -255,6 +263,11 @@ function CustomerSnapshot({
 			<div className="mb-4">
 				<Chips items={appointment.styleKeywords} />
 			</div>
+
+			<MetaLabel>Catalog</MetaLabel>
+			<p className="mb-4 text-[14px] text-body">
+				{catalogAudienceLabel(appointment.catalogAudiences)}
+			</p>
 
 			<MetaLabel>Customer note</MetaLabel>
 			<p className="border-ink border-l-[3px] bg-surface-subtle px-3.5 py-3 text-[14px] text-body leading-relaxed">
@@ -545,7 +558,7 @@ function InteractiveDetail({
 			{/* body */}
 			<div className="grid grid-cols-1 min-[1040px]:grid-cols-[360px_1fr]">
 				{/* SUGGESTED PRODUCTS — centerpiece, first on mobile */}
-				<div className="px-5 pt-7 min-[760px]:px-8 min-[1040px]:col-start-2 min-[1040px]:row-start-1">
+				<div className="px-5 pt-7 min-[1040px]:col-start-2 min-[1040px]:row-start-1 min-[760px]:px-8">
 					<SuggestedProducts
 						appointment={appointment}
 						canEdit={canEdit}
@@ -555,7 +568,7 @@ function InteractiveDetail({
 				</div>
 
 				{/* LEFT INFO — customer snapshot + stylist */}
-				<div className="border-line-subtle px-5 py-7 min-[760px]:px-7 min-[1040px]:col-start-1 min-[1040px]:row-start-1 min-[1040px]:row-span-2 min-[1040px]:border-r">
+				<div className="border-line-subtle px-5 py-7 min-[1040px]:col-start-1 min-[1040px]:row-span-2 min-[1040px]:row-start-1 min-[1040px]:border-r min-[760px]:px-7">
 					<CustomerSnapshot
 						appointment={appointment}
 						onSaveOutfitIntents={
@@ -608,7 +621,7 @@ function InteractiveDetail({
 				</div>
 
 				{/* RIGHT LOWER — messaging / notifications + session capture */}
-				<div className="px-5 pb-7 min-[760px]:px-8 min-[1040px]:col-start-2 min-[1040px]:row-start-2">
+				<div className="px-5 pb-7 min-[1040px]:col-start-2 min-[1040px]:row-start-2 min-[760px]:px-8">
 					<div className="mt-7 grid grid-cols-1 gap-7 min-[640px]:grid-cols-2">
 						<MessagingPanel
 							canEdit={canEdit}
@@ -1076,11 +1089,11 @@ function RecapDetail({
 
 			{/* body */}
 			<div className="grid grid-cols-1 min-[1040px]:grid-cols-[360px_1fr]">
-				<div className="order-2 border-line-subtle px-5 py-7 min-[760px]:px-7 min-[1040px]:order-none min-[1040px]:border-r">
+				<div className="order-2 border-line-subtle px-5 py-7 min-[1040px]:order-none min-[1040px]:border-r min-[760px]:px-7">
 					<CustomerSnapshot appointment={appointment} />
 				</div>
 
-				<div className="order-1 px-5 py-7 min-[760px]:px-8 min-[1040px]:order-none">
+				<div className="order-1 px-5 py-7 min-[1040px]:order-none min-[760px]:px-8">
 					<SectionTitle>What Was Pulled</SectionTitle>
 					{pulled.length === 0 ? (
 						<p className="mb-7 text-[0.9rem] text-muted">

@@ -22,6 +22,7 @@ export type DerivedAttributes = {
 export function deriveFit(text: string): FitPreference | null {
 	const t = text.toLowerCase();
 	if (/\bskinny\b|\bjegging/.test(t)) return "skinny";
+	if (/\bathletic\b/.test(t)) return "relaxed";
 	if (/\bslim\b/.test(t)) return "slim";
 	if (/\bstraight\b/.test(t)) return "straight";
 	if (

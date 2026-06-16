@@ -6,6 +6,7 @@
 	"scripts": {
 		"recon": "tsx src/recon.ts",
 		"scrape": "tsx src/scrape.ts",
+		"test": "vitest run",
 		"typecheck": "tsc -p tsconfig.json --noEmit"
 	},
 	"dependencies": {
