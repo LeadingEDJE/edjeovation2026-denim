@@ -1,4 +1,4 @@
-import { ArrowLeft, CheckCircle2, Save, Sparkles } from "lucide-react";
+import { ArrowLeft, CheckCircle2, ImageOff, Save, Sparkles } from "lucide-react";
 import type { Appointment } from "../api";
 import { formatAppointmentDateTime, statusLabel } from "../formatters";
 
@@ -217,32 +217,53 @@ function SuggestedProducts({
 					{appointment.suggestedProducts.map((suggestion) => (
 						<li
 							key={suggestion.rank}
-							className="grid gap-0.5 border-rowline border-b pb-2.5 last:border-b-0 last:pb-0"
+							className="grid grid-cols-[64px_1fr] items-start gap-3 border-rowline border-b pb-2.5 last:border-b-0 last:pb-0"
 						>
 							<a
-								className="font-bold text-ink hover:underline"
+								className="block h-16 w-16 shrink-0 overflow-hidden rounded-md border border-rowline bg-surface"
 								href={suggestion.product.productUrl}
 								target="_blank"
 								rel="noreferrer"
 							>
-								{suggestion.rank}. {suggestion.product.name}
+								{suggestion.product.imageUrl ? (
+									<img
+										className="h-full w-full object-cover"
+										src={suggestion.product.imageUrl}
+										alt={suggestion.product.name}
+										loading="lazy"
+									/>
+								) : (
+									<span className="flex h-full w-full items-center justify-center text-muted">
+										<ImageOff size={20} />
+									</span>
+								)}
 							</a>
-							<small className="text-[0.8rem] text-muted capitalize">
-								{[
-									suggestion.product.category,
-									suggestion.product.fit,
-									suggestion.product.rise,
-									suggestion.product.stretch,
-								]
-									.filter(Boolean)
-									.join(" · ")}
-								{suggestion.product.price != null
-									? ` · $${suggestion.product.price}`
-									: ""}
-							</small>
-							<p className="text-[0.85rem] text-muted">
-								{suggestion.rationale}
-							</p>
+							<div className="grid gap-0.5">
+								<a
+									className="font-bold text-ink hover:underline"
+									href={suggestion.product.productUrl}
+									target="_blank"
+									rel="noreferrer"
+								>
+									{suggestion.rank}. {suggestion.product.name}
+								</a>
+								<small className="text-[0.8rem] text-muted capitalize">
+									{[
+										suggestion.product.category,
+										suggestion.product.fit,
+										suggestion.product.rise,
+										suggestion.product.stretch,
+									]
+										.filter(Boolean)
+										.join(" · ")}
+									{suggestion.product.price != null
+										? ` · $${suggestion.product.price}`
+										: ""}
+								</small>
+								<p className="text-[0.85rem] text-muted">
+									{suggestion.rationale}
+								</p>
+							</div>
 						</li>
 					))}
 				</ol>
