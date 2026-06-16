@@ -21,6 +21,7 @@ struct FittingView: View {
     @State private var guidance = ""
     @State private var messageDraft = ""
     @State private var cancelReason = ""
+    @State private var showCancelConfirmation = false
     @State private var feedbackRating = 5
     @State private var feedbackComment = ""
     @State private var status = "Loading your profile"
@@ -893,15 +894,17 @@ struct FittingView: View {
         HStack(spacing: 10) {
             if canCancel {
                 Button {
-                    Task { await cancelAppointment() }
+                    showCancelConfirmation = true
                 } label: {
-                    Text("Cancel")
+                    Text("Cancel Appointment")
                         .font(.brandDisplay(13))
                         .tracking(Brand.trackingCTA)
                         .textCase(.uppercase)
+                        .lineLimit(1)
+                        .fixedSize(horizontal: true, vertical: false)
                         .foregroundStyle(Color.sale)
                         .padding(.vertical, 14)
-                        .padding(.horizontal, 18)
+                        .padding(.horizontal, 14)
                         .overlay(Rectangle().stroke(Color.sale.opacity(0.55), lineWidth: 1))
                 }
                 .buttonStyle(.plain)
@@ -950,6 +953,18 @@ struct FittingView: View {
         .padding(.bottom, 24)
         .background(Color.surface)
         .overlay(Rectangle().fill(Color.line).frame(height: 1), alignment: .top)
+        .confirmationDialog(
+            "Cancel this appointment?",
+            isPresented: $showCancelConfirmation,
+            titleVisibility: .visible
+        ) {
+            Button("Cancel Appointment", role: .destructive) {
+                Task { await cancelAppointment() }
+            }
+            Button("Keep Appointment", role: .cancel) {}
+        } message: {
+            Text("This gives up your time slot and notifies the store. This can't be undone.")
+        }
     }
 
     private func fitProfileContext(_ user: CurrentUser) -> some View {
