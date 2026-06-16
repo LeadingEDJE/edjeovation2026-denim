@@ -38,6 +38,7 @@ RUN npm ci --omit=dev --ignore-scripts
 
 COPY --from=build /app/apps/web/dist apps/web/dist
 COPY apps/web/scripts/write-runtime-env.mjs apps/web/scripts/write-runtime-env.mjs
+COPY apps/web/vite.preview.config.mjs apps/web/vite.preview.config.mjs
 
 EXPOSE 5173
 CMD ["sh", "-c", "node apps/web/scripts/write-runtime-env.mjs && npm run start -w @denim-fit/web"]
