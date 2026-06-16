@@ -245,6 +245,10 @@ resource web 'Microsoft.App/containerApps@2025-07-01' = {
               name: 'VITE_API_BASE_URL'
               value: 'https://${api.properties.configuration.ingress.fqdn}'
             }
+            {
+              name: 'PREVIEW_ALLOWED_HOSTS'
+              value: '${webAppName}.${containerAppsEnvironment.properties.defaultDomain}'
+            }
           ]
           resources: {
             cpu: json('0.25')

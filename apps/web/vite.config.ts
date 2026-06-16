@@ -3,6 +3,10 @@ import tailwindcss from "@tailwindcss/vite";
 import react from "@vitejs/plugin-react";
 import { defineConfig } from "vite";
 
+const previewAllowedHosts = process.env.PREVIEW_ALLOWED_HOSTS?.split(",")
+	.map((host) => host.trim())
+	.filter(Boolean);
+
 export default defineConfig(({ command }) => ({
 	plugins: [react(), tailwindcss()],
 	resolve: {
@@ -19,6 +23,9 @@ export default defineConfig(({ command }) => ({
 						),
 					}
 				: {},
+	},
+	preview: {
+		allowedHosts: previewAllowedHosts,
 	},
 	server: {
 		host: "0.0.0.0",

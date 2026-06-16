@@ -6,6 +6,17 @@ on:
     types: [completed]
     branches: [main]
   workflow_dispatch:
+    inputs:
+      deploy_core:
+        description: Redeploy shared Azure resources even when core files did not change.
+        required: false
+        default: false
+        type: boolean
+      force_image_builds:
+        description: Rebuild and redeploy all container images.
+        required: false
+        default: false
+        type: boolean
 
 permissions:
   contents: read
@@ -17,7 +28,6 @@ concurrency:
 
 env:
   APP_NAME: denimfit
-  AZURE_CORE_OUTPUT: none
   AZURE_LOCATION: centralus
   AZURE_RESOURCE_GROUP: AnF-2026
 
@@ -28,10 +38,88 @@ jobs:
     steps:
       - uses: actions/checkout@v5
         with:
+          fetch-depth: 0
           persist-credentials: false
           ref: ${{ github.event.workflow_run.head_sha || github.sha }}
 
+      - name: Detect deployment changes
+        id: changes
+        run: |
+          set -euo pipefail
+
+          force_core="${{ github.event_name == 'workflow_dispatch' && inputs.deploy_core == true }}"
+          force_images="${{ github.event_name == 'workflow_dispatch' && inputs.force_image_builds == true }}"
+
+          if git rev-parse HEAD^ >/dev/null 2>&1; then
+            changed_files="$(git diff --name-only HEAD^ HEAD)"
+          else
+            changed_files="$(git ls-tree -r --name-only HEAD)"
+          fi
+
+          deploy_core="$force_core"
+          apps_config_changed=false
+          api_changed="$force_images"
+          web_changed="$force_images"
+          wiremock_changed="$force_images"
+
+          while IFS= read -r file; do
+            [ -n "$file" ] || continue
+
+            case "$file" in
+              infra/azure/core.bicep)
+                deploy_core=true
+                ;;
+              infra/azure/apps.bicep)
+                apps_config_changed=true
+                ;;
+              apps/api/*|infra/db/*)
+                api_changed=true
+                ;;
+              apps/web/*|packages/design-system/*)
+                web_changed=true
+                ;;
+              infra/wiremock/*)
+                wiremock_changed=true
+                ;;
+              package.json|package-lock.json)
+                api_changed=true
+                web_changed=true
+                ;;
+            esac
+          done <<< "$changed_files"
+
+          deploy_apps=false
+          if [ "$apps_config_changed" = "true" ] || \
+            [ "$api_changed" = "true" ] || \
+            [ "$web_changed" = "true" ] || \
+            [ "$wiremock_changed" = "true" ]; then
+            deploy_apps=true
+          fi
+
+          {
+            echo "deploy_core=$deploy_core"
+            echo "deploy_apps=$deploy_apps"
+            echo "apps_config_changed=$apps_config_changed"
+            echo "api_changed=$api_changed"
+            echo "web_changed=$web_changed"
+            echo "wiremock_changed=$wiremock_changed"
+          } >> "$GITHUB_OUTPUT"
+
+          echo "Changed files:"
+          if [ -n "$changed_files" ]; then
+            printf '%s\n' "$changed_files"
+          else
+            echo "(none)"
+          fi
+          echo "Deploy core: $deploy_core"
+          echo "Deploy apps: $deploy_apps"
+          echo "Build API image: $api_changed"
+          echo "Build web image: $web_changed"
+          echo "Build WireMock image: $wiremock_changed"
+          echo "Apps config changed: $apps_config_changed"
+
       - name: Ensure main branch deployment
+        if: steps.changes.outputs.deploy_core == 'true' || steps.changes.outputs.deploy_apps == 'true'
         run: |
           if [ "${GITHUB_REF}" != "refs/heads/main" ]; then
             echo "Azure OIDC is configured for refs/heads/main; run this workflow from main."
@@ -39,6 +127,7 @@ jobs:
           fi
 
       - name: Azure login
+        if: steps.changes.outputs.deploy_core == 'true' || steps.changes.outputs.deploy_apps == 'true'
         uses: azure/login@v3
         with:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
@@ -46,6 +135,7 @@ jobs:
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
       - name: Check Azure providers
+        if: steps.changes.outputs.deploy_core == 'true' || steps.changes.outputs.deploy_apps == 'true'
         run: |
           set -euo pipefail
           for namespace in \
@@ -65,22 +155,36 @@ jobs:
             fi
           done
 
-      - name: Deploy shared Azure resources
+      - name: Resolve shared Azure resources
+        if: steps.changes.outputs.deploy_core == 'true' || steps.changes.outputs.deploy_apps == 'true'
         env:
+          DEPLOY_CORE: ${{ steps.changes.outputs.deploy_core }}
           POSTGRES_ADMIN_PASSWORD: ${{ secrets.POSTGRES_ADMIN_PASSWORD }}
         run: |
           set -euo pipefail
-          deployment_name="${APP_NAME}-core-${GITHUB_RUN_ID}"
 
-          az deployment group create \
-            --name "$deployment_name" \
+          latest_core_deployment="$(az deployment group list \
             --resource-group "$AZURE_RESOURCE_GROUP" \
-            --template-file infra/azure/core.bicep \
-            --parameters \
-              location="$AZURE_LOCATION" \
-              appName="$APP_NAME" \
-              postgresAdminPassword="$POSTGRES_ADMIN_PASSWORD" \
-            --output none
+            --query "[?starts_with(name, '${APP_NAME}-core-') && properties.provisioningState=='Succeeded'] | sort_by(@, &properties.timestamp)[-1].name" \
+            --output tsv)"
+
+          if [ "$DEPLOY_CORE" != "true" ] && [ -n "$latest_core_deployment" ]; then
+            deployment_name="$latest_core_deployment"
+            echo "Using shared Azure resources from $deployment_name."
+          else
+            deployment_name="${APP_NAME}-core-${GITHUB_RUN_ID}"
+            echo "Deploying shared Azure resources as $deployment_name."
+
+            az deployment group create \
+              --name "$deployment_name" \
+              --resource-group "$AZURE_RESOURCE_GROUP" \
+              --template-file infra/azure/core.bicep \
+              --parameters \
+                location="$AZURE_LOCATION" \
+                appName="$APP_NAME" \
+                postgresAdminPassword="$POSTGRES_ADMIN_PASSWORD" \
+              --output none
+          fi
 
           {
             echo "CORE_DEPLOYMENT_NAME=$deployment_name"
@@ -93,26 +197,110 @@ jobs:
             echo "POSTGRES_DATABASE_NAME=$(az deployment group show --name "$deployment_name" --resource-group "$AZURE_RESOURCE_GROUP" --query properties.outputs.postgresDatabaseName.value --output tsv)"
           } >> "$GITHUB_ENV"
 
-      - name: Build and push container images
+      - name: Resolve container images
+        if: steps.changes.outputs.deploy_apps == 'true'
+        env:
+          API_CHANGED: ${{ steps.changes.outputs.api_changed }}
+          WEB_CHANGED: ${{ steps.changes.outputs.web_changed }}
+          WIREMOCK_CHANGED: ${{ steps.changes.outputs.wiremock_changed }}
         run: |
           set -euo pipefail
           image_tag="$(git rev-parse HEAD)"
 
-          echo "API_IMAGE=${ACR_LOGIN_SERVER}/${APP_NAME}-api:${image_tag}" >> "$GITHUB_ENV"
-          echo "WEB_IMAGE=${ACR_LOGIN_SERVER}/${APP_NAME}-web:${image_tag}" >> "$GITHUB_ENV"
-          echo "WIREMOCK_IMAGE=${ACR_LOGIN_SERVER}/${APP_NAME}-wiremock:${image_tag}" >> "$GITHUB_ENV"
+          new_api_image="${ACR_LOGIN_SERVER}/${APP_NAME}-api:${image_tag}"
+          new_web_image="${ACR_LOGIN_SERVER}/${APP_NAME}-web:${image_tag}"
+          new_wiremock_image="${ACR_LOGIN_SERVER}/${APP_NAME}-wiremock:${image_tag}"
+
+          current_image() {
+            local app_name="$1"
+            local container_name="$2"
+
+            az resource show \
+              --name "$app_name" \
+              --resource-group "$AZURE_RESOURCE_GROUP" \
+              --resource-type Microsoft.App/containerApps \
+              --query "properties.template.containers[?name=='${container_name}'].image | [0]" \
+              --output tsv 2>/dev/null || true
+          }
+
+          api_image="$new_api_image"
+          web_image="$new_web_image"
+          wiremock_image="$new_wiremock_image"
+          build_api="$API_CHANGED"
+          build_web="$WEB_CHANGED"
+          build_wiremock="$WIREMOCK_CHANGED"
+
+          if [ "$build_api" != "true" ]; then
+            api_image="$(current_image "ca-${APP_NAME}-api" "api")"
+            if [ -z "$api_image" ]; then
+              api_image="$new_api_image"
+              build_api=true
+              echo "No current API image found; building $api_image."
+            fi
+          fi
+
+          if [ "$build_web" != "true" ]; then
+            web_image="$(current_image "ca-${APP_NAME}-web" "web")"
+            if [ -z "$web_image" ]; then
+              web_image="$new_web_image"
+              build_web=true
+              echo "No current web image found; building $web_image."
+            fi
+          fi
+
+          if [ "$build_wiremock" != "true" ]; then
+            wiremock_image="$(current_image "ca-${APP_NAME}-wiremock" "wiremock")"
+            if [ -z "$wiremock_image" ]; then
+              wiremock_image="$new_wiremock_image"
+              build_wiremock=true
+              echo "No current WireMock image found; building $wiremock_image."
+            fi
+          fi
+
+          {
+            echo "API_IMAGE=$api_image"
+            echo "WEB_IMAGE=$web_image"
+            echo "WIREMOCK_IMAGE=$wiremock_image"
+            echo "BUILD_API_IMAGE=$build_api"
+            echo "BUILD_WEB_IMAGE=$build_web"
+            echo "BUILD_WIREMOCK_IMAGE=$build_wiremock"
+          } >> "$GITHUB_ENV"
+
+          echo "API image: $api_image (build: $build_api)"
+          echo "Web image: $web_image (build: $build_web)"
+          echo "WireMock image: $wiremock_image (build: $build_wiremock)"
+
+      - name: Build and push changed container images
+        if: steps.changes.outputs.deploy_apps == 'true'
+        run: |
+          set -euo pipefail
+
+          if [ "$BUILD_API_IMAGE" != "true" ] && \
+            [ "$BUILD_WEB_IMAGE" != "true" ] && \
+            [ "$BUILD_WIREMOCK_IMAGE" != "true" ]; then
+            echo "No container image builds needed."
+            exit 0
+          fi
 
           az acr login --name "$ACR_NAME"
 
-          docker build --file apps/api/Dockerfile --tag "${ACR_LOGIN_SERVER}/${APP_NAME}-api:${image_tag}" .
-          docker build --file apps/web/Dockerfile --tag "${ACR_LOGIN_SERVER}/${APP_NAME}-web:${image_tag}" .
-          docker build --file infra/wiremock/Dockerfile --tag "${ACR_LOGIN_SERVER}/${APP_NAME}-wiremock:${image_tag}" infra/wiremock
+          if [ "$BUILD_API_IMAGE" = "true" ]; then
+            docker build --file apps/api/Dockerfile --tag "$API_IMAGE" .
+            docker push "$API_IMAGE"
+          fi
 
-          docker push "${ACR_LOGIN_SERVER}/${APP_NAME}-api:${image_tag}"
-          docker push "${ACR_LOGIN_SERVER}/${APP_NAME}-web:${image_tag}"
-          docker push "${ACR_LOGIN_SERVER}/${APP_NAME}-wiremock:${image_tag}"
+          if [ "$BUILD_WEB_IMAGE" = "true" ]; then
+            docker build --file apps/web/Dockerfile --tag "$WEB_IMAGE" .
+            docker push "$WEB_IMAGE"
+          fi
+
+          if [ "$BUILD_WIREMOCK_IMAGE" = "true" ]; then
+            docker build --file infra/wiremock/Dockerfile --tag "$WIREMOCK_IMAGE" infra/wiremock
+            docker push "$WIREMOCK_IMAGE"
+          fi
 
       - name: Deploy Container Apps
+        if: steps.changes.outputs.deploy_apps == 'true'
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           ANTHROPIC_BASE_URL: ${{ secrets.ANTHROPIC_BASE_URL }}
@@ -152,9 +340,14 @@ jobs:
           } >> "$GITHUB_ENV"
 
       - name: Smoke test deployment
+        if: steps.changes.outputs.deploy_apps == 'true'
         run: |
           set -euo pipefail
           curl --fail --retry 12 --retry-delay 10 --retry-all-errors "$API_URL/health"
           curl --fail --retry 12 --retry-delay 10 --retry-all-errors "$WEB_URL"
           echo "Web URL: $WEB_URL"
           echo "API URL: $API_URL"
+
+      - name: No Azure deployment needed
+        if: steps.changes.outputs.deploy_core != 'true' && steps.changes.outputs.deploy_apps != 'true'
+        run: echo "No Azure deployment required for the changed paths."
