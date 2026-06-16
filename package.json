@@ -3,10 +3,10 @@
 	"private": true,
 	"version": "0.1.0",
 	"workspaces": [
+		"packages/*",
 		"apps/api",
 		"apps/web",
-		"apps/scraper",
-		"packages/*"
+		"apps/scraper"
 	],
 	"scripts": {
 		"dev": "npm run dev -w @denim-fit/api & npm run dev -w @denim-fit/web",
