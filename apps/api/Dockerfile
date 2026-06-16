@@ -1,11 +1,21 @@
-FROM node:24-alpine AS build
+FROM node:24-alpine AS deps
 
 WORKDIR /app
 
 COPY package.json package-lock.json ./
 COPY apps/api/package.json apps/api/package.json
 COPY apps/web/package.json apps/web/package.json
+COPY packages/design-system/package.json packages/design-system/package.json
 RUN npm ci
+
+# Dev stage: source is bind-mounted and the dev server (tsx watch) is run via
+# compose. Deps are installed here and shielded from the mount by an anonymous
+# volume on /app/node_modules (see docker-compose.override.yml).
+FROM deps AS dev
+EXPOSE 4000
+CMD ["npm", "run", "dev", "-w", "@denim-fit/api"]
+
+FROM deps AS build
 
 COPY apps/api apps/api
 COPY infra/db infra/db

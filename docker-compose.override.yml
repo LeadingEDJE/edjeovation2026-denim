@@ -1,0 +1,38 @@
+# Local development overrides — auto-merged by `docker compose up`.
+#
+# This swaps the production images for the `dev` build stages, bind-mounts the
+# source so edits are picked up live, and runs the watch-mode dev servers
+# (`tsx watch` for the API, `vite` for web). An anonymous volume on
+# /app/node_modules shields the container's installed dependencies from being
+# clobbered by the bind mount (npm workspaces hoists everything to the root).
+#
+# To run the production-parity stack instead, ignore this file:
+#   docker compose -f docker-compose.yml up --build
+services:
+  api:
+    build:
+      target: dev
+    # tsx watch uses chokidar; set polling as a fallback if your host's bind
+    # mount doesn't deliver inotify events (e.g. WSL2 paths under /mnt/c).
+    environment:
+      CHOKIDAR_USEPOLLING: ${CHOKIDAR_USEPOLLING:-}
+    volumes:
+      - ./apps/api:/app/apps/api
+      - ./packages:/app/packages
+      - ./infra:/app/infra
+      - /app/node_modules
+    # Migrate + seed before starting the watcher so a fresh DB volume is usable
+    # (mirrors the production CMD). migrate.js is idempotent.
+    command: sh -c "npm run db:migrate -w @denim-fit/api && npm run dev -w @denim-fit/api"
+
+  web:
+    build:
+      target: dev
+    environment:
+      VITE_API_BASE_URL: http://localhost:4000
+      CHOKIDAR_USEPOLLING: ${CHOKIDAR_USEPOLLING:-}
+    volumes:
+      - ./apps/web:/app/apps/web
+      - ./packages:/app/packages
+      - /app/node_modules
+    command: npm run dev -w @denim-fit/web
