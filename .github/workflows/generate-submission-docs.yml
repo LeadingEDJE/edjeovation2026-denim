@@ -17,7 +17,8 @@ concurrency:
 
 permissions:
   contents: write       # push doc updates back to the PR branch
-  pull-requests: read
+  pull-requests: write  # let the action interact with the PR
+  id-token: write       # claude-code-action requests an OIDC token
 
 jobs:
   generate-docs:
