@@ -1,3 +1,4 @@
+import type { BadgeVariant } from "@denim-fit/design-system";
 import type { Appointment } from "./api";
 
 export function statusLabel(status: Appointment["status"]) {
@@ -12,6 +13,23 @@ export function statusLabel(status: Appointment["status"]) {
 			return "Cancelled";
 		case "no_show":
 			return "No-show";
+	}
+}
+
+/** Maps an appointment status onto a design-system Badge tone. */
+export function statusBadgeVariant(
+	status: Appointment["status"],
+): BadgeVariant {
+	switch (status) {
+		case "scheduled":
+			return "neutral";
+		case "checked_in":
+			return "new";
+		case "completed":
+			return "outline";
+		case "cancelled":
+		case "no_show":
+			return "sale";
 	}
 }
 

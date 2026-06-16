@@ -1,0 +1,50 @@
+{
+	"name": "@denim-fit/design-system",
+	"version": "0.1.0",
+	"description": "Abercrombie-inspired design system — original components in a clean, editorial, square-cornered retail aesthetic.",
+	"private": true,
+	"type": "module",
+	"main": "./dist/index.js",
+	"module": "./dist/index.js",
+	"types": "./src/index.ts",
+	"exports": {
+		".": {
+			"types": "./src/index.ts",
+			"import": "./dist/index.js"
+		},
+		"./styles.css": "./dist/styles.css",
+		"./theme.css": "./src/theme.css",
+		"./fonts.css": "./src/fonts.css"
+	},
+	"files": [
+		"dist",
+		"src"
+	],
+	"sideEffects": [
+		"*.css"
+	],
+	"scripts": {
+		"build": "tsup && npm run build:css",
+		"build:css": "tailwindcss -i ./src/index.css -o ./dist/styles.css",
+		"dev": "tsup --watch",
+		"test": "vitest run",
+		"typecheck": "tsc --noEmit"
+	},
+	"dependencies": {
+		"lucide-react": "^0.561.0"
+	},
+	"peerDependencies": {
+		"react": ">=18",
+		"react-dom": ">=18"
+	},
+	"devDependencies": {
+		"@tailwindcss/cli": "^4.3.1",
+		"@types/react": "^19.2.7",
+		"@types/react-dom": "^19.2.3",
+		"react": "^19.2.1",
+		"react-dom": "^19.2.1",
+		"tailwindcss": "^4.3.1",
+		"tsup": "^8.5.0",
+		"typescript": "^6.0.3"
+	}
+}

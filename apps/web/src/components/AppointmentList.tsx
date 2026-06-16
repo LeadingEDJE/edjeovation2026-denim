@@ -1,3 +1,4 @@
+import { Badge } from "@denim-fit/design-system";
 import { ChevronRight } from "lucide-react";
 import type {
 	Appointment,
@@ -5,7 +6,11 @@ import type {
 	Store,
 	StylistProfile,
 } from "../api";
-import { formatAppointmentTime, statusLabel } from "../formatters";
+import {
+	formatAppointmentTime,
+	statusBadgeVariant,
+	statusLabel,
+} from "../formatters";
 import type { DashboardView } from "../types";
 
 export type AppointmentFilters = {
@@ -37,7 +42,7 @@ export function AppointmentList({
 }: AppointmentListProps) {
 	return (
 		<section
-			className="min-h-[360px] rounded-lg border border-line bg-surface p-[18px]"
+			className="min-h-[360px] rounded-none border border-line bg-surface p-[18px]"
 			data-testid="appointments-panel"
 		>
 			<div className="mb-3 flex items-center justify-between gap-2">
@@ -105,7 +110,7 @@ function AppointmentFilterBar({
 				</span>
 				<input
 					type="date"
-					className="h-10 rounded-lg border border-line bg-surface px-3 text-sm"
+					className="h-10 rounded-none border border-line bg-surface px-3 text-sm"
 					value={filters.date}
 					onChange={(event) => update({ date: event.target.value })}
 				/>
@@ -168,7 +173,7 @@ function FilterSelect({
 				{label}
 			</span>
 			<select
-				className="h-10 rounded-lg border border-line bg-surface px-3 text-sm"
+				className="h-10 rounded-none border border-line bg-surface px-3 text-sm"
 				value={value}
 				onChange={(event) => onChange(event.target.value)}
 			>
@@ -190,7 +195,7 @@ function AppointmentListRow({
 	return (
 		<button
 			type="button"
-			className="grid cursor-pointer gap-3 rounded-lg border border-rowline bg-surface p-3 text-left transition-colors hover:bg-canvas focus:border-accent focus:outline-none"
+			className="grid cursor-pointer gap-3 rounded-none border border-rowline bg-surface p-3 text-left transition-colors hover:bg-canvas focus:border-accent focus:outline-none"
 			onClick={() => onSelect(appointment.id)}
 			data-testid="appointment-row"
 		>
@@ -201,8 +206,10 @@ function AppointmentListRow({
 					value={appointment.assignedStylist.displayName}
 				/>
 				<RowField label="Time" value={formatAppointmentTime(appointment)} />
-				<span className="w-fit rounded-full bg-tag px-2.5 py-1 font-extrabold text-[0.8rem] text-accent">
-					{statusLabel(appointment.status)}
+				<span className="w-fit">
+					<Badge variant={statusBadgeVariant(appointment.status)}>
+						{statusLabel(appointment.status)}
+					</Badge>
 				</span>
 				<ChevronRight
 					className="hidden justify-self-end text-muted min-[720px]:block"

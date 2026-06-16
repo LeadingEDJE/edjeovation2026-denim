@@ -1,0 +1,15 @@
+{
+	"pkg": "@denim-fit/design-system",
+	"globalName": "DenimFitDS",
+	"projectId": "0d0ec9f7-982e-4d6c-b32b-781438bb2ff2",
+	"shape": "package",
+	"buildCmd": "npm run build -w @denim-fit/design-system",
+	"cssEntry": "dist/styles.css",
+	"readmeHeader": ".design-sync/conventions.md",
+	"overrides": {
+		"AnnouncementBar": { "cardMode": "column" },
+		"Card": { "cardMode": "column" },
+		"NavBar": { "cardMode": "column" },
+		"ProductTile": { "cardMode": "column" }
+	}
+}

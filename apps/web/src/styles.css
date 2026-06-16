@@ -1,22 +1,26 @@
+/* The web app adopts the shared design system as the single source of brand
+   tokens. Brand colors, fonts, and tracking come from @denim-fit/design-system;
+   the few app-specific semantic names below are thin aliases onto that palette,
+   so the dashboard now renders in the Abercrombie-inspired navy theme. */
+
+@import "../../../packages/design-system/src/fonts.css";
 @import "tailwindcss";
+@import "../../../packages/design-system/src/theme.css";
+
+/* Generate the utilities used inside the DS components we render here. */
+@source "../../../packages/design-system/src/components/**/*.{ts,tsx}";
 
 @theme {
-	--color-canvas: #f5f1ea; /* page background */
-	--color-surface: #fffdfa; /* panels */
-	--color-ink: #1c2430; /* primary text / dark buttons */
-	--color-accent: #275c63; /* teal */
-	--color-clay: #6b4f3f; /* eyebrow */
-	--color-muted: #6c7480; /* secondary text */
-	--color-line: #ded7cd; /* panel / textarea border */
-	--color-rowline: #ece4d8; /* appointment row border */
-	--color-tag: #e7f0ef; /* prep tag chip background */
-	--color-suggest: #f7f8f4; /* suggested-products background */
-	--color-suggestline: #cfd7c7; /* suggested-products dashed border */
-	--color-control: #bfc7bd; /* secondary button border */
+	/* App-specific semantic names, mapped onto the shared DS tokens. */
+	--color-canvas: var(--color-surface-subtle); /* page background */
+	--color-surface: #ffffff; /* panels */
+	--color-accent: var(--color-navy); /* teal → secondary navy */
+	--color-clay: var(--color-muted); /* eyebrow */
+	--color-rowline: var(--color-line-subtle); /* appointment row border */
+	--color-suggest: var(--color-surface-subtle); /* suggested-products bg */
+	--color-suggestline: var(--color-line); /* suggested-products border */
 
-	--font-sans:
-		Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
-		"Segoe UI", sans-serif;
+	--font-sans: var(--font-body);
 }
 
 @layer base {

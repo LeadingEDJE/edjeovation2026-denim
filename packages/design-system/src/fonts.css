@@ -1,0 +1,3 @@
+/* Brand webfonts (Trade Gothic substitutes). Importable on its own so consuming
+   apps can load the same families. Must precede other rules in the entry. */
+@import url("https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700&family=Oswald:wght@300;400;500;600;700&display=swap");

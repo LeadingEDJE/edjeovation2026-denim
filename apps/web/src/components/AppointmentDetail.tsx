@@ -1,3 +1,4 @@
+import { Badge, Button, Price, Rating } from "@denim-fit/design-system";
 import {
 	ArrowLeft,
 	CheckCircle2,
@@ -16,10 +17,14 @@ import type {
 	StylistProfile,
 	SuggestedProduct,
 } from "../api";
-import { formatAppointmentDateTime, statusLabel } from "../formatters";
+import {
+	formatAppointmentDateTime,
+	statusBadgeVariant,
+	statusLabel,
+} from "../formatters";
 
-const buttonBase =
-	"inline-flex cursor-pointer items-center justify-center gap-1.5 rounded-lg px-3 py-[9px] disabled:cursor-wait disabled:opacity-60";
+const fieldClass =
+	"rounded-none border border-line bg-surface text-ink focus:border-ink focus:outline-none disabled:bg-canvas disabled:text-muted";
 
 type AppointmentDetailProps = {
 	appointment: Appointment;
@@ -81,17 +86,18 @@ export function AppointmentDetail({
 	);
 
 	return (
-		<section className="rounded-lg border border-line bg-surface p-[18px]">
+		<section className="rounded-none border border-line bg-surface p-[18px]">
 			<div className="mb-5 flex flex-col gap-3 min-[720px]:flex-row min-[720px]:items-start min-[720px]:justify-between">
 				<div className="grid gap-2">
-					<button
-						type="button"
-						className="inline-flex w-fit cursor-pointer items-center gap-2 rounded-lg border border-control bg-surface px-3 py-2 text-ink hover:bg-canvas"
+					<Button
+						className="w-fit"
+						variant="secondary"
+						size="sm"
+						leadingIcon={<ArrowLeft size={16} />}
 						onClick={onBack}
 					>
-						<ArrowLeft size={16} />
 						Back to appointments
-					</button>
+					</Button>
 					<div>
 						<p className="font-bold text-[0.78rem] text-clay uppercase">
 							Appointment detail
@@ -99,9 +105,9 @@ export function AppointmentDetail({
 						<h2 className="font-bold text-2xl">{appointment.customerName}</h2>
 					</div>
 				</div>
-				<span className="w-fit rounded-full bg-tag px-3 py-1 font-extrabold text-[0.85rem] text-accent">
+				<Badge variant={statusBadgeVariant(appointment.status)}>
 					{statusLabel(appointment.status)}
-				</span>
+				</Badge>
 			</div>
 
 			<div className="grid gap-4 min-[900px]:grid-cols-[1fr_1fr]">
@@ -122,7 +128,7 @@ export function AppointmentDetail({
 								Reassign stylist
 							</span>
 							<select
-								className="h-10 rounded-lg border border-line bg-surface px-3"
+								className={`h-10 px-3 ${fieldClass}`}
 								value={appointment.assignedStylist.id}
 								onChange={(event) =>
 									onReassign(appointment, event.target.value)
@@ -223,7 +229,7 @@ export function AppointmentDetail({
 						Associate session notes
 					</span>
 					<textarea
-						className="min-h-28 w-full resize-y rounded-lg border border-line bg-surface p-2.5 text-ink focus:border-accent focus:outline-none disabled:bg-canvas disabled:text-muted"
+						className={`min-h-28 w-full resize-y p-2.5 ${fieldClass}`}
 						value={sessionNote}
 						onChange={(event) =>
 							onSessionNoteChange(appointment.id, event.target.value)
@@ -237,7 +243,7 @@ export function AppointmentDetail({
 						Customer recap
 					</span>
 					<textarea
-						className="min-h-24 w-full resize-y rounded-lg border border-line bg-surface p-2.5 text-ink focus:border-accent focus:outline-none disabled:bg-canvas disabled:text-muted"
+						className={`min-h-24 w-full resize-y p-2.5 ${fieldClass}`}
 						value={customerRecap}
 						onChange={(event) =>
 							onCustomerRecapChange(appointment.id, event.target.value)
@@ -251,7 +257,7 @@ export function AppointmentDetail({
 						Associate feedback
 					</span>
 					<textarea
-						className="min-h-20 w-full resize-y rounded-lg border border-line bg-surface p-2.5 text-ink focus:border-accent focus:outline-none disabled:bg-canvas disabled:text-muted"
+						className={`min-h-20 w-full resize-y p-2.5 ${fieldClass}`}
 						value={associateFeedback}
 						onChange={(event) =>
 							onAssociateFeedbackChange(appointment.id, event.target.value)
@@ -261,42 +267,42 @@ export function AppointmentDetail({
 					/>
 				</label>
 				<div className="flex flex-wrap justify-end gap-2">
-					<button
-						type="button"
-						className={`${buttonBase} border border-control bg-surface text-ink transition-colors hover:bg-canvas`}
+					<Button
+						variant="secondary"
+						size="sm"
+						leadingIcon={<UserCheck size={16} />}
 						onClick={() => onCheckIn(appointment)}
 						disabled={appointment.status !== "scheduled" || isLoading}
 					>
-						<UserCheck size={16} />
 						Check in
-					</button>
-					<button
-						type="button"
-						className={`${buttonBase} border border-control bg-surface text-ink transition-colors hover:bg-canvas`}
+					</Button>
+					<Button
+						variant="secondary"
+						size="sm"
+						leadingIcon={<UserX size={16} />}
 						onClick={() => onNoShow(appointment)}
 						disabled={appointment.status !== "scheduled" || isLoading}
 					>
-						<UserX size={16} />
 						No-show
-					</button>
-					<button
-						type="button"
-						className={`${buttonBase} border border-control bg-surface text-ink transition-colors hover:bg-canvas`}
+					</Button>
+					<Button
+						variant="secondary"
+						size="sm"
+						leadingIcon={<Save size={16} />}
 						onClick={() => onSaveNotes(appointment)}
 						disabled={!canEdit}
 					>
-						<Save size={16} />
 						Save notes
-					</button>
-					<button
-						type="button"
-						className={`${buttonBase} border border-ink bg-ink text-white transition-opacity hover:opacity-90`}
+					</Button>
+					<Button
+						variant="primary"
+						size="sm"
+						leadingIcon={<CheckCircle2 size={16} />}
 						onClick={() => onCompleteSession(appointment)}
 						disabled={!canEdit || !customerRecap.trim()}
 					>
-						<CheckCircle2 size={16} />
 						Complete
-					</button>
+					</Button>
 				</div>
 			</section>
 		</section>
@@ -317,7 +323,7 @@ function DetailSection({
 	children: React.ReactNode;
 }) {
 	return (
-		<section className="grid gap-3 rounded-lg border border-rowline p-3">
+		<section className="grid gap-3 rounded-none border border-rowline p-3">
 			<h3 className="font-semibold text-base">{title}</h3>
 			<div className="grid gap-2">{children}</div>
 		</section>
@@ -355,7 +361,7 @@ function MessagingPanel({
 					<p className="text-[0.9rem] text-muted">No messages yet.</p>
 				) : (
 					messages.map((message) => (
-						<div key={message.id} className="rounded-lg bg-canvas p-2">
+						<div key={message.id} className="rounded-none bg-canvas p-2">
 							<div className="mb-1 flex justify-between gap-2 text-[0.75rem] text-muted">
 								<strong className="capitalize">{message.authorType}</strong>
 								<span>{new Date(message.createdAt).toLocaleString()}</span>
@@ -367,21 +373,22 @@ function MessagingPanel({
 			</div>
 			<div className="grid gap-2">
 				<textarea
-					className="min-h-20 rounded-lg border border-line bg-surface p-2.5 text-sm disabled:bg-canvas disabled:text-muted"
+					className={`min-h-20 p-2.5 text-sm ${fieldClass}`}
 					value={messageDraft}
 					onChange={(event) => onMessageDraftChange(event.target.value)}
 					disabled={!canEdit}
 					placeholder="Message the customer about appointment prep."
 				/>
-				<button
-					type="button"
-					className={`${buttonBase} border border-control bg-surface text-ink transition-colors hover:bg-canvas`}
+				<Button
+					className="w-fit"
+					variant="secondary"
+					size="sm"
+					leadingIcon={<MessageSquarePlus size={15} />}
 					onClick={onPostMessage}
 					disabled={!canEdit || !messageDraft.trim()}
 				>
-					<MessageSquarePlus size={15} />
 					Send message
-				</button>
+				</Button>
 			</div>
 		</DetailSection>
 	);
@@ -441,22 +448,20 @@ function SuggestedProducts({
 	}, [appointment.suggestedProducts]);
 
 	return (
-		<section className="grid gap-3 rounded-lg border border-suggestline border-dashed bg-suggest p-3">
+		<section className="grid gap-3 rounded-none border border-suggestline border-dashed bg-suggest p-3">
 			<div className="flex items-center justify-between gap-2">
 				<h3 className="font-semibold text-base">Suggested products</h3>
 				<div className="flex items-center gap-2">
-					<button
-						type="button"
-						className={`${buttonBase} border border-control bg-surface text-[0.8rem] text-ink transition-colors hover:bg-canvas`}
+					<Button
+						variant="secondary"
+						size="sm"
+						leadingIcon={<Sparkles size={14} />}
 						onClick={() => onRegenerate(appointment)}
 						disabled={!canEdit}
 					>
-						<Sparkles size={14} />
 						Regenerate
-					</button>
-					<span className="min-w-[24px] rounded-full bg-ink px-2 py-0.5 text-center font-extrabold text-[0.78rem] text-white">
-						{appointment.suggestedProducts.length}
-					</span>
+					</Button>
+					<Badge variant="new">{appointment.suggestedProducts.length}</Badge>
 				</div>
 			</div>
 			{appointment.suggestedProducts.length === 0 ? (
@@ -474,7 +479,7 @@ function SuggestedProducts({
 								className="grid grid-cols-[64px_1fr] items-start gap-3 border-rowline border-b pb-3 last:border-b-0 last:pb-0"
 							>
 								<a
-									className="block h-16 w-16 shrink-0 overflow-hidden rounded-md border border-rowline bg-surface"
+									className="block h-16 w-16 shrink-0 overflow-hidden rounded-none border border-rowline bg-surface"
 									href={suggestion.product.productUrl}
 									target="_blank"
 									rel="noreferrer"
@@ -501,25 +506,27 @@ function SuggestedProducts({
 									>
 										{suggestion.rank}. {suggestion.product.name}
 									</a>
-									<small className="text-[0.8rem] text-muted capitalize">
-										{[
-											suggestion.product.category,
-											suggestion.product.fit,
-											suggestion.product.rise,
-											suggestion.product.stretch,
-										]
-											.filter(Boolean)
-											.join(" · ")}
-										{suggestion.product.price != null
-											? ` · $${suggestion.product.price}`
-											: ""}
-									</small>
+									<div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+										<small className="text-[0.8rem] text-muted capitalize">
+											{[
+												suggestion.product.category,
+												suggestion.product.fit,
+												suggestion.product.rise,
+												suggestion.product.stretch,
+											]
+												.filter(Boolean)
+												.join(" · ")}
+										</small>
+										{suggestion.product.price != null && (
+											<Price price={suggestion.product.price} />
+										)}
+									</div>
 									<p className="text-[0.85rem] text-muted">
 										{suggestion.rationale}
 									</p>
 									<div className="grid gap-2 min-[640px]:grid-cols-[150px_1fr_auto]">
 										<select
-											className="h-10 rounded-lg border border-line bg-surface px-3 text-sm"
+											className={`h-10 px-3 text-sm ${fieldClass}`}
 											value={suggestion.prepStatus}
 											disabled={!canEdit}
 											onChange={(event) =>
@@ -536,7 +543,7 @@ function SuggestedProducts({
 											<option value="skipped">Skipped</option>
 										</select>
 										<input
-											className="h-10 rounded-lg border border-line bg-surface px-3 text-sm disabled:bg-canvas disabled:text-muted"
+											className={`h-10 px-3 text-sm ${fieldClass}`}
 											value={note}
 											disabled={!canEdit}
 											placeholder="Associate product note"
@@ -547,9 +554,10 @@ function SuggestedProducts({
 												}))
 											}
 										/>
-										<button
-											type="button"
-											className={`${buttonBase} border border-control bg-surface text-ink text-sm transition-colors hover:bg-canvas`}
+										<Button
+											variant="secondary"
+											size="sm"
+											leadingIcon={<Save size={14} />}
 											disabled={!canEdit}
 											onClick={() =>
 												onUpdateProductPrep(
@@ -560,9 +568,8 @@ function SuggestedProducts({
 												)
 											}
 										>
-											<Save size={14} />
 											Save
-										</button>
+										</Button>
 									</div>
 								</div>
 							</li>
@@ -581,10 +588,12 @@ function FeedbackPanel({ appointment }: { appointment: Appointment }) {
 				<p className="text-[0.9rem] text-muted">No customer feedback yet.</p>
 			) : (
 				<>
-					<DetailItem
-						label="Rating"
-						value={`${appointment.customerFeedbackRating}/5`}
-					/>
+					<div className="grid gap-0.5">
+						<span className="font-bold text-[0.72rem] text-muted uppercase">
+							Rating
+						</span>
+						<Rating value={appointment.customerFeedbackRating} />
+					</div>
 					<DetailItem
 						label="Comment"
 						value={appointment.customerFeedbackComment || "No comment"}

@@ -1,0 +1,51 @@
+/* ============================================================================
+   @denim-fit/design-system — shared Tailwind v4 theme (tokens only)
+   Abercrombie-inspired: a deep slate-navy, generous whitespace, square corners,
+   and a condensed, lightly tracked grotesque type system.
+
+   This file is the single source of truth for the brand tokens. It contains NO
+   `@import "tailwindcss"` and NO `@source`, so it can be imported into any
+   Tailwind v4 entry stylesheet (the DS's own build, or a consuming app like
+   apps/web) without pulling Tailwind in twice. Webfonts load separately via
+   fonts.css. See src/index.css for the DS build entry.
+   ============================================================================ */
+
+@theme {
+	/* --- Brand & neutral colors (--color-* → bg-*, text-*, border-*) ------ */
+	--color-ink: #253746; /* signature slate-navy — primary brand */
+	--color-ink-deep: #1b2935; /* hover / pressed on ink */
+	--color-navy: #27455c; /* secondary navy / focus ring */
+	--color-body: #5e5e5e; /* default body copy */
+	--color-muted: #8a8a8a; /* meta, captions, placeholders */
+	--color-line: #c6c6c6; /* default borders */
+	--color-line-subtle: #e3e3e3; /* hairline dividers */
+	--color-surface-subtle: #f6f6f6; /* quiet panels / media wells */
+	--color-surface-muted: #efefef; /* slightly heavier fill */
+	--color-sale: #981420; /* clearance / sale red */
+	--color-sale-soft: #9e3533;
+	--color-success: #2f6b4f;
+	--color-disabled: #8f969c;
+
+	/* --- Typography (--font-* → font-*, --text-* → text-*) --------------- */
+	--font-display:
+		"Oswald", "Trade Gothic", "Arial Narrow", system-ui, sans-serif;
+	--font-body:
+		"Archivo", "Trade Gothic", "Helvetica Neue", Helvetica, Arial, sans-serif;
+
+	/* extra small step for fine print / eyebrows (11px) */
+	--text-2xs: 0.6875rem;
+	--text-2xs--line-height: 1rem;
+
+	/* --- Letter spacing (--tracking-* → tracking-*) --------------------- */
+	--tracking-cta: 0.04em; /* buttons & nav labels (~0.6px @ 14px) */
+	--tracking-label: 0.12em; /* uppercase eyebrows / badges */
+}
+
+/* Brand body defaults, without leaking component styling. */
+@layer base {
+	body {
+		font-family: var(--font-body);
+		color: var(--color-body);
+		-webkit-font-smoothing: antialiased;
+	}
+}
