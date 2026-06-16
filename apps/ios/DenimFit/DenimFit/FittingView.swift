@@ -2131,9 +2131,13 @@ private struct OutfitMatchView: View {
             .buttonStyle(.plain)
             .disabled(isAnalyzing)
 
-            footerSecondaryButton("Skip", action: onSkip)
-                .disabled(isAnalyzing)
-                .frame(maxWidth: .infinity, alignment: .leading)
+            Button {
+                onSkip()
+            } label: {
+                OutfitChooserCard(icon: "arrow.right", title: "Skip", subtitle: "Continue without an outfit to match")
+            }
+            .buttonStyle(.plain)
+            .disabled(isAnalyzing)
 
             if isAnalyzing {
                 HStack(spacing: 8) {
