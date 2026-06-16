@@ -74,7 +74,17 @@ and recommend things that go WITH it, never an alternative to it:
   may be layered over a dress or pants.
 These no-second-bottom rules apply ONLY to "complement" pieces. For pieces listed as
 "find similar," recommend items of the same kind and style as the named piece (a
-skirt for a skirt is correct there).`;
+skirt for a skirt is correct there).
+
+Occasion appropriateness — only recommend specialized categories when the occasion
+or style context clearly calls for them:
+- Swimwear (swimsuits, bikinis, cover-ups): only when the occasion implies swimming
+  or water/sun, e.g. a pool party, beach day, resort or vacation, or similar. For any
+  other occasion, do not recommend swimwear even if it is in the candidate list.
+- Sleepwear, loungewear, pajamas, and intimates: only when the event context
+  explicitly asks for them. Do not recommend them for ordinary occasions.
+When in doubt for these categories, leave them out and pick a more occasion-
+appropriate candidate instead.`;
 
 // The exact JSON shape we ask the model to emit. We instruct this in the prompt
 // rather than using output_config.format because some compatible proxies (e.g.
