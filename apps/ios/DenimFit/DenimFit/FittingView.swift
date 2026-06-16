@@ -1966,20 +1966,19 @@ private struct OutfitMatchView: View {
         VStack(spacing: 0) {
             ScrollView {
                 VStack(alignment: .leading, spacing: 18) {
-                    Text(eyebrow)
-                        .font(.caption)
-                        .fontWeight(.bold)
-                        .foregroundStyle(.teal)
+                    Text(eyebrow).eyebrow(.accent)
                     Text("Want us to style around something?")
-                        .font(.title)
-                        .fontWeight(.bold)
+                        .font(.brandDisplay(27))
+                        .foregroundStyle(Color.ink)
+                        .fixedSize(horizontal: false, vertical: true)
                     Text("Add a piece you already own — like a skirt you want a top for. Snap or upload a photo and we'll read the details, or just describe it. Photos are analyzed instantly and never saved.")
-                        .foregroundStyle(.secondary)
+                        .font(.system(size: 14))
+                        .foregroundStyle(Color.bodyCopy)
 
                     if let errorText {
                         Text(errorText)
-                            .font(.footnote)
-                            .foregroundStyle(.red)
+                            .font(.system(size: 13))
+                            .foregroundStyle(Color.sale)
                     }
 
                     switch stage {
@@ -1990,12 +1989,11 @@ private struct OutfitMatchView: View {
                     }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(20)
+                .padding(22)
             }
             footer
-                .padding(20)
-                .background(.regularMaterial)
         }
+        .background(Color.canvas)
         .onAppear {
             if let initial, stage == .chooser { apply(initial) }
         }
@@ -2040,9 +2038,10 @@ private struct OutfitMatchView: View {
 
             if isAnalyzing {
                 HStack(spacing: 8) {
-                    ProgressView()
+                    ProgressView().tint(Color.ink)
                     Text("Analyzing your photo…")
-                        .foregroundStyle(.secondary)
+                        .font(.system(size: 13))
+                        .foregroundStyle(Color.muted)
                 }
                 .padding(.top, 4)
             }
@@ -2064,14 +2063,23 @@ private struct OutfitMatchView: View {
                     .frame(height: 180)
                     .frame(maxWidth: .infinity)
                     .clipped()
-                    .clipShape(RoundedRectangle(cornerRadius: 8))
+                    .overlay(Rectangle().stroke(Color.line, lineWidth: 1))
             }
 
             // Let the customer (re)attach a photo at any time — re-analyzing
             // replaces the pieces below with what we read from the new photo.
-            HStack(spacing: 12) {
+            // Labels are built inline (no method call) so they're usable inside
+            // PhotosPicker's non-isolated label closure.
+            HStack(spacing: 10) {
                 PhotosPicker(selection: $photoItem, matching: .images, photoLibrary: .shared()) {
                     Label(uploadTitle, systemImage: "photo.on.rectangle")
+                        .font(.system(size: 11, weight: .bold))
+                        .textCase(.uppercase)
+                        .tracking(Brand.trackingCTA)
+                        .foregroundStyle(Color.ink)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 9)
+                        .overlay(Rectangle().stroke(Color.line, lineWidth: 1))
                 }
                 if cameraAvailable {
                     Button {
@@ -2079,24 +2087,31 @@ private struct OutfitMatchView: View {
                         showCamera = true
                     } label: {
                         Label(cameraTitle, systemImage: "camera")
+                            .font(.system(size: 11, weight: .bold))
+                            .textCase(.uppercase)
+                            .tracking(Brand.trackingCTA)
+                            .foregroundStyle(Color.ink)
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 9)
+                            .overlay(Rectangle().stroke(Color.line, lineWidth: 1))
                     }
+                    .buttonStyle(.plain)
                 }
             }
-            .font(.subheadline)
             .disabled(isAnalyzing)
 
             if isAnalyzing {
                 HStack(spacing: 8) {
-                    ProgressView()
+                    ProgressView().tint(Color.ink)
                     Text("Analyzing your photo…")
-                        .foregroundStyle(.secondary)
+                        .font(.system(size: 13))
+                        .foregroundStyle(Color.muted)
                 }
-                .font(.footnote)
             }
 
             Text("For each piece, choose how it should shape your recommendations.")
-                .font(.footnote)
-                .foregroundStyle(.secondary)
+                .font(.system(size: 12))
+                .foregroundStyle(Color.muted)
 
             ForEach($editableGarments) { $garment in
                 GarmentEditorRow(garment: $garment) {
@@ -2107,45 +2122,80 @@ private struct OutfitMatchView: View {
             Button {
                 editableGarments.append(EditableGarment())
             } label: {
-                Label("Add a piece", systemImage: "plus.circle")
-                    .font(.subheadline)
+                Label("Add a piece", systemImage: "plus")
+                    .font(.system(size: 11, weight: .bold))
+                    .textCase(.uppercase)
+                    .tracking(Brand.trackingCTA)
+                    .foregroundStyle(Color.ink)
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 10)
+                    .overlay(Rectangle().stroke(Color.line, lineWidth: 1))
             }
+            .buttonStyle(.plain)
 
             labeledField("Style summary", text: $summary, prompt: "How would you describe the look?")
             labeledField("Focus colors", text: $focusColorsText, prompt: "comma separated, e.g. cream, white")
             labeledField("Style keywords", text: $keywordsText, prompt: "comma separated, e.g. casual-chic")
             Button("Start over") { resetToChooser() }
-                .font(.footnote)
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(Color.accent)
         }
     }
 
     private var footer: some View {
-        HStack {
+        HStack(spacing: 10) {
             if showBack {
-                Button("Back", action: onBack)
-                    .buttonStyle(.bordered)
+                footerSecondaryButton("Back", action: onBack)
             }
-            Button("Skip", action: onSkip)
-                .buttonStyle(.bordered)
+            footerSecondaryButton("Skip", action: onSkip)
                 .disabled(isAnalyzing)
-            Spacer()
             if stage == .editing {
-                Button("Use this outfit") { confirm() }
-                    .buttonStyle(.borderedProminent)
-                    .disabled(!canConfirm)
+                Button { confirm() } label: {
+                    Text("Use this outfit")
+                        .font(.brandDisplay(13))
+                        .tracking(Brand.trackingCTA)
+                        .textCase(.uppercase)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 14)
+                        .foregroundStyle(.white)
+                        .background(canConfirm ? Color.ink : Color.disabled)
+                }
+                .buttonStyle(.plain)
+                .disabled(!canConfirm)
+            } else {
+                Spacer()
             }
         }
+        .padding(.horizontal, 22)
+        .padding(.top, 12)
+        .padding(.bottom, 24)
+        .background(Color.surface)
+        .overlay(Rectangle().fill(Color.line).frame(height: 1), alignment: .top)
+    }
+
+    private func footerSecondaryButton(
+        _ title: String,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            Text(title)
+                .font(.brandDisplay(13))
+                .tracking(Brand.trackingCTA)
+                .textCase(.uppercase)
+                .padding(.horizontal, 18)
+                .padding(.vertical, 14)
+                .foregroundStyle(Color.ink)
+                .overlay(Rectangle().stroke(Color.line, lineWidth: 1))
+        }
+        .buttonStyle(.plain)
     }
 
     private func labeledField(_ label: String, text: Binding<String>, prompt: String) -> some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text(label)
-                .font(.caption)
-                .fontWeight(.bold)
-                .foregroundStyle(.secondary)
+            Text(label).eyebrow()
             TextField(prompt, text: text, axis: .vertical)
-                .textFieldStyle(.roundedBorder)
                 .lineLimit(2, reservesSpace: true)
+                .brandFieldChrome()
         }
     }
 
@@ -2270,33 +2320,50 @@ private struct GarmentEditorRow: View {
     @Binding var garment: EditableGarment
     var onDelete: () -> Void
 
+    private let intents: [(value: String, label: String)] = [
+        ("complement", "Complement"),
+        ("similar", "Similar"),
+        ("ignore", "Ignore"),
+    ]
+
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack {
+        VStack(alignment: .leading, spacing: 9) {
+            HStack(spacing: 10) {
                 TextField("Piece, e.g. denim midi skirt", text: $garment.type)
-                    .textFieldStyle(.roundedBorder)
-                Button(role: .destructive, action: onDelete) {
+                    .brandFieldChrome()
+                Button(action: onDelete) {
                     Image(systemName: "trash")
+                        .font(.system(size: 13))
+                        .foregroundStyle(Color.muted)
+                        .padding(11)
+                        .overlay(Rectangle().stroke(Color.line, lineWidth: 1))
                 }
-                .buttonStyle(.borderless)
+                .buttonStyle(.plain)
             }
             TextField("Colors (comma separated)", text: $garment.colorsText)
-                .textFieldStyle(.roundedBorder)
-                .font(.subheadline)
-            Picker("How to use it", selection: $garment.intent) {
-                Text("Complement").tag("complement")
-                Text("Similar").tag("similar")
-                Text("Ignore").tag("ignore")
+                .brandFieldChrome()
+
+            HStack(spacing: 0) {
+                ForEach(intents, id: \.value) { option in
+                    let selected = garment.intent == option.value
+                    Button {
+                        garment.intent = option.value
+                    } label: {
+                        Text(option.label)
+                            .font(.system(size: 11, weight: .bold))
+                            .textCase(.uppercase)
+                            .tracking(Brand.trackingCTA)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 9)
+                            .foregroundStyle(selected ? Color.white : Color.ink)
+                            .background(selected ? Color.ink : Color.surface)
+                    }
+                    .buttonStyle(.plain)
+                }
             }
-            .pickerStyle(.segmented)
+            .overlay(Rectangle().stroke(Color.line, lineWidth: 1))
         }
-        .padding()
-        .background(Color(.secondarySystemGroupedBackground))
-        .clipShape(RoundedRectangle(cornerRadius: 8))
-        .overlay(
-            RoundedRectangle(cornerRadius: 8)
-                .stroke(Color(.separator), lineWidth: 1)
-        )
+        .brandCard(padding: 14)
     }
 }
 
@@ -2309,28 +2376,40 @@ private struct OutfitChooserCard: View {
     let subtitle: String
 
     var body: some View {
-        HStack(spacing: 12) {
+        HStack(spacing: 13) {
             Image(systemName: icon)
-                .font(.title3)
-                .foregroundStyle(.teal)
+                .font(.system(size: 18))
+                .foregroundStyle(Color.accent)
                 .frame(width: 28)
             VStack(alignment: .leading, spacing: 2) {
                 Text(title)
-                    .font(.headline)
+                    .font(.system(size: 15, weight: .bold))
+                    .foregroundStyle(Color.ink)
                 Text(subtitle)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .font(.system(size: 12))
+                    .foregroundStyle(Color.muted)
             }
             Spacer()
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding()
-        .background(Color(.secondarySystemGroupedBackground))
-        .clipShape(RoundedRectangle(cornerRadius: 8))
-        .overlay(
-            RoundedRectangle(cornerRadius: 8)
-                .stroke(Color(.separator), lineWidth: 1)
-        )
+        .padding(15)
+        .background(Color.surface)
+        .overlay(Rectangle().stroke(Color.line, lineWidth: 1))
+    }
+}
+
+// Brand chrome for the outfit views' free-text fields — square white field with a
+// 1px border, matching the rest of the app.
+private extension View {
+    func brandFieldChrome() -> some View {
+        self
+            .font(.system(size: 14))
+            .foregroundStyle(Color(hex: 0x2A2A2A))
+            .tint(Color.ink)
+            .padding(11)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(Color.surface)
+            .overlay(Rectangle().stroke(Color.line, lineWidth: 1))
     }
 }
 
