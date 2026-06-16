@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
 	coarseCategory,
+	coarseCategoryFromText,
 	type FitProfile,
 	parseColors,
 	rankCandidates,
@@ -151,6 +152,21 @@ describe("coarseCategory", () => {
 		expect(coarseCategory(product({ name: "Leather Crossbody Bag" }))).toBe(
 			"other",
 		);
+	});
+});
+
+describe("coarseCategoryFromText", () => {
+	it("buckets free-text garment wording (used by the similar-only rule)", () => {
+		expect(coarseCategoryFromText("denim midi skirt")).toBe("bottoms");
+		expect(coarseCategoryFromText("pair of wide-leg pants")).toBe("bottoms");
+		expect(coarseCategoryFromText("white button-down shirt")).toBe("tops");
+		expect(coarseCategoryFromText("slip dress")).toBe("dresses");
+		expect(coarseCategoryFromText("cropped denim jacket")).toBe("outerwear");
+	});
+
+	it("checks outerwear/dresses before the denim→bottoms keyword", () => {
+		expect(coarseCategoryFromText("denim trucker jacket")).toBe("outerwear");
+		expect(coarseCategoryFromText("denim shirt dress")).toBe("dresses");
 	});
 });
 
