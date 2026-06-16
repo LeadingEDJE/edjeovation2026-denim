@@ -29,3 +29,6 @@ DerivedData/
 .claude/settings.local.json
 apps/ios/DenimFit/DenimFit.xcodeproj/project.xcworkspace/contents.xcworkspacedata
 apps/ios/DenimFit/DenimFit.xcodeproj/xcuserdata/
+
+# Xcode build output (DerivedData lives here when building from the CLI)
+apps/ios/DenimFit/build/
