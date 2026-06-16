@@ -70,6 +70,10 @@ jobs:
           ANTHROPIC_SMALL_FAST_MODEL: ${{ vars.LITELLM_SMALL_FAST_MODEL || secrets.RECOMMENDER_MODEL || 'claude-opus-4.7' }}
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          # Use the workflow token instead of the Claude GitHub App, so the app
+          # doesn't need to be installed on the repo. We auth the model via the
+          # LiteLLM key above; this token only covers GitHub API/git operations.
+          github_token: ${{ secrets.GITHUB_TOKEN }}
           # Allow the agent to read the repo, edit docs, and commit/push.
           claude_args: >-
             --max-turns 40
