@@ -20,6 +20,15 @@
 	--color-suggest: var(--color-surface-subtle); /* suggested-products bg */
 	--color-suggestline: var(--color-line); /* suggested-products border */
 
+	/* Fitting-console design tints with no direct DS token. `steel` is the
+	   light slate accent used on the navy hero/tabs; `chip` backs the small
+	   style-signal pills; the two *-tint surfaces wash the completed-recap
+	   outcome banner (success) and internal-feedback callout (sale). */
+	--color-steel: #9fb6c6;
+	--color-chip: #eef2f5;
+	--color-success-tint: #f3f6f4;
+	--color-sale-tint: #fbf3f3;
+
 	--font-sans: var(--font-body);
 }
 
