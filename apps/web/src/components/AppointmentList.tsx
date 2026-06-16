@@ -1,5 +1,6 @@
 import { Badge } from "@denim-fit/design-system";
-import { ChevronRight } from "lucide-react";
+import { ChevronRight, Search } from "lucide-react";
+import { useState } from "react";
 import type {
 	Appointment,
 	AppointmentStatus,
@@ -7,7 +8,8 @@ import type {
 	StylistProfile,
 } from "../api";
 import {
-	formatAppointmentTime,
+	initials,
+	relativeSlotLabel,
 	statusBadgeVariant,
 	statusLabel,
 } from "../formatters";
@@ -40,35 +42,62 @@ export function AppointmentList({
 	onFilterChange,
 	onSelect,
 }: AppointmentListProps) {
+	const [query, setQuery] = useState("");
+
+	const needle = query.trim().toLowerCase();
+	const visible = needle
+		? appointments.filter((appointment) =>
+				`${appointment.customerName} ${appointment.assignedStylist.displayName}`
+					.toLowerCase()
+					.includes(needle),
+			)
+		: appointments;
+
+	const groups = groupByDay(visible);
+
 	return (
 		<section
-			className="min-h-[360px] rounded-none border border-line bg-surface p-[18px]"
+			className="rounded-none border border-line bg-surface"
 			data-testid="appointments-panel"
 		>
-			<div className="mb-3 flex items-center justify-between gap-2">
-				<h2 className="font-semibold text-base">{activeTitle} appointments</h2>
-				<span className="text-[0.9rem] text-muted">{appointments.length}</span>
-			</div>
 			<AppointmentFilterBar
 				filters={filters}
 				stores={stores}
 				stylists={stylists}
+				query={query}
+				onQueryChange={setQuery}
 				onFilterChange={onFilterChange}
 			/>
-			<div className="grid gap-3" data-testid="appointment-list">
-				{appointments.map((appointment) => (
-					<AppointmentListRow
-						key={appointment.id}
-						appointment={appointment}
-						onSelect={onSelect}
-					/>
-				))}
-				{appointments.length === 0 ? (
+			<div
+				className="px-5 pt-1 pb-7 min-[760px]:px-8"
+				data-testid="appointment-list"
+			>
+				{groups.map((group) =>
+					group.appointments.length > 0 ? (
+						<div key={group.label}>
+							<GroupHeader
+								label={group.label}
+								count={group.appointments.length}
+							/>
+							<div className="grid gap-3">
+								{group.appointments.map((appointment) => (
+									<AppointmentListRow
+										key={appointment.id}
+										appointment={appointment}
+										onSelect={onSelect}
+									/>
+								))}
+							</div>
+						</div>
+					) : null,
+				)}
+				{visible.length === 0 ? (
 					<p
-						className="text-[0.9rem] text-muted"
+						className="pt-6 text-[0.9rem] text-muted"
 						data-testid="appointments-empty"
 					>
-						No {activeTitle.toLowerCase()} appointments.
+						No {activeTitle.toLowerCase()} appointments
+						{needle ? " match your search" : ""}.
 					</p>
 				) : null}
 			</div>
@@ -76,87 +105,130 @@ export function AppointmentList({
 	);
 }
 
+type DayGroup = { label: string; appointments: Appointment[] };
+
+/** Bucket appointments into Today / Upcoming / Earlier, preserving incoming order. */
+function groupByDay(appointments: Appointment[]): DayGroup[] {
+	const now = new Date();
+	const startOfToday = new Date(
+		now.getFullYear(),
+		now.getMonth(),
+		now.getDate(),
+	).getTime();
+	const startOfTomorrow = startOfToday + 86_400_000;
+	const todayLabel = `Today · ${now.toLocaleDateString([], {
+		month: "short",
+		day: "numeric",
+	})}`;
+
+	const today: Appointment[] = [];
+	const upcoming: Appointment[] = [];
+	const earlier: Appointment[] = [];
+
+	for (const appointment of appointments) {
+		const slot = new Date(appointment.slotStart).getTime();
+		if (slot >= startOfToday && slot < startOfTomorrow) {
+			today.push(appointment);
+		} else if (slot >= startOfTomorrow) {
+			upcoming.push(appointment);
+		} else {
+			earlier.push(appointment);
+		}
+	}
+
+	return [
+		{ label: todayLabel, appointments: today },
+		{ label: "Upcoming", appointments: upcoming },
+		{ label: "Earlier", appointments: earlier },
+	];
+}
+
+function GroupHeader({ label, count }: { label: string; count: number }) {
+	return (
+		<div className="flex items-center gap-3 pt-5 pb-3">
+			<span className="font-display font-semibold text-[13px] text-ink uppercase tracking-label">
+				{label}
+			</span>
+			<span className="h-px flex-1 bg-line-subtle" />
+			<span className="font-bold text-2xs text-muted uppercase tracking-label">
+				{count} {count === 1 ? "appointment" : "appointments"}
+			</span>
+		</div>
+	);
+}
+
 function AppointmentFilterBar({
 	filters,
 	stores,
 	stylists,
+	query,
+	onQueryChange,
 	onFilterChange,
 }: {
 	filters: AppointmentFilters;
 	stores: Store[];
 	stylists: StylistProfile[];
+	query: string;
+	onQueryChange: (value: string) => void;
 	onFilterChange: (filters: AppointmentFilters) => void;
 }) {
 	const update = (patch: Partial<AppointmentFilters>) =>
 		onFilterChange({ ...filters, ...patch });
 
 	return (
-		<div className="mb-4 grid gap-2 min-[760px]:grid-cols-5">
-			<FilterSelect
-				label="Store"
-				value={filters.storeId}
-				onChange={(value) => update({ storeId: value })}
-			>
-				<option value="">All stores</option>
-				{stores.map((store) => (
-					<option key={store.storeId} value={store.storeId}>
-						{store.name}
-					</option>
-				))}
-			</FilterSelect>
-			<label className="grid gap-1">
-				<span className="font-bold text-[0.72rem] text-muted uppercase">
-					Date
-				</span>
+		<div className="flex flex-col gap-3 border-line-subtle border-b bg-surface-subtle px-5 py-4 min-[760px]:flex-row min-[760px]:items-center min-[760px]:justify-between min-[760px]:px-8">
+			<div className="flex flex-wrap items-center gap-2.5">
+				<FilterPill
+					label="Store"
+					value={filters.storeId}
+					onChange={(value) => update({ storeId: value })}
+				>
+					<option value="">All stores</option>
+					{stores.map((store) => (
+						<option key={store.storeId} value={store.storeId}>
+							{store.name}
+						</option>
+					))}
+				</FilterPill>
+				<FilterPill
+					label="Stylist"
+					value={filters.stylistId}
+					onChange={(value) => update({ stylistId: value })}
+				>
+					<option value="">All stylists</option>
+					{stylists.map((stylist) => (
+						<option key={stylist.id} value={stylist.id}>
+							{stylist.displayName}
+						</option>
+					))}
+				</FilterPill>
+				<FilterPill
+					label="Sort"
+					value={filters.dateOrder}
+					onChange={(value) =>
+						update({ dateOrder: value as AppointmentFilters["dateOrder"] })
+					}
+				>
+					<option value="open_priority">Soonest first</option>
+					<option value="oldest">Oldest first</option>
+					<option value="newest">Newest first</option>
+				</FilterPill>
+			</div>
+			<label className="flex items-center gap-2 border border-line bg-surface px-3.5 py-2 min-[760px]:w-60">
+				<Search size={14} className="shrink-0 text-muted" />
 				<input
-					type="date"
-					className="h-10 rounded-none border border-line bg-surface px-3 text-sm"
-					value={filters.date}
-					onChange={(event) => update({ date: event.target.value })}
+					type="search"
+					className="w-full bg-transparent text-[13px] text-ink placeholder:text-muted focus:outline-none"
+					placeholder="Search customer or stylist"
+					value={query}
+					onChange={(event) => onQueryChange(event.target.value)}
 				/>
 			</label>
-			<FilterSelect
-				label="Date order"
-				value={filters.dateOrder}
-				onChange={(value) =>
-					update({ dateOrder: value as AppointmentFilters["dateOrder"] })
-				}
-			>
-				<option value="open_priority">Open priority</option>
-				<option value="oldest">Oldest first</option>
-				<option value="newest">Newest first</option>
-			</FilterSelect>
-			<FilterSelect
-				label="Stylist"
-				value={filters.stylistId}
-				onChange={(value) => update({ stylistId: value })}
-			>
-				<option value="">All stylists</option>
-				{stylists.map((stylist) => (
-					<option key={stylist.id} value={stylist.id}>
-						{stylist.displayName}
-					</option>
-				))}
-			</FilterSelect>
-			<FilterSelect
-				label="Status"
-				value={filters.status}
-				onChange={(value) =>
-					update({ status: value as AppointmentFilters["status"] })
-				}
-			>
-				<option value="">All statuses</option>
-				<option value="scheduled">Scheduled</option>
-				<option value="checked_in">Checked in</option>
-				<option value="completed">Completed</option>
-				<option value="cancelled">Cancelled</option>
-				<option value="no_show">No-show</option>
-			</FilterSelect>
 		</div>
 	);
 }
 
-function FilterSelect({
+function FilterPill({
 	label,
 	value,
 	onChange,
@@ -168,17 +240,22 @@ function FilterSelect({
 	children: React.ReactNode;
 }) {
 	return (
-		<label className="grid gap-1">
-			<span className="font-bold text-[0.72rem] text-muted uppercase">
+		<label className="flex items-center gap-2 border border-line bg-surface px-3.5 py-2">
+			<span className="font-bold text-2xs text-muted uppercase tracking-label">
 				{label}
 			</span>
-			<select
-				className="h-10 rounded-none border border-line bg-surface px-3 text-sm"
-				value={value}
-				onChange={(event) => onChange(event.target.value)}
-			>
-				{children}
-			</select>
+			<span className="relative flex items-center">
+				<select
+					className="cursor-pointer appearance-none bg-transparent pr-4 font-semibold text-[13px] text-ink focus:outline-none"
+					value={value}
+					onChange={(event) => onChange(event.target.value)}
+				>
+					{children}
+				</select>
+				<span className="pointer-events-none absolute right-0 text-[10px] text-muted">
+					▾
+				</span>
+			</span>
 		</label>
 	);
 }
@@ -192,42 +269,89 @@ function AppointmentListRow({
 	appointment,
 	onSelect,
 }: AppointmentListRowProps) {
+	const slot = relativeSlotLabel(appointment);
+	const priority = slot.imminent;
+
 	return (
 		<button
 			type="button"
-			className="grid cursor-pointer gap-3 rounded-none border border-rowline bg-surface p-3 text-left transition-colors hover:bg-canvas focus:border-accent focus:outline-none"
+			className={`flex w-full items-stretch border bg-surface text-left transition-colors hover:bg-surface-subtle focus:outline-none focus-visible:ring-2 focus-visible:ring-navy ${
+				priority ? "border-ink" : "border-line-subtle"
+			}`}
 			onClick={() => onSelect(appointment.id)}
 			data-testid="appointment-row"
 		>
-			<div className="grid gap-3 min-[720px]:grid-cols-[1.3fr_1fr_1.2fr_auto_auto] min-[720px]:items-center">
-				<RowField label="Customer" value={appointment.customerName} />
-				<RowField
-					label="Stylist"
-					value={appointment.assignedStylist.displayName}
-				/>
-				<RowField label="Time" value={formatAppointmentTime(appointment)} />
-				<span className="w-fit">
+			<span
+				className={`w-1 shrink-0 ${priority ? "bg-ink" : "bg-line-subtle"}`}
+			/>
+			<div className="flex flex-1 flex-col gap-4 px-5 py-4 min-[900px]:flex-row min-[900px]:items-center min-[900px]:gap-6 min-[900px]:px-6">
+				<div className="min-[900px]:w-[104px] min-[900px]:shrink-0">
+					<p
+						className={`font-bold text-2xs uppercase tracking-label ${priority ? "text-navy" : "text-muted"}`}
+					>
+						{slot.eyebrow}
+					</p>
+					<p className="mt-0.5 font-display font-medium text-[22px] text-ink leading-tight">
+						{slot.big}
+					</p>
+				</div>
+
+				<span className="hidden h-[46px] w-px bg-line-subtle min-[900px]:block" />
+
+				<div
+					className={`hidden h-[46px] w-[46px] shrink-0 items-center justify-center font-display font-semibold text-[15px] text-white min-[900px]:flex ${priority ? "bg-ink" : "bg-navy"}`}
+				>
+					{initials(appointment.customerName)}
+				</div>
+
+				<div className="min-w-0 flex-1">
+					<p className="font-bold text-2xs text-muted uppercase tracking-label">
+						Customer
+					</p>
+					<p className="mt-0.5 font-bold text-[17px] text-ink leading-snug">
+						{appointment.customerName}
+					</p>
+					<div className="mt-1.5 flex flex-wrap items-center gap-2">
+						<span className="border border-navy/30 px-2 py-0.5 font-bold text-2xs text-navy uppercase tracking-label">
+							{appointment.museTag}
+						</span>
+						<span className="text-[13px] text-body">
+							{appointment.occasion}
+						</span>
+					</div>
+				</div>
+
+				<div className="min-[900px]:w-[172px] min-[900px]:shrink-0">
+					<p className="mb-1.5 font-bold text-2xs text-muted uppercase tracking-label">
+						Stylist
+					</p>
+					<div className="flex items-center gap-2">
+						<span className="flex h-[26px] w-[26px] shrink-0 items-center justify-center bg-navy font-display font-semibold text-[10px] text-white">
+							{initials(appointment.assignedStylist.displayName)}
+						</span>
+						<span className="text-[14px] text-ink">
+							{appointment.assignedStylist.displayName}
+						</span>
+					</div>
+				</div>
+
+				<div className="min-[900px]:w-[150px] min-[900px]:shrink-0">
+					<p className="mb-1.5 font-bold text-2xs text-muted uppercase tracking-label">
+						Store
+					</p>
+					<span className="text-[14px] text-ink">
+						{appointment.store.city}, {appointment.store.state}
+					</span>
+				</div>
+
+				<div className="flex items-center justify-between gap-3 min-[900px]:w-auto min-[900px]:justify-end">
 					<Badge variant={statusBadgeVariant(appointment.status)}>
 						{statusLabel(appointment.status)}
 					</Badge>
-				</span>
-				<ChevronRight
-					className="hidden justify-self-end text-muted min-[720px]:block"
-					size={18}
-				/>
+					<ChevronRight className="shrink-0 text-ink" size={18} />
+				</div>
 			</div>
 		</button>
-	);
-}
-
-function RowField({ label, value }: { label: string; value: string }) {
-	return (
-		<span className="grid gap-0.5">
-			<span className="font-bold text-[0.72rem] text-muted uppercase">
-				{label}
-			</span>
-			<strong className="text-ink">{value}</strong>
-		</span>
 	);
 }
 
