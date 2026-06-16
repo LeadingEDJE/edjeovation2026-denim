@@ -1,9 +1,7 @@
+import { Button } from "@denim-fit/design-system";
 import { ArrowLeft, CheckCircle2, Save, Sparkles } from "lucide-react";
 import type { Appointment } from "../api";
 import { formatAppointmentDateTime, statusLabel } from "../formatters";
-
-const buttonBase =
-	"inline-flex cursor-pointer items-center justify-center gap-1.5 rounded-lg px-3 py-[9px] disabled:cursor-wait disabled:opacity-60";
 
 type AppointmentDetailProps = {
 	appointment: Appointment;
@@ -32,14 +30,15 @@ export function AppointmentDetail({
 		<section className="rounded-lg border border-line bg-surface p-[18px]">
 			<div className="mb-5 flex flex-col gap-3 min-[720px]:flex-row min-[720px]:items-start min-[720px]:justify-between">
 				<div className="grid gap-2">
-					<button
-						type="button"
-						className="inline-flex w-fit cursor-pointer items-center gap-2 rounded-lg border border-control bg-surface px-3 py-2 text-ink hover:bg-canvas"
+					<Button
+						className="w-fit"
+						variant="secondary"
+						size="sm"
+						leadingIcon={<ArrowLeft size={16} />}
 						onClick={onBack}
 					>
-						<ArrowLeft size={16} />
 						Back to appointments
-					</button>
+					</Button>
 					<div>
 						<p className="font-bold text-[0.78rem] text-clay uppercase">
 							Appointment detail
@@ -130,24 +129,24 @@ export function AppointmentDetail({
 					/>
 				</label>
 				<div className="flex flex-wrap justify-end gap-2">
-					<button
-						type="button"
-						className={`${buttonBase} border border-control bg-surface text-ink transition-colors hover:bg-canvas`}
+					<Button
+						variant="secondary"
+						size="sm"
+						leadingIcon={<Save size={16} />}
 						onClick={() => onSaveNotes(appointment)}
 						disabled={!canEdit}
 					>
-						<Save size={16} />
 						Save notes
-					</button>
-					<button
-						type="button"
-						className={`${buttonBase} border border-ink bg-ink text-white transition-opacity hover:opacity-90`}
+					</Button>
+					<Button
+						variant="primary"
+						size="sm"
+						leadingIcon={<CheckCircle2 size={16} />}
 						onClick={() => onCompleteSession(appointment)}
 						disabled={!canEdit}
 					>
-						<CheckCircle2 size={16} />
 						Mark complete
-					</button>
+					</Button>
 				</div>
 			</section>
 		</section>
@@ -194,15 +193,15 @@ function SuggestedProducts({
 			<div className="flex items-center justify-between gap-2">
 				<h3 className="font-semibold text-base">Suggested products</h3>
 				<div className="flex items-center gap-2">
-					<button
-						type="button"
-						className={`${buttonBase} border border-control bg-surface text-[0.8rem] text-ink transition-colors hover:bg-canvas`}
+					<Button
+						variant="secondary"
+						size="sm"
+						leadingIcon={<Sparkles size={14} />}
 						onClick={() => onRegenerate(appointment)}
 						disabled={!canEdit}
 					>
-						<Sparkles size={14} />
 						Regenerate
-					</button>
+					</Button>
 					<span className="min-w-[24px] rounded-full bg-ink px-2 py-0.5 text-center font-extrabold text-[0.78rem] text-white">
 						{appointment.suggestedProducts.length}
 					</span>

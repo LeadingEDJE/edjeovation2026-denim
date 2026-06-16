@@ -1,0 +1,24 @@
+/* ============================================================================
+   @denim-fit/design-system — build entry for the precompiled stylesheet.
+   Produces dist/styles.css (the standalone import for non-Tailwind consumers
+   and the design-sync render sandbox). Apps that already run Tailwind v4 should
+   instead import theme.css + fonts.css and @source the package — see README.
+   ============================================================================ */
+
+@import "./fonts.css";
+@import "tailwindcss";
+@import "./theme.css";
+
+/* Scan the library's own components so the compiled stylesheet ships every
+   utility they use. */
+@source "./components/**/*.{ts,tsx}";
+
+/* Safelist the full brand utility vocabulary so the shipped stylesheet carries
+   it for downstream consumers (the design agent, the docs) even when no
+   component happens to use a given utility directly. */
+@source inline("{bg,text,border,ring}-{ink,ink-deep,navy,body,muted,line,line-subtle,sale,sale-soft,success,disabled}");
+@source inline("{bg,text,border}-{surface-subtle,surface-muted}");
+@source inline("hover:{bg,text,border}-{ink,ink-deep,navy}");
+@source inline("font-{display,body}");
+@source inline("text-2xs");
+@source inline("tracking-{cta,label}");
