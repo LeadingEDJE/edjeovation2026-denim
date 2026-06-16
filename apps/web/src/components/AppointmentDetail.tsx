@@ -1,4 +1,10 @@
-import { ArrowLeft, CheckCircle2, ImageOff, Save, Sparkles } from "lucide-react";
+import {
+	ArrowLeft,
+	CheckCircle2,
+	ImageOff,
+	Save,
+	Sparkles,
+} from "lucide-react";
 import type { Appointment } from "../api";
 import { formatAppointmentDateTime, statusLabel } from "../formatters";
 
