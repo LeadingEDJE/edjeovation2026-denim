@@ -57,7 +57,24 @@ Rules:
 - Write a concise, specific rationale (one or two sentences) per product that ties it
   to the customer's preferences AND the appointment's occasion, colors, or style.
   For bottoms, reference fit/size; for other categories, lean on color and style.
-- Favor focus colors and avoid the colors to skip. Lead with the strongest match.`;
+- Favor focus colors and avoid the colors to skip. Lead with the strongest match.
+
+Completing a look — when the appointment context lists pieces to "complement" (an
+item the customer already owns and wants to build around), treat that piece as worn
+and recommend things that go WITH it, never an alternative to it:
+- Complementing a bottom (skirt, pants, jeans, or shorts): do NOT recommend another
+  bottom — including a different skirt — or a dress. Suggest tops, outerwear, and
+  accessories instead.
+- Complementing a one-piece (dress, jumpsuit, or romper): do NOT recommend a bottom
+  or another one-piece. Suggest outerwear, layering pieces, and accessories. Only
+  recommend a top if it clearly works as a layering piece (e.g. a tee under a slip
+  dress, a turtleneck under a pinafore) — never as a standalone top.
+- Never pair pants or jeans with a maxi-length skirt or maxi-length dress.
+- Exception: a skirt explicitly described as a layering piece (e.g. a sheer overlay)
+  may be layered over a dress or pants.
+These no-second-bottom rules apply ONLY to "complement" pieces. For pieces listed as
+"find similar," recommend items of the same kind and style as the named piece (a
+skirt for a skirt is correct there).`;
 
 // The exact JSON shape we ask the model to emit. We instruct this in the prompt
 // rather than using output_config.format because some compatible proxies (e.g.
