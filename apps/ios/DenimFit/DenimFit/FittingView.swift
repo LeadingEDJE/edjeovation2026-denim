@@ -1386,8 +1386,7 @@ private struct OutfitMatchView: View {
     @State private var summary = ""
     @State private var focusColorsText = ""
     @State private var keywordsText = ""
-    @State private var pairing = ""
-    @State private var garments: [OutfitGarment] = []
+    @State private var editableGarments: [EditableGarment] = []
     @State private var engine = "manual"
 
     private var cameraAvailable: Bool {
@@ -1395,9 +1394,10 @@ private struct OutfitMatchView: View {
     }
 
     private var canConfirm: Bool {
-        !pairing.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        editableGarments.contains {
+            !$0.type.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        }
             || !summary.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-            || !garments.isEmpty
     }
 
     var body: some View {
@@ -1498,22 +1498,24 @@ private struct OutfitMatchView: View {
                     .clipped()
                     .clipShape(RoundedRectangle(cornerRadius: 8))
             }
-            if !garments.isEmpty {
-                VStack(alignment: .leading, spacing: 6) {
-                    Text("What we spotted")
-                        .font(.caption)
-                        .fontWeight(.bold)
-                        .foregroundStyle(.secondary)
-                    ForEach(garments, id: \.self) { garment in
-                        Text("• \(garment.type)\(garment.colors.isEmpty ? "" : " — \(garment.colors.joined(separator: ", "))")")
-                            .font(.subheadline)
-                    }
-                }
-            }
-            Text("Review and edit before your stylist sees it.")
+
+            Text("For each piece, choose how it should shape your recommendations.")
                 .font(.footnote)
                 .foregroundStyle(.secondary)
-            labeledField("What you're matching", text: $pairing, prompt: "e.g. a dark indigo denim midi skirt")
+
+            ForEach($editableGarments) { $garment in
+                GarmentEditorRow(garment: $garment) {
+                    editableGarments.removeAll { $0.id == garment.id }
+                }
+            }
+
+            Button {
+                editableGarments.append(EditableGarment())
+            } label: {
+                Label("Add a piece", systemImage: "plus.circle")
+                    .font(.subheadline)
+            }
+
             labeledField("Style summary", text: $summary, prompt: "How would you describe the look?")
             labeledField("Focus colors", text: $focusColorsText, prompt: "comma separated, e.g. cream, white")
             labeledField("Style keywords", text: $keywordsText, prompt: "comma separated, e.g. casual-chic")
@@ -1555,10 +1557,9 @@ private struct OutfitMatchView: View {
     private func beginManual() {
         errorText = nil
         engine = "manual"
-        garments = []
+        editableGarments = [EditableGarment()]
         previewImage = nil
         summary = ""
-        pairing = ""
         focusColorsText = ""
         keywordsText = ""
         stage = .editing
@@ -1572,10 +1573,16 @@ private struct OutfitMatchView: View {
 
     private func apply(_ analysis: OutfitAnalysis) {
         summary = analysis.styleSummary
-        pairing = analysis.pairingContext
         focusColorsText = analysis.suggestedFocusColors.joined(separator: ", ")
         keywordsText = analysis.suggestedStyleKeywords.joined(separator: ", ")
-        garments = analysis.garments
+        editableGarments = analysis.garments.map { garment in
+            EditableGarment(
+                type: garment.type,
+                colorsText: garment.colors.joined(separator: ", "),
+                intent: garment.intent
+            )
+        }
+        if editableGarments.isEmpty { editableGarments = [EditableGarment()] }
         engine = analysis.engine
         stage = .editing
     }
@@ -1622,7 +1629,7 @@ private struct OutfitMatchView: View {
             // Fall back to manual entry so the customer is never stuck.
             errorText = "We couldn't analyze that photo. You can describe the outfit instead."
             engine = "manual"
-            garments = []
+            editableGarments = [EditableGarment()]
             stage = .editing
         }
         // payload.base64 and data go out of scope here — the image is not retained.
@@ -1630,16 +1637,71 @@ private struct OutfitMatchView: View {
 
     private func confirm() {
         let trimmedSummary = summary.trimmingCharacters(in: .whitespacesAndNewlines)
-        let trimmedPairing = pairing.trimmingCharacters(in: .whitespacesAndNewlines)
+        let garments: [OutfitGarment] = editableGarments.compactMap { garment in
+            let type = garment.type.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !type.isEmpty else { return nil }
+            return OutfitGarment(
+                type: type,
+                colors: splitList(garment.colorsText),
+                material: nil,
+                pattern: nil,
+                descriptors: [],
+                intent: garment.intent
+            )
+        }
         let analysis = OutfitAnalysis(
             garments: garments,
             styleSummary: trimmedSummary,
             suggestedFocusColors: splitList(focusColorsText),
             suggestedStyleKeywords: splitList(keywordsText),
-            pairingContext: trimmedPairing.isEmpty ? trimmedSummary : trimmedPairing,
+            pairingContext: trimmedSummary,
             engine: engine
         )
         onDone(analysis)
+    }
+}
+
+// Mutable per-garment row backing the editor (the customer/stylist intent choice).
+private struct EditableGarment: Identifiable {
+    let id = UUID()
+    var type: String = ""
+    var colorsText: String = ""
+    var intent: String = "complement"
+}
+
+// One editable garment row: name, colors, and the intent selector that decides how
+// the piece steers recommendations.
+private struct GarmentEditorRow: View {
+    @Binding var garment: EditableGarment
+    var onDelete: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                TextField("Piece, e.g. denim midi skirt", text: $garment.type)
+                    .textFieldStyle(.roundedBorder)
+                Button(role: .destructive, action: onDelete) {
+                    Image(systemName: "trash")
+                }
+                .buttonStyle(.borderless)
+            }
+            TextField("Colors (comma separated)", text: $garment.colorsText)
+                .textFieldStyle(.roundedBorder)
+                .font(.subheadline)
+            Picker("How to use it", selection: $garment.intent) {
+                Text("Complement").tag("complement")
+                Text("Similar").tag("similar")
+                Text("Ignore").tag("ignore")
+            }
+            .pickerStyle(.segmented)
+        }
+        .padding()
+        .background(Color(.secondarySystemGroupedBackground))
+        .clipShape(RoundedRectangle(cornerRadius: 8))
+        .overlay(
+            RoundedRectangle(cornerRadius: 8)
+                .stroke(Color(.separator), lineWidth: 1)
+        )
     }
 }
 

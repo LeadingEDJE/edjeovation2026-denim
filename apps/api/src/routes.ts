@@ -35,6 +35,7 @@ import {
 	type OrderHistory,
 	type OrderHistoryScenario,
 	type OutfitAnalysis,
+	type OutfitGarment,
 	type Store,
 	type StoreSchedulePattern,
 	type StoreSchedulePatternList,
@@ -449,6 +450,10 @@ const outfitAnalysisJsonSchema = {
 					material: { anyOf: [{ type: "string" }, { type: "null" }] },
 					pattern: { anyOf: [{ type: "string" }, { type: "null" }] },
 					descriptors: { type: "array", items: { type: "string" } },
+					intent: {
+						type: "string",
+						enum: ["complement", "similar", "ignore"],
+					},
 				},
 			},
 		},
@@ -1171,6 +1176,38 @@ function mapCatalogProduct(row: Record<string, unknown>): CatalogProduct {
  * rule-based order when no API key is set). Returned as enriched, ranked items
  * to store on the appointment.
  */
+/**
+ * Turn the per-garment intents into a single instruction for the re-ranker:
+ * "complement" pieces should be completed (a top for a skirt), "similar" pieces
+ * should be matched in style, and "ignore" pieces are left out entirely.
+ */
+function buildPairingInstruction(
+	analysis: OutfitAnalysis | null,
+): string | undefined {
+	if (!analysis) return undefined;
+	const describe = (g: OutfitGarment) =>
+		`${g.type}${g.colors.length ? ` (${g.colors.join(", ")})` : ""}`;
+	const complement = analysis.garments
+		.filter((g) => g.intent === "complement")
+		.map(describe);
+	const similar = analysis.garments
+		.filter((g) => g.intent === "similar")
+		.map(describe);
+
+	const parts: string[] = [];
+	if (analysis.pairingContext) parts.push(analysis.pairingContext);
+	if (complement.length) {
+		parts.push(
+			`Recommend pieces that complement (complete the look with): ${complement.join("; ")}.`,
+		);
+	}
+	if (similar.length) {
+		parts.push(`Recommend pieces similar in style to: ${similar.join("; ")}.`);
+	}
+	const text = parts.join(" ").trim();
+	return text || undefined;
+}
+
 async function buildSuggestedProducts(
 	customer: CurrentUser,
 	input: CreateAppointmentInput,
@@ -1211,7 +1248,7 @@ async function buildSuggestedProducts(
 		styleKeywords,
 		museTag,
 		preferredSizes: orderHistorySummary.preferredSizes,
-		pairingContext: analysis?.pairingContext || undefined,
+		pairingContext: buildPairingInstruction(analysis),
 	};
 	const reranked = await rerank(context, style, shortlist, 5);
 
@@ -2870,15 +2907,16 @@ export async function registerRoutes(app: FastifyInstance) {
 	);
 
 	// Attach (or clear with null) a customer-signed-off outfit analysis on an
-	// existing appointment, then re-run the recommendation engine so suggestions
-	// reflect the new pairing context.
+	// existing appointment. With `regenerate` true (default) it also re-runs the
+	// recommendation engine; the stylist portal passes false to save intent edits
+	// without an LLM re-run, then triggers the regenerate endpoint explicitly.
 	app.patch(
 		"/api/appointments/:appointmentId/outfit-analysis",
 		{
 			schema: {
 				tags: ["appointments"],
 				summary:
-					"Attach or clear a signed-off outfit analysis and re-run suggestions",
+					"Attach or clear a signed-off outfit analysis (optionally re-running suggestions)",
 				params: appointmentIdParamsJsonSchema,
 				body: {
 					type: "object",
@@ -2887,6 +2925,7 @@ export async function registerRoutes(app: FastifyInstance) {
 						outfitAnalysis: {
 							anyOf: [outfitAnalysisJsonSchema, { type: "null" }],
 						},
+						regenerate: { type: "boolean", default: true },
 					},
 				},
 				response: {
@@ -2903,8 +2942,9 @@ export async function registerRoutes(app: FastifyInstance) {
 		},
 		async (request, reply) => {
 			const { appointmentId } = request.params as { appointmentId: string };
-			const { outfitAnalysis } = request.body as {
+			const { outfitAnalysis, regenerate = true } = request.body as {
 				outfitAnalysis: OutfitAnalysis | null;
+				regenerate?: boolean;
 			};
 
 			const existing = await pool.query(
@@ -2930,6 +2970,17 @@ export async function registerRoutes(app: FastifyInstance) {
 								: "manual",
 						)
 					: null;
+
+				// Persist intents only — the stylist re-runs explicitly via the
+				// regenerate-suggestions endpoint.
+				if (!regenerate) {
+					const result = await pool.query(
+						"UPDATE appointments SET outfit_analysis = $1 WHERE id = $2 RETURNING *",
+						[normalized ? JSON.stringify(normalized) : null, appointmentId],
+					);
+					return { appointment: mapAppointment(result.rows[0]) };
+				}
+
 				const customer = await fetchThirdPartyUser(appointment.customerId);
 				const suggestedProducts = await buildSuggestedProducts(
 					customer,

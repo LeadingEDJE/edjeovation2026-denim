@@ -15,7 +15,12 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { extractJson } from "./claude-reranker.js";
 import { config } from "./config.js";
-import type { OutfitAnalysis, OutfitGarment } from "./types.js";
+import {
+	type OutfitAnalysis,
+	type OutfitGarment,
+	type OutfitIntent,
+	outfitIntents,
+} from "./types.js";
 
 export type SupportedMediaType = "image/jpeg" | "image/png" | "image/webp";
 
@@ -54,6 +59,11 @@ export function normalizeOutfitAnalysis(
 	const asStrings = (v: unknown): string[] =>
 		Array.isArray(v) ? v.map((x) => String(x)).filter(Boolean) : [];
 
+	const asIntent = (v: unknown): OutfitIntent =>
+		outfitIntents.includes(v as OutfitIntent)
+			? (v as OutfitIntent)
+			: "complement";
+
 	const garments: OutfitGarment[] = Array.isArray(raw?.garments)
 		? raw.garments.map((g) => ({
 				type: String(g?.type ?? "garment"),
@@ -61,6 +71,7 @@ export function normalizeOutfitAnalysis(
 				material: g?.material ? String(g.material) : null,
 				pattern: g?.pattern ? String(g.pattern) : null,
 				descriptors: asStrings(g?.descriptors),
+				intent: asIntent(g?.intent),
 			}))
 		: [];
 
@@ -152,6 +163,7 @@ function sampleAnalysis(): OutfitAnalysis {
 					material: "denim",
 					pattern: null,
 					descriptors: ["a-line", "casual-chic"],
+					intent: "complement",
 				},
 			],
 			styleSummary:

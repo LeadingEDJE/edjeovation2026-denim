@@ -48,12 +48,16 @@ export type StylistProfile = {
 	avatarUrl: string | null;
 };
 
+// How a garment steers recommendations: complement it, find similar, or ignore.
+export type OutfitIntent = "complement" | "similar" | "ignore";
+
 export type OutfitGarment = {
 	type: string;
 	colors: string[];
 	material?: string | null;
 	pattern?: string | null;
 	descriptors: string[];
+	intent: OutfitIntent;
 };
 
 // Text-only analysis of an outfit the customer wants to build around (from a
@@ -265,6 +269,26 @@ export async function regenerateSuggestions(
 	);
 
 	return parseAppointment(response, "Could not regenerate suggestions");
+}
+
+// Persist edited outfit intents. `regenerate` defaults to false so the stylist's
+// edits are saved without an LLM re-run; they apply them with the Regenerate
+// suggestions action.
+export async function updateOutfitAnalysis(
+	appointmentId: string,
+	outfitAnalysis: OutfitAnalysis | null,
+	regenerate = false,
+): Promise<Appointment> {
+	const response = await fetch(
+		`${apiBaseUrl}/api/appointments/${appointmentId}/outfit-analysis`,
+		{
+			method: "PATCH",
+			headers: { "content-type": "application/json" },
+			body: JSON.stringify({ outfitAnalysis, regenerate }),
+		},
+	);
+
+	return parseAppointment(response, "Could not update outfit intents");
 }
 
 export async function updateSuggestedProductPrep(

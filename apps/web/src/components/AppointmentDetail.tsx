@@ -14,6 +14,8 @@ import type {
 	AppointmentNotification,
 	CatalogProduct,
 	OutfitAnalysis,
+	OutfitGarment,
+	OutfitIntent,
 	StylistProfile,
 	SuggestedProduct,
 } from "../api";
@@ -47,6 +49,10 @@ type AppointmentDetailProps = {
 	onNoShow: (appointment: Appointment) => void;
 	onReassign: (appointment: Appointment, stylistId: string) => void;
 	onPostMessage: (appointment: Appointment) => void;
+	onSaveOutfitIntents: (
+		appointment: Appointment,
+		analysis: OutfitAnalysis,
+	) => void;
 	onUpdateProductPrep: (
 		appointment: Appointment,
 		suggestion: SuggestedProduct,
@@ -223,7 +229,13 @@ function Stat({ value, label }: { value: string; label: string }) {
 }
 
 /** Left-column customer snapshot — preferences + order signal, used by both frames. */
-function CustomerSnapshot({ appointment }: { appointment: Appointment }) {
+function CustomerSnapshot({
+	appointment,
+	onSaveOutfitIntents,
+}: {
+	appointment: Appointment;
+	onSaveOutfitIntents?: (analysis: OutfitAnalysis) => void;
+}) {
 	const order = appointment.orderHistorySummary;
 	return (
 		<>
@@ -250,7 +262,10 @@ function CustomerSnapshot({ appointment }: { appointment: Appointment }) {
 			</p>
 
 			{appointment.outfitAnalysis && (
-				<OutfitMatchBlock analysis={appointment.outfitAnalysis} />
+				<OutfitMatchBlock
+					analysis={appointment.outfitAnalysis}
+					onSave={onSaveOutfitIntents}
+				/>
 			)}
 
 			<div className="mt-7">
@@ -266,16 +281,43 @@ function CustomerSnapshot({ appointment }: { appointment: Appointment }) {
 	);
 }
 
+const INTENT_LABELS: Record<OutfitIntent, string> = {
+	complement: "Complement",
+	similar: "Find similar",
+	ignore: "Ignore",
+};
+
 /**
- * Read-only summary of an outfit the customer wants to build around (from a photo
- * or typed manually). Text only — the photo is never stored or shown — consistent
- * with the customer-facing "we don't save your photo" promise.
+ * Summary of an outfit the customer wants to build around (from a photo or typed
+ * manually). Text only — the photo is never stored or shown. When `onSave` is
+ * provided (active appointments), the stylist can change each piece's intent and
+ * save it; suggestions are re-applied via the separate Regenerate action.
  */
-function OutfitMatchBlock({ analysis }: { analysis: OutfitAnalysis }) {
+function OutfitMatchBlock({
+	analysis,
+	onSave,
+}: {
+	analysis: OutfitAnalysis;
+	onSave?: (analysis: OutfitAnalysis) => void;
+}) {
 	const source =
 		analysis.engine === "manual"
 			? "Described by customer"
 			: "From customer photo · AI analysis";
+
+	const editable = Boolean(onSave);
+	const [garments, setGarments] = useState<OutfitGarment[]>(analysis.garments);
+	// Re-seed when a new analysis arrives (e.g. after save/regenerate).
+	useEffect(() => setGarments(analysis.garments), [analysis]);
+
+	const dirty = garments.some(
+		(g, i) => g.intent !== analysis.garments[i]?.intent,
+	);
+
+	const setIntent = (index: number, intent: OutfitIntent) =>
+		setGarments((current) =>
+			current.map((g, i) => (i === index ? { ...g, intent } : g)),
+		);
 
 	return (
 		<div className="mt-7">
@@ -291,23 +333,61 @@ function OutfitMatchBlock({ analysis }: { analysis: OutfitAnalysis }) {
 				</p>
 			)}
 
-			{analysis.garments.length > 0 && (
+			{garments.length > 0 && (
 				<>
 					<MetaLabel>Pieces</MetaLabel>
-					<ul className="mb-4 space-y-1">
-						{analysis.garments.map((garment) => (
+					<ul className="mb-3 space-y-2">
+						{garments.map((garment, index) => (
 							<li
 								key={`${garment.type}-${garment.colors.join("-")}-${garment.material ?? ""}`}
 								className="text-[14px] text-body leading-relaxed"
 							>
-								{garment.type}
-								{garment.colors.length > 0
-									? ` — ${garment.colors.join(", ")}`
-									: ""}
-								{garment.material ? ` · ${garment.material}` : ""}
+								<span className="block">
+									{garment.type}
+									{garment.colors.length > 0
+										? ` — ${garment.colors.join(", ")}`
+										: ""}
+									{garment.material ? ` · ${garment.material}` : ""}
+								</span>
+								{editable ? (
+									<select
+										className="mt-1 border border-line bg-surface px-2 py-1 text-[13px] text-ink"
+										value={garment.intent}
+										onChange={(e) =>
+											setIntent(index, e.target.value as OutfitIntent)
+										}
+									>
+										{(
+											["complement", "similar", "ignore"] as OutfitIntent[]
+										).map((intent) => (
+											<option key={intent} value={intent}>
+												{INTENT_LABELS[intent]}
+											</option>
+										))}
+									</select>
+								) : (
+									<span className="text-[12px] text-muted uppercase tracking-label">
+										{INTENT_LABELS[garment.intent]}
+									</span>
+								)}
 							</li>
 						))}
 					</ul>
+					{editable && (
+						<div className="mb-4">
+							<button
+								type="button"
+								className="border border-ink px-3 py-1.5 font-bold text-2xs text-ink uppercase tracking-label disabled:opacity-40"
+								disabled={!dirty}
+								onClick={() => onSave?.({ ...analysis, garments })}
+							>
+								Save intents
+							</button>
+							<p className="mt-1.5 text-[11px] text-muted">
+								Save, then Regenerate suggestions to apply.
+							</p>
+						</div>
+					)}
 				</>
 			)}
 
@@ -400,6 +480,7 @@ function InteractiveDetail({
 	onNoShow,
 	onReassign,
 	onPostMessage,
+	onSaveOutfitIntents,
 	onUpdateProductPrep,
 }: InteractiveProps) {
 	const stylist = appointment.assignedStylist;
@@ -465,7 +546,14 @@ function InteractiveDetail({
 			<div className="grid min-[900px]:grid-cols-[360px_1fr]">
 				{/* LEFT */}
 				<div className="border-line-subtle px-5 py-7 min-[900px]:border-r min-[760px]:px-7">
-					<CustomerSnapshot appointment={appointment} />
+					<CustomerSnapshot
+						appointment={appointment}
+						onSaveOutfitIntents={
+							canEdit
+								? (analysis) => onSaveOutfitIntents(appointment, analysis)
+								: undefined
+						}
+					/>
 
 					<div className="mt-7">
 						<SectionTitle>Stylist</SectionTitle>

@@ -72,6 +72,8 @@ struct OutfitGarment: Codable, Hashable {
     let material: String?
     let pattern: String?
     let descriptors: [String]
+    // "complement" | "similar" | "ignore" — how this piece steers recommendations.
+    let intent: String
 }
 
 // The "outfit to match" the customer signed off on. Same shape whether it came

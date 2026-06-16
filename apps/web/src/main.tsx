@@ -12,12 +12,14 @@ import {
 	listStores,
 	listStylists,
 	markNoShowAppointment,
+	type OutfitAnalysis,
 	postAppointmentMessage,
 	reassignAppointmentStylist,
 	regenerateSuggestions,
 	type Store,
 	type StylistProfile,
 	type SuggestedProduct,
+	updateOutfitAnalysis,
 	updateSessionNotes,
 	updateSuggestedProductPrep,
 } from "./api";
@@ -254,6 +256,16 @@ function App() {
 		}
 	};
 
+	const saveOutfitIntents = async (
+		appointment: Appointment,
+		analysis: OutfitAnalysis,
+	) => {
+		await runAppointmentAction(
+			() => updateOutfitAnalysis(appointment.id, analysis, false),
+			"Outfit intents saved — regenerate suggestions to apply",
+		);
+	};
+
 	const updateProductPrep = async (
 		appointment: Appointment,
 		suggestion: SuggestedProduct,
@@ -383,6 +395,9 @@ function App() {
 							void completeSession(appointment)
 						}
 						onRegenerate={(appointment) => void regenerate(appointment)}
+						onSaveOutfitIntents={(appointment, analysis) =>
+							void saveOutfitIntents(appointment, analysis)
+						}
 						onCheckIn={(appointment) => void checkIn(appointment)}
 						onNoShow={(appointment) => void noShow(appointment)}
 						onReassign={(appointment, stylistId) =>
