@@ -136,6 +136,8 @@ CREATE TABLE IF NOT EXISTS catalog_products (
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
+ALTER TABLE catalog_products ADD COLUMN IF NOT EXISTS catalog_audiences JSONB NOT NULL DEFAULT '["womens"]'::jsonb;
+
 CREATE INDEX IF NOT EXISTS idx_catalog_products_fit ON catalog_products (fit);
 CREATE INDEX IF NOT EXISTS idx_catalog_products_rise ON catalog_products (rise);
 CREATE INDEX IF NOT EXISTS idx_catalog_products_stretch ON catalog_products (stretch);
