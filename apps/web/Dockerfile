@@ -34,7 +34,7 @@ ENV VITE_API_BASE_URL=""
 COPY package.json package-lock.json ./
 COPY apps/api/package.json apps/api/package.json
 COPY apps/web/package.json apps/web/package.json
-RUN npm ci --omit=dev
+RUN npm ci --omit=dev --ignore-scripts
 
 COPY --from=build /app/apps/web/dist apps/web/dist
 COPY apps/web/scripts/write-runtime-env.mjs apps/web/scripts/write-runtime-env.mjs
