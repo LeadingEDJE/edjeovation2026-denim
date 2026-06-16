@@ -95,6 +95,12 @@ After the fitting, the associate **marks the appointment complete** and writes a
   <!-- SCREENSHOT: reassign stylist / no-show action -->
 - **Regenerate suggestions:** trigger a re-rank to refresh the shortlist.
   <!-- SCREENSHOT: regenerate suggestions -->
+- **Customer cancels their own appointment (iOS):** on the appointment detail,
+  the **Cancel Appointment** button (explicit copy, not a back-style "Cancel")
+  opens a confirmation dialog warning that the slot is given up and the store is
+  notified, with **Cancel Appointment** (destructive) vs **Keep Appointment** —
+  so it can't be mistaken for navigating back.
+  <!-- SCREENSHOT: iOS appointment detail cancel confirmation dialog -->
 - **AI-unavailable fallback:** with no API key configured, suggestions still
   appear using the deterministic rule-based ranking (rationale is scorer-derived).
 
