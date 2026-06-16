@@ -2131,6 +2131,10 @@ private struct OutfitMatchView: View {
             .buttonStyle(.plain)
             .disabled(isAnalyzing)
 
+            footerSecondaryButton("Skip", action: onSkip)
+                .disabled(isAnalyzing)
+                .frame(maxWidth: .infinity, alignment: .leading)
+
             if isAnalyzing {
                 HStack(spacing: 8) {
                     ProgressView().tint(Color.ink)
@@ -2242,9 +2246,9 @@ private struct OutfitMatchView: View {
             if showBack {
                 footerSecondaryButton("Back", action: onBack)
             }
-            footerSecondaryButton("Skip", action: onSkip)
-                .disabled(isAnalyzing)
             if stage == .editing {
+                footerSecondaryButton("Skip", action: onSkip)
+                    .disabled(isAnalyzing)
                 Button { confirm() } label: {
                     Text("Use this outfit")
                         .font(.brandDisplay(13))
