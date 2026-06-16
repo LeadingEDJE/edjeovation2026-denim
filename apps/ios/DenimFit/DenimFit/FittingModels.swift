@@ -64,6 +64,42 @@ struct AppointmentSlotsResponse: Codable {
     let slots: [AppointmentSlot]
 }
 
+// One garment/accessory in an outfit the customer wants to build around, from a
+// photo analysis or manual entry. Mirrors the API's OutfitGarment.
+struct OutfitGarment: Codable, Hashable {
+    let type: String
+    let colors: [String]
+    let material: String?
+    let pattern: String?
+    let descriptors: [String]
+    // "complement" | "similar" | "ignore" — how this piece steers recommendations.
+    let intent: String
+}
+
+// The "outfit to match" the customer signed off on. Same shape whether it came
+// from a photo (engine "claude"/"sample") or was typed manually (engine "manual").
+struct OutfitAnalysis: Codable {
+    let garments: [OutfitGarment]
+    let styleSummary: String
+    let suggestedFocusColors: [String]
+    let suggestedStyleKeywords: [String]
+    let pairingContext: String
+    let engine: String
+}
+
+struct OutfitAnalysisRequest: Codable {
+    let imageBase64: String
+    let mediaType: String
+}
+
+struct OutfitAnalysisResponse: Codable {
+    let analysis: OutfitAnalysis
+}
+
+struct AttachOutfitAnalysisRequest: Codable {
+    let outfitAnalysis: OutfitAnalysis
+}
+
 struct CreateAppointmentRequest: Codable {
     let storeId: String
     let slotStart: String
@@ -73,6 +109,8 @@ struct CreateAppointmentRequest: Codable {
     let styleKeywords: [String]
     let guidance: String
     let orderHistoryScenario: String
+    // Omitted from the request when nil (the customer skipped the outfit step).
+    let outfitAnalysis: OutfitAnalysis?
 }
 
 struct AppointmentResponse: Codable {
@@ -136,6 +174,7 @@ struct Appointment: Codable, Identifiable {
     let assignedStylist: AppointmentStylist
     let orderHistorySummary: OrderHistorySummary
     let suggestedProducts: [SuggestedProduct]
+    let outfitAnalysis: OutfitAnalysis?
     let notificationSummary: NotificationSummary
     let checkedInAt: String?
     let completedAt: String?

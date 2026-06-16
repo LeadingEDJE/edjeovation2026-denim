@@ -3,6 +3,12 @@ import type { FastifyInstance } from "fastify";
 import { rerank, type StyleContext } from "./claude-reranker.js";
 import { pool } from "./db.js";
 import {
+	analyzeOutfit,
+	normalizeOutfitAnalysis,
+	type SupportedMediaType,
+	supportedMediaTypes,
+} from "./outfit-analysis.js";
+import {
 	parseColors,
 	type RecommendationContext,
 	shortlistDiverse,
@@ -28,6 +34,8 @@ import {
 	type MuseTag,
 	type OrderHistory,
 	type OrderHistoryScenario,
+	type OutfitAnalysis,
+	type OutfitGarment,
 	type Store,
 	type StoreSchedulePattern,
 	type StoreSchedulePatternList,
@@ -417,6 +425,57 @@ const appointmentSlotJsonSchema = {
 	},
 } as const;
 
+// Structured, text-only description of the outfit a customer wants to build
+// around. Produced from a photo (engine "claude"/"sample") or typed manually
+// (engine "manual"); the shape is identical either way. No image is ever stored.
+const outfitAnalysisJsonSchema = {
+	type: "object",
+	required: [
+		"garments",
+		"styleSummary",
+		"suggestedFocusColors",
+		"suggestedStyleKeywords",
+		"pairingContext",
+		"engine",
+	],
+	properties: {
+		garments: {
+			type: "array",
+			items: {
+				type: "object",
+				required: ["type", "colors", "descriptors"],
+				properties: {
+					type: { type: "string" },
+					colors: { type: "array", items: { type: "string" } },
+					material: { anyOf: [{ type: "string" }, { type: "null" }] },
+					pattern: { anyOf: [{ type: "string" }, { type: "null" }] },
+					descriptors: { type: "array", items: { type: "string" } },
+					intent: {
+						type: "string",
+						enum: ["complement", "similar", "ignore"],
+					},
+				},
+			},
+		},
+		styleSummary: { type: "string" },
+		suggestedFocusColors: { type: "array", items: { type: "string" } },
+		suggestedStyleKeywords: { type: "array", items: { type: "string" } },
+		pairingContext: { type: "string" },
+		engine: { type: "string", enum: ["claude", "sample", "manual"] },
+	},
+} as const;
+
+// Request body for the stateless photo-analysis endpoint. The base64 image is
+// held in memory only and discarded after Claude returns — never persisted.
+const analyzeOutfitJsonSchema = {
+	type: "object",
+	required: ["imageBase64", "mediaType"],
+	properties: {
+		imageBase64: { type: "string", minLength: 1 },
+		mediaType: { type: "string", enum: supportedMediaTypes },
+	},
+} as const;
+
 const createAppointmentJsonSchema = {
 	type: "object",
 	required: [
@@ -443,6 +502,9 @@ const createAppointmentJsonSchema = {
 			type: "string",
 			enum: orderHistoryScenarioEnum,
 			default: "standard",
+		},
+		outfitAnalysis: {
+			anyOf: [outfitAnalysisJsonSchema, { type: "null" }],
 		},
 	},
 } as const;
@@ -589,6 +651,7 @@ const appointmentSummaryJsonSchema = {
 		"assignedStylist",
 		"orderHistorySummary",
 		"suggestedProducts",
+		"outfitAnalysis",
 		"notificationSummary",
 		"checkedInAt",
 		"completedAt",
@@ -658,6 +721,9 @@ const appointmentSummaryJsonSchema = {
 					associateNote: { type: "string" },
 				},
 			},
+		},
+		outfitAnalysis: {
+			anyOf: [outfitAnalysisJsonSchema, { type: "null" }],
 		},
 		notificationSummary: {
 			type: "object",
@@ -982,6 +1048,20 @@ function mapStoreSnapshot(row: Record<string, unknown>): Store {
 	};
 }
 
+const outfitEngineValues = ["claude", "sample", "manual"] as const;
+
+/** Parse a stored outfit_analysis JSONB cell, preserving its original engine. */
+function mapOutfitAnalysis(value: unknown): OutfitAnalysis | null {
+	if (!value) return null;
+	const parsed = parseJsonField<Partial<OutfitAnalysis>>(value);
+	const engine = outfitEngineValues.includes(
+		parsed?.engine as OutfitAnalysis["engine"],
+	)
+		? (parsed.engine as OutfitAnalysis["engine"])
+		: "manual";
+	return normalizeOutfitAnalysis(parsed, engine);
+}
+
 function mapAppointment(row: Record<string, unknown>): Appointment {
 	const suggestedProducts = row.suggested_products
 		? normalizeSuggestedProducts(
@@ -1010,6 +1090,7 @@ function mapAppointment(row: Record<string, unknown>): Appointment {
 			row.order_history_summary,
 		),
 		suggestedProducts,
+		outfitAnalysis: mapOutfitAnalysis(row.outfit_analysis),
 		notificationSummary: {
 			count: Number(row.notification_count ?? 0),
 			confirmationStatus: row.confirmation_status
@@ -1095,18 +1176,64 @@ function mapCatalogProduct(row: Record<string, unknown>): CatalogProduct {
  * rule-based order when no API key is set). Returned as enriched, ranked items
  * to store on the appointment.
  */
+/**
+ * Turn the per-garment intents into a single instruction for the re-ranker:
+ * "complement" pieces should be completed (a top for a skirt), "similar" pieces
+ * should be matched in style, and "ignore" pieces are left out entirely.
+ */
+function buildPairingInstruction(
+	analysis: OutfitAnalysis | null,
+): string | undefined {
+	if (!analysis) return undefined;
+	const describe = (g: OutfitGarment) =>
+		`${g.type}${g.colors.length ? ` (${g.colors.join(", ")})` : ""}`;
+	const complement = analysis.garments
+		.filter((g) => g.intent === "complement")
+		.map(describe);
+	const similar = analysis.garments
+		.filter((g) => g.intent === "similar")
+		.map(describe);
+
+	const parts: string[] = [];
+	if (analysis.pairingContext) parts.push(analysis.pairingContext);
+	if (complement.length) {
+		parts.push(
+			`Recommend pieces that complement (complete the look with): ${complement.join("; ")}.`,
+		);
+	}
+	if (similar.length) {
+		parts.push(`Recommend pieces similar in style to: ${similar.join("; ")}.`);
+	}
+	const text = parts.join(" ").trim();
+	return text || undefined;
+}
+
 async function buildSuggestedProducts(
 	customer: CurrentUser,
 	input: CreateAppointmentInput,
 	museTag: MuseTag,
 	orderHistorySummary: Appointment["orderHistorySummary"],
 ): Promise<SuggestedProduct[]> {
+	// When the customer signed off on an outfit to build around, let it fill the
+	// gaps: use its suggested focus colors if they left that field blank, and merge
+	// in its style keywords. The pairing context is passed to the re-ranker so it
+	// recommends complementary pieces (e.g. a top for a skirt).
+	const analysis = input.outfitAnalysis ?? null;
+	const focusColorsText = input.focusColors?.trim()
+		? input.focusColors
+		: (analysis?.suggestedFocusColors ?? []).join(", ");
+	const styleKeywords = analysis?.suggestedStyleKeywords?.length
+		? Array.from(
+				new Set([...input.styleKeywords, ...analysis.suggestedStyleKeywords]),
+			)
+		: input.styleKeywords;
+
 	const context: RecommendationContext = {
 		waistInches: customer.measurements.waistInches,
 		inseamInches: customer.measurements.inseamInches,
 		fitPreference: customer.preferences.fitPreference,
 		stretchPreference: customer.preferences.stretchPreference,
-		focusColors: parseColors(input.focusColors),
+		focusColors: parseColors(focusColorsText),
 		avoidColors: parseColors(input.avoidColors),
 	};
 
@@ -1116,11 +1243,12 @@ async function buildSuggestedProducts(
 
 	const style: StyleContext = {
 		occasion: input.occasion,
-		focusColors: input.focusColors,
+		focusColors: focusColorsText,
 		avoidColors: input.avoidColors,
-		styleKeywords: input.styleKeywords,
+		styleKeywords,
 		museTag,
 		preferredSizes: orderHistorySummary.preferredSizes,
+		pairingContext: buildPairingInstruction(analysis),
 	};
 	const reranked = await rerank(context, style, shortlist, 5);
 
@@ -1771,9 +1899,9 @@ export async function registerRoutes(app: FastifyInstance) {
 							id, customer_id, loyalty_id, customer_name, slot_start, slot_end, store_snapshot,
 							occasion, focus_colors, avoid_colors, style_keywords, guidance,
 							session_notes, status, muse_tag, assigned_stylist,
-							order_history_summary, suggested_products, source_payload
+							order_history_summary, suggested_products, source_payload, outfit_analysis
 						)
-						VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, '', 'scheduled', $13, $14, $15, $16, $17)
+						VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, '', 'scheduled', $13, $14, $15, $16, $17, $18)
 						RETURNING *
 					`,
 					[
@@ -1799,6 +1927,7 @@ export async function registerRoutes(app: FastifyInstance) {
 							orderHistory,
 							store: selectedStore,
 						}),
+						input.outfitAnalysis ? JSON.stringify(input.outfitAnalysis) : null,
 					],
 				);
 				await createMockNotifications(
@@ -2712,6 +2841,7 @@ export async function registerRoutes(app: FastifyInstance) {
 						avoidColors: appointment.avoidColors,
 						styleKeywords: appointment.styleKeywords,
 						guidance: appointment.guidance,
+						outfitAnalysis: appointment.outfitAnalysis,
 					},
 					appointment.museTag,
 					appointment.orderHistorySummary,
@@ -2728,6 +2858,160 @@ export async function registerRoutes(app: FastifyInstance) {
 				return reply
 					.code(502)
 					.send({ message: "Unable to regenerate suggestions" });
+			}
+		},
+	);
+
+	// Stateless: analyze an outfit photo into structured styling context. The
+	// image is held in memory only for the duration of this request and is never
+	// written to disk, the database, or logs — only the text analysis is returned.
+	app.post(
+		"/api/outfit-analysis",
+		{
+			// Base64-encoded images exceed Fastify's 1MB default body limit. iOS
+			// downscales before upload, but allow generous headroom here.
+			bodyLimit: 12 * 1024 * 1024,
+			schema: {
+				tags: ["appointments"],
+				summary:
+					"Analyze an outfit photo into structured styling context (image is not stored)",
+				body: analyzeOutfitJsonSchema,
+				response: {
+					200: {
+						type: "object",
+						required: ["analysis"],
+						properties: { analysis: outfitAnalysisJsonSchema },
+					},
+					502: errorJsonSchema,
+				},
+			},
+		},
+		async (request, reply) => {
+			const { imageBase64, mediaType } = request.body as {
+				imageBase64: string;
+				mediaType: SupportedMediaType;
+			};
+			try {
+				const analysis = await analyzeOutfit(imageBase64, mediaType);
+				// imageBase64 falls out of scope here — never persisted or logged.
+				return { analysis };
+			} catch {
+				// analyzeOutfit falls back internally; this guards unexpected throws.
+				// Deliberately do not log the error/body (may reference the image).
+				request.log.error("Outfit analysis request failed");
+				return reply
+					.code(502)
+					.send({ message: "Unable to analyze outfit photo" });
+			}
+		},
+	);
+
+	// Attach (or clear with null) a customer-signed-off outfit analysis on an
+	// existing appointment. With `regenerate` true (default) it also re-runs the
+	// recommendation engine; the stylist portal passes false to save intent edits
+	// without an LLM re-run, then triggers the regenerate endpoint explicitly.
+	app.patch(
+		"/api/appointments/:appointmentId/outfit-analysis",
+		{
+			schema: {
+				tags: ["appointments"],
+				summary:
+					"Attach or clear a signed-off outfit analysis (optionally re-running suggestions)",
+				params: appointmentIdParamsJsonSchema,
+				body: {
+					type: "object",
+					required: ["outfitAnalysis"],
+					properties: {
+						outfitAnalysis: {
+							anyOf: [outfitAnalysisJsonSchema, { type: "null" }],
+						},
+						regenerate: { type: "boolean", default: true },
+					},
+				},
+				response: {
+					200: {
+						type: "object",
+						required: ["appointment"],
+						properties: { appointment: appointmentSummaryJsonSchema },
+					},
+					404: errorJsonSchema,
+					409: errorJsonSchema,
+					502: errorJsonSchema,
+				},
+			},
+		},
+		async (request, reply) => {
+			const { appointmentId } = request.params as { appointmentId: string };
+			const { outfitAnalysis, regenerate = true } = request.body as {
+				outfitAnalysis: OutfitAnalysis | null;
+				regenerate?: boolean;
+			};
+
+			const existing = await pool.query(
+				"SELECT * FROM appointments WHERE id = $1",
+				[appointmentId],
+			);
+			if (!existing.rows[0]) {
+				return reply.code(404).send({ message: "Appointment not found" });
+			}
+			const appointment = mapAppointment(existing.rows[0]);
+			if (!isActiveStatus(appointment.status)) {
+				return reply
+					.code(409)
+					.send({ message: "Terminal appointments cannot be edited" });
+			}
+
+			try {
+				const normalized = outfitAnalysis
+					? normalizeOutfitAnalysis(
+							outfitAnalysis,
+							outfitEngineValues.includes(outfitAnalysis.engine)
+								? outfitAnalysis.engine
+								: "manual",
+						)
+					: null;
+
+				// Persist intents only — the stylist re-runs explicitly via the
+				// regenerate-suggestions endpoint.
+				if (!regenerate) {
+					const result = await pool.query(
+						"UPDATE appointments SET outfit_analysis = $1 WHERE id = $2 RETURNING *",
+						[normalized ? JSON.stringify(normalized) : null, appointmentId],
+					);
+					return { appointment: mapAppointment(result.rows[0]) };
+				}
+
+				const customer = await fetchThirdPartyUser(appointment.customerId);
+				const suggestedProducts = await buildSuggestedProducts(
+					customer,
+					{
+						storeId: appointment.store.storeId,
+						slotStart: appointment.slotStart,
+						occasion: appointment.occasion,
+						focusColors: appointment.focusColors,
+						avoidColors: appointment.avoidColors,
+						styleKeywords: appointment.styleKeywords,
+						guidance: appointment.guidance,
+						outfitAnalysis: normalized,
+					},
+					appointment.museTag,
+					appointment.orderHistorySummary,
+				);
+
+				const result = await pool.query(
+					"UPDATE appointments SET outfit_analysis = $1, suggested_products = $2 WHERE id = $3 RETURNING *",
+					[
+						normalized ? JSON.stringify(normalized) : null,
+						JSON.stringify(suggestedProducts),
+						appointmentId,
+					],
+				);
+				return { appointment: mapAppointment(result.rows[0]) };
+			} catch (error) {
+				request.log.error(error);
+				return reply
+					.code(502)
+					.send({ message: "Unable to update outfit analysis" });
 			}
 		},
 	);

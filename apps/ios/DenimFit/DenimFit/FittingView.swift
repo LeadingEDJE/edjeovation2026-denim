@@ -1,4 +1,6 @@
+import PhotosUI
 import SwiftUI
+import UIKit
 
 struct FittingView: View {
     @State private var currentUser: CurrentUser?
@@ -24,6 +26,8 @@ struct FittingView: View {
     @State private var showCancelConfirmation = false
     @State private var feedbackRating = 5
     @State private var feedbackComment = ""
+    @State private var outfitAnalysis: OutfitAnalysis?
+    @State private var showOutfitSheet = false
     @State private var status = "Loading your profile"
     @State private var isLoading = false
 
@@ -57,7 +61,7 @@ struct FittingView: View {
         NavigationStack {
             VStack(spacing: 0) {
                 if screen == .booking, step.stepNumber > 0 {
-                    StepProgressBar(current: step.stepNumber, total: 6)
+                    StepProgressBar(current: step.stepNumber, total: 7)
                         .padding(.horizontal, 22)
                         .padding(.top, 12)
                         .padding(.bottom, 4)
@@ -122,7 +126,7 @@ struct FittingView: View {
             newJourneyLanding
         case .occasion:
             questionPage(
-                eyebrow: "Step 1 of 6",
+                eyebrow: "Step 1 of 7",
                 title: "What are you shopping for?",
                 subtitle: "An event, a trip, or just refreshing your rotation. Tell us in your words."
             ) {
@@ -156,7 +160,7 @@ struct FittingView: View {
             }
         case .colors:
             questionPage(
-                eyebrow: "Step 2 of 6",
+                eyebrow: "Step 2 of 7",
                 title: "Any colors in mind?",
                 subtitle: "Optional. Pick washes to lean into — and any to steer clear of."
             ) {
@@ -165,7 +169,7 @@ struct FittingView: View {
             }
         case .style:
             questionPage(
-                eyebrow: "Step 3 of 6",
+                eyebrow: "Step 3 of 7",
                 title: "Pick your style signals",
                 subtitle: "Choose the words that feel most like you."
             ) {
@@ -214,9 +218,24 @@ struct FittingView: View {
                     .overlay(Rectangle().stroke(Color.ink, lineWidth: 1))
                 }
             }
+        case .outfit:
+            OutfitMatchView(
+                apiClient: apiClient,
+                eyebrow: "Step 4 of 7",
+                showBack: true,
+                onBack: { step = .style },
+                onSkip: {
+                    outfitAnalysis = nil
+                    step = .store
+                },
+                onDone: { analysis in
+                    outfitAnalysis = analysis
+                    step = .store
+                }
+            )
         case .store:
             questionPage(
-                eyebrow: "Step 4 of 6",
+                eyebrow: "Step 5 of 7",
                 title: "Choose a store",
                 subtitle: "Pick the fitting room location before choosing a time."
             ) {
@@ -250,7 +269,7 @@ struct FittingView: View {
             }
         case .schedule:
             questionPage(
-                eyebrow: "Step 5 of 6",
+                eyebrow: "Step 6 of 7",
                 title: "Pick a time",
                 subtitle: "We only show times when at least one stylist is scheduled."
             ) {
@@ -581,6 +600,7 @@ struct FittingView: View {
 
                     VStack(alignment: .leading, spacing: 14) {
                         whereWhoCard(appointment)
+                        outfitCard(appointment, canEdit: canEdit)
                         remindersCard()
                         messagesCard(canSend: canSendMessage)
                         if canEdit {
@@ -605,6 +625,41 @@ struct FittingView: View {
         .background(Color.canvas)
         .refreshable {
             await refreshCustomerData()
+        }
+        .sheet(isPresented: $showOutfitSheet) {
+            NavigationStack {
+                OutfitMatchView(
+                    apiClient: apiClient,
+                    eyebrow: "Outfit to match",
+                    initial: appointment.outfitAnalysis,
+                    showBack: false,
+                    onBack: {},
+                    onSkip: { showOutfitSheet = false },
+                    onDone: { analysis in
+                        showOutfitSheet = false
+                        Task { await attachOutfit(to: appointment.id, analysis: analysis) }
+                    }
+                )
+                .navigationTitle("Outfit to match")
+                .navigationBarTitleDisplayMode(.inline)
+            }
+        }
+    }
+
+    @MainActor
+    private func attachOutfit(to appointmentId: String, analysis: OutfitAnalysis) async {
+        isLoading = true
+        status = "Updating your outfit details"
+        defer { isLoading = false }
+        do {
+            let updated = try await apiClient.attachOutfitAnalysis(appointmentId: appointmentId, analysis: analysis)
+            detailAppointment = updated.appointment
+            if updated.appointment.id == appointment?.id {
+                appointment = updated.appointment
+            }
+            status = "Outfit added — your stylist will see it"
+        } catch {
+            status = "Could not update the outfit details"
         }
     }
 
@@ -716,6 +771,64 @@ struct FittingView: View {
             }
         }
         .brandCard()
+    }
+
+    @ViewBuilder
+    private func outfitCard(_ appointment: Appointment, canEdit: Bool) -> some View {
+        // Only render when there's something to show or an action to offer.
+        if appointment.outfitAnalysis != nil || canEdit {
+            VStack(alignment: .leading, spacing: 11) {
+                Text("Outfit to match").eyebrow()
+                if let outfit = appointment.outfitAnalysis {
+                    let summary = outfit.pairingContext.isEmpty
+                        ? outfit.styleSummary
+                        : outfit.pairingContext
+                    if !summary.isEmpty {
+                        Text(summary)
+                            .font(.system(size: 13))
+                            .foregroundStyle(Color.bodyCopy)
+                    }
+                    if !outfit.garments.isEmpty {
+                        VStack(alignment: .leading, spacing: 4) {
+                            ForEach(outfit.garments, id: \.self) { garment in
+                                Text("• \(garment.type)\(garment.colors.isEmpty ? "" : " — \(garment.colors.joined(separator: ", "))") · \(intentLabel(garment.intent))")
+                                    .font(.system(size: 12))
+                                    .foregroundStyle(Color.muted)
+                            }
+                        }
+                    }
+                } else {
+                    Text("Show your stylist a piece you want to build around.")
+                        .font(.system(size: 13))
+                        .foregroundStyle(Color.muted)
+                }
+                if canEdit {
+                    Button {
+                        showOutfitSheet = true
+                    } label: {
+                        Text(appointment.outfitAnalysis == nil ? "Add an outfit" : "Update outfit")
+                            .font(.system(size: 10, weight: .bold))
+                            .textCase(.uppercase)
+                            .tracking(Brand.trackingCTA)
+                            .foregroundStyle(Color.ink)
+                            .padding(.horizontal, 14)
+                            .padding(.vertical, 11)
+                            .overlay(Rectangle().stroke(Color.ink, lineWidth: 1))
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(isLoading)
+                }
+            }
+            .brandCard()
+        }
+    }
+
+    private func intentLabel(_ intent: String) -> String {
+        switch intent {
+        case "similar": return "find similar"
+        case "ignore": return "ignore"
+        default: return "complement"
+        }
     }
 
     private func remindersCard() -> some View {
@@ -1047,21 +1160,33 @@ struct FittingView: View {
         .overlay(Rectangle().fill(Color.line).frame(height: 1), alignment: .top)
     }
 
+    // Review rows for the confirm screen, including the outfit-to-match when set.
+    private var reviewRows: [(String, String)] {
+        var rows: [(String, String)] = [
+            ("When", selectedSlot.map { "\(dayLabel($0.slotStart)) · \(timeLabel($0.slotStart))" } ?? "No time selected"),
+            ("Store", selectedStore?.name ?? "No store selected"),
+            ("Muse", derivedMuse),
+            ("Shopping for", occasion.isEmpty ? "—" : occasion),
+            ("Colors", colorSummary(focusColors)),
+        ]
+        if let outfitAnalysis {
+            let value = outfitAnalysis.pairingContext.isEmpty
+                ? outfitAnalysis.styleSummary
+                : outfitAnalysis.pairingContext
+            if !value.isEmpty { rows.append(("Outfit", value)) }
+        }
+        return rows
+    }
+
     private var review: some View {
         VStack(spacing: 0) {
             ScrollView {
                 VStack(alignment: .leading, spacing: 18) {
-                    Text("Step 6 of 6").eyebrow(.accent)
+                    Text("Step 7 of 7").eyebrow(.accent)
                     Text("Review & confirm")
                         .font(.brandDisplay(27))
                         .foregroundStyle(Color.ink)
-                    KeyValueTable(rows: [
-                        ("When", selectedSlot.map { "\(dayLabel($0.slotStart)) · \(timeLabel($0.slotStart))" } ?? "No time selected"),
-                        ("Store", selectedStore?.name ?? "No store selected"),
-                        ("Muse", derivedMuse),
-                        ("Shopping for", occasion.isEmpty ? "—" : occasion),
-                        ("Colors", colorSummary(focusColors))
-                    ])
+                    KeyValueTable(rows: reviewRows)
                     VStack(alignment: .leading, spacing: 9) {
                         Text("Note for your stylist (optional)").eyebrow()
                         brandTextField("Anything you'd like your stylist to know…", text: $guidance, lines: 4)
@@ -1204,6 +1329,9 @@ struct FittingView: View {
             return true
         case .style:
             return !selectedKeywords.isEmpty
+        case .outfit:
+            // The outfit step is optional and supplies its own controls.
+            return true
         case .store:
             return selectedStore != nil
         case .schedule:
@@ -1330,7 +1458,8 @@ struct FittingView: View {
                 avoidColors: colorPayload(avoidColors),
                 styleKeywords: selectedKeywords.sorted(),
                 guidance: guidance,
-                orderHistoryScenario: "standard"
+                orderHistoryScenario: "standard",
+                outfitAnalysis: outfitAnalysis
             )
             appointment = try await apiClient.createAppointment(input: request).appointment
             pastAppointments = try await apiClient.getPastAppointments()
@@ -1395,6 +1524,7 @@ struct FittingView: View {
         selectedKeywords = []
         selectedSlot = nil
         guidance = ""
+        outfitAnalysis = nil
         messageDraft = ""
         cancelReason = ""
         feedbackRating = 5
@@ -1628,6 +1758,7 @@ private enum JourneyStep {
     case occasion
     case colors
     case style
+    case outfit
     case store
     case schedule
     case review
@@ -1644,15 +1775,16 @@ private enum JourneyStep {
         }
     }
 
-    /// 1-based position in the 6-step wizard; 0 for non-numbered screens.
+    /// 1-based position in the 7-step wizard; 0 for non-numbered screens.
     var stepNumber: Int {
         switch self {
         case .occasion: return 1
         case .colors: return 2
         case .style: return 3
-        case .store: return 4
-        case .schedule: return 5
-        case .review: return 6
+        case .outfit: return 4
+        case .store: return 5
+        case .schedule: return 6
+        case .review: return 7
         case .landing, .confirmation: return 0
         }
     }
@@ -1662,7 +1794,8 @@ private enum JourneyStep {
         case .landing: return .occasion
         case .occasion: return .colors
         case .colors: return .style
-        case .style: return .store
+        case .style: return .outfit
+        case .outfit: return .store
         case .store: return .schedule
         case .schedule: return .review
         case .review: return .confirmation
@@ -1676,7 +1809,8 @@ private enum JourneyStep {
         case .occasion: return .landing
         case .colors: return .occasion
         case .style: return .colors
-        case .store: return .style
+        case .outfit: return .style
+        case .store: return .outfit
         case .schedule: return .store
         case .review: return .schedule
         case .confirmation: return .confirmation
@@ -1801,6 +1935,568 @@ private struct ColorSwatchGrid: View {
         default: return Color(hex: 0xC6C6C6)
         }
     }
+}
+
+// Two-path "outfit to match" capture + sign-off. The customer can analyze a photo
+// (taken or uploaded) or describe the piece manually; both produce an editable
+// OutfitAnalysis they confirm. Photos are downscaled on-device, sent for analysis,
+// and never persisted — only the resulting text leaves this view.
+private struct OutfitMatchView: View {
+    let apiClient: APIClient
+    var eyebrow: String = "Outfit to match"
+    var initial: OutfitAnalysis? = nil
+    var showBack: Bool = false
+    var onBack: () -> Void = {}
+    var onSkip: () -> Void = {}
+    var onDone: (OutfitAnalysis) -> Void
+
+    private enum Stage { case chooser, editing }
+
+    @State private var stage: Stage = .chooser
+    @State private var photoItem: PhotosPickerItem?
+    @State private var previewImage: UIImage?
+    @State private var isAnalyzing = false
+    @State private var showCamera = false
+    @State private var errorText: String?
+
+    // Editable, customer-facing fields — the sign-off surface.
+    @State private var summary = ""
+    @State private var focusColorsText = ""
+    @State private var keywordsText = ""
+    @State private var editableGarments: [EditableGarment] = []
+    @State private var engine = "manual"
+
+    private var cameraAvailable: Bool {
+        UIImagePickerController.isSourceTypeAvailable(.camera)
+    }
+
+    private var canConfirm: Bool {
+        editableGarments.contains {
+            !$0.type.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        }
+            || !summary.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
+    var body: some View {
+        VStack(spacing: 0) {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 18) {
+                    Text(eyebrow).eyebrow(.accent)
+                    Text("Want us to style around something?")
+                        .font(.brandDisplay(27))
+                        .foregroundStyle(Color.ink)
+                        .fixedSize(horizontal: false, vertical: true)
+                    Text("Add a piece you already own — like a skirt you want a top for. Snap or upload a photo and we'll read the details, or just describe it. Photos are analyzed instantly and never saved.")
+                        .font(.system(size: 14))
+                        .foregroundStyle(Color.bodyCopy)
+
+                    if let errorText {
+                        Text(errorText)
+                            .font(.system(size: 13))
+                            .foregroundStyle(Color.sale)
+                    }
+
+                    switch stage {
+                    case .chooser:
+                        chooser
+                    case .editing:
+                        editor
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(22)
+            }
+            footer
+        }
+        .background(Color.canvas)
+        .onAppear {
+            if let initial, stage == .chooser { apply(initial) }
+        }
+        .task(id: photoItem) {
+            guard let photoItem else { return }
+            await analyze(item: photoItem)
+        }
+        .sheet(isPresented: $showCamera) {
+            CameraPicker { image in
+                Task { await analyze(image: image) }
+            }
+            .ignoresSafeArea()
+        }
+    }
+
+    private var chooser: some View {
+        VStack(spacing: 12) {
+            PhotosPicker(selection: $photoItem, matching: .images, photoLibrary: .shared()) {
+                OutfitChooserCard(icon: "photo.on.rectangle", title: "Upload a photo", subtitle: "Choose an outfit photo from your library")
+            }
+            .buttonStyle(.plain)
+            .disabled(isAnalyzing)
+
+            if cameraAvailable {
+                Button {
+                    errorText = nil
+                    showCamera = true
+                } label: {
+                    OutfitChooserCard(icon: "camera", title: "Take a photo", subtitle: "Capture the piece with your camera")
+                }
+                .buttonStyle(.plain)
+                .disabled(isAnalyzing)
+            }
+
+            Button {
+                beginManual()
+            } label: {
+                OutfitChooserCard(icon: "pencil", title: "Describe it myself", subtitle: "Skip the photo and type the details")
+            }
+            .buttonStyle(.plain)
+            .disabled(isAnalyzing)
+
+            if isAnalyzing {
+                HStack(spacing: 8) {
+                    ProgressView().tint(Color.ink)
+                    Text("Analyzing your photo…")
+                        .font(.system(size: 13))
+                        .foregroundStyle(Color.muted)
+                }
+                .padding(.top, 4)
+            }
+        }
+    }
+
+    private var editor: some View {
+        // Hoisted out of the PhotosPicker label closure, which is non-isolated and
+        // can't read main-actor @State directly.
+        let hasPhoto = previewImage != nil
+        let uploadTitle = hasPhoto ? "Replace photo" : "Add a photo"
+        let cameraTitle = hasPhoto ? "Retake" : "Take a photo"
+
+        return VStack(alignment: .leading, spacing: 14) {
+            if let previewImage {
+                Image(uiImage: previewImage)
+                    .resizable()
+                    .scaledToFill()
+                    .frame(height: 180)
+                    .frame(maxWidth: .infinity)
+                    .clipped()
+                    .overlay(Rectangle().stroke(Color.line, lineWidth: 1))
+            }
+
+            // Let the customer (re)attach a photo at any time — re-analyzing
+            // replaces the pieces below with what we read from the new photo.
+            // Labels are built inline (no method call) so they're usable inside
+            // PhotosPicker's non-isolated label closure.
+            HStack(spacing: 10) {
+                PhotosPicker(selection: $photoItem, matching: .images, photoLibrary: .shared()) {
+                    Label(uploadTitle, systemImage: "photo.on.rectangle")
+                        .font(.system(size: 11, weight: .bold))
+                        .textCase(.uppercase)
+                        .tracking(Brand.trackingCTA)
+                        .foregroundStyle(Color.ink)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 9)
+                        .overlay(Rectangle().stroke(Color.line, lineWidth: 1))
+                }
+                if cameraAvailable {
+                    Button {
+                        errorText = nil
+                        showCamera = true
+                    } label: {
+                        Label(cameraTitle, systemImage: "camera")
+                            .font(.system(size: 11, weight: .bold))
+                            .textCase(.uppercase)
+                            .tracking(Brand.trackingCTA)
+                            .foregroundStyle(Color.ink)
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 9)
+                            .overlay(Rectangle().stroke(Color.line, lineWidth: 1))
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .disabled(isAnalyzing)
+
+            if isAnalyzing {
+                HStack(spacing: 8) {
+                    ProgressView().tint(Color.ink)
+                    Text("Analyzing your photo…")
+                        .font(.system(size: 13))
+                        .foregroundStyle(Color.muted)
+                }
+            }
+
+            Text("For each piece, choose how it should shape your recommendations.")
+                .font(.system(size: 12))
+                .foregroundStyle(Color.muted)
+
+            ForEach($editableGarments) { $garment in
+                GarmentEditorRow(garment: $garment) {
+                    editableGarments.removeAll { $0.id == garment.id }
+                }
+            }
+
+            Button {
+                editableGarments.append(EditableGarment())
+            } label: {
+                Label("Add a piece", systemImage: "plus")
+                    .font(.system(size: 11, weight: .bold))
+                    .textCase(.uppercase)
+                    .tracking(Brand.trackingCTA)
+                    .foregroundStyle(Color.ink)
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 10)
+                    .overlay(Rectangle().stroke(Color.line, lineWidth: 1))
+            }
+            .buttonStyle(.plain)
+
+            labeledField("Style summary", text: $summary, prompt: "How would you describe the look?")
+            labeledField("Focus colors", text: $focusColorsText, prompt: "comma separated, e.g. cream, white")
+            labeledField("Style keywords", text: $keywordsText, prompt: "comma separated, e.g. casual-chic")
+            Button("Start over") { resetToChooser() }
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(Color.accent)
+        }
+    }
+
+    private var footer: some View {
+        HStack(spacing: 10) {
+            if showBack {
+                footerSecondaryButton("Back", action: onBack)
+            }
+            footerSecondaryButton("Skip", action: onSkip)
+                .disabled(isAnalyzing)
+            if stage == .editing {
+                Button { confirm() } label: {
+                    Text("Use this outfit")
+                        .font(.brandDisplay(13))
+                        .tracking(Brand.trackingCTA)
+                        .textCase(.uppercase)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 14)
+                        .foregroundStyle(.white)
+                        .background(canConfirm ? Color.ink : Color.disabled)
+                }
+                .buttonStyle(.plain)
+                .disabled(!canConfirm)
+            } else {
+                Spacer()
+            }
+        }
+        .padding(.horizontal, 22)
+        .padding(.top, 12)
+        .padding(.bottom, 24)
+        .background(Color.surface)
+        .overlay(Rectangle().fill(Color.line).frame(height: 1), alignment: .top)
+    }
+
+    private func footerSecondaryButton(
+        _ title: String,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            Text(title)
+                .font(.brandDisplay(13))
+                .tracking(Brand.trackingCTA)
+                .textCase(.uppercase)
+                .padding(.horizontal, 18)
+                .padding(.vertical, 14)
+                .foregroundStyle(Color.ink)
+                .overlay(Rectangle().stroke(Color.line, lineWidth: 1))
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func labeledField(_ label: String, text: Binding<String>, prompt: String) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(label).eyebrow()
+            TextField(prompt, text: text, axis: .vertical)
+                .lineLimit(2, reservesSpace: true)
+                .brandFieldChrome()
+        }
+    }
+
+    private func beginManual() {
+        errorText = nil
+        engine = "manual"
+        editableGarments = [EditableGarment()]
+        previewImage = nil
+        summary = ""
+        focusColorsText = ""
+        keywordsText = ""
+        stage = .editing
+    }
+
+    private func resetToChooser() {
+        photoItem = nil
+        previewImage = nil
+        stage = .chooser
+    }
+
+    private func apply(_ analysis: OutfitAnalysis) {
+        summary = analysis.styleSummary
+        focusColorsText = analysis.suggestedFocusColors.joined(separator: ", ")
+        keywordsText = analysis.suggestedStyleKeywords.joined(separator: ", ")
+        editableGarments = analysis.garments.map { garment in
+            EditableGarment(
+                type: garment.type,
+                colorsText: garment.colors.joined(separator: ", "),
+                intent: garment.intent
+            )
+        }
+        if editableGarments.isEmpty { editableGarments = [EditableGarment()] }
+        engine = analysis.engine
+        stage = .editing
+    }
+
+    @MainActor
+    private func analyze(item: PhotosPickerItem) async {
+        errorText = nil
+        do {
+            guard let data = try await item.loadTransferable(type: Data.self) else {
+                errorText = "Couldn't read that photo."
+                return
+            }
+            await analyzeData(data)
+        } catch {
+            errorText = "Couldn't read that photo."
+        }
+    }
+
+    @MainActor
+    private func analyze(image: UIImage) async {
+        guard let data = image.jpegData(compressionQuality: 0.9) else {
+            errorText = "Couldn't read that photo."
+            return
+        }
+        await analyzeData(data)
+    }
+
+    @MainActor
+    private func analyzeData(_ data: Data) async {
+        guard let payload = outfitImagePayload(from: data) else {
+            errorText = "Couldn't process that photo."
+            return
+        }
+        previewImage = UIImage(data: data)?.outfitResized(maxDimension: 600)
+        isAnalyzing = true
+        defer { isAnalyzing = false }
+        do {
+            let analysis = try await apiClient.analyzeOutfit(
+                imageBase64: payload.base64,
+                mediaType: payload.mediaType
+            )
+            apply(analysis)
+        } catch {
+            // Fall back to manual entry so the customer is never stuck.
+            errorText = "We couldn't analyze that photo. You can describe the outfit instead."
+            engine = "manual"
+            editableGarments = [EditableGarment()]
+            stage = .editing
+        }
+        // payload.base64 and data go out of scope here — the image is not retained.
+    }
+
+    private func confirm() {
+        let trimmedSummary = summary.trimmingCharacters(in: .whitespacesAndNewlines)
+        let garments: [OutfitGarment] = editableGarments.compactMap { garment in
+            let type = garment.type.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !type.isEmpty else { return nil }
+            return OutfitGarment(
+                type: type,
+                colors: splitList(garment.colorsText),
+                material: nil,
+                pattern: nil,
+                descriptors: [],
+                intent: garment.intent
+            )
+        }
+        let analysis = OutfitAnalysis(
+            garments: garments,
+            styleSummary: trimmedSummary,
+            suggestedFocusColors: splitList(focusColorsText),
+            suggestedStyleKeywords: splitList(keywordsText),
+            pairingContext: trimmedSummary,
+            engine: engine
+        )
+        onDone(analysis)
+    }
+}
+
+// Mutable per-garment row backing the editor (the customer/stylist intent choice).
+private struct EditableGarment: Identifiable {
+    let id = UUID()
+    var type: String = ""
+    var colorsText: String = ""
+    var intent: String = "complement"
+}
+
+// One editable garment row: name, colors, and the intent selector that decides how
+// the piece steers recommendations.
+private struct GarmentEditorRow: View {
+    @Binding var garment: EditableGarment
+    var onDelete: () -> Void
+
+    private let intents: [(value: String, label: String)] = [
+        ("complement", "Complement"),
+        ("similar", "Similar"),
+        ("ignore", "Ignore"),
+    ]
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 9) {
+            HStack(spacing: 10) {
+                TextField("Piece, e.g. denim midi skirt", text: $garment.type)
+                    .brandFieldChrome()
+                Button(action: onDelete) {
+                    Image(systemName: "trash")
+                        .font(.system(size: 13))
+                        .foregroundStyle(Color.muted)
+                        .padding(11)
+                        .overlay(Rectangle().stroke(Color.line, lineWidth: 1))
+                }
+                .buttonStyle(.plain)
+            }
+            TextField("Colors (comma separated)", text: $garment.colorsText)
+                .brandFieldChrome()
+
+            HStack(spacing: 0) {
+                ForEach(intents, id: \.value) { option in
+                    let selected = garment.intent == option.value
+                    Button {
+                        garment.intent = option.value
+                    } label: {
+                        Text(option.label)
+                            .font(.system(size: 11, weight: .bold))
+                            .textCase(.uppercase)
+                            .tracking(Brand.trackingCTA)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 9)
+                            .foregroundStyle(selected ? Color.white : Color.ink)
+                            .background(selected ? Color.ink : Color.surface)
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .overlay(Rectangle().stroke(Color.line, lineWidth: 1))
+        }
+        .brandCard(padding: 14)
+    }
+}
+
+// A tappable card used as the label for each capture option. A standalone View
+// (rather than a method on OutfitMatchView) so it can be constructed inside
+// PhotosPicker's non-isolated label closure under Swift strict concurrency.
+private struct OutfitChooserCard: View {
+    let icon: String
+    let title: String
+    let subtitle: String
+
+    var body: some View {
+        HStack(spacing: 13) {
+            Image(systemName: icon)
+                .font(.system(size: 18))
+                .foregroundStyle(Color.accent)
+                .frame(width: 28)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title)
+                    .font(.system(size: 15, weight: .bold))
+                    .foregroundStyle(Color.ink)
+                Text(subtitle)
+                    .font(.system(size: 12))
+                    .foregroundStyle(Color.muted)
+            }
+            Spacer()
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(15)
+        .background(Color.surface)
+        .overlay(Rectangle().stroke(Color.line, lineWidth: 1))
+    }
+}
+
+// Brand chrome for the outfit views' free-text fields — square white field with a
+// 1px border, matching the rest of the app.
+private extension View {
+    func brandFieldChrome() -> some View {
+        self
+            .font(.system(size: 14))
+            .foregroundStyle(Color(hex: 0x2A2A2A))
+            .tint(Color.ink)
+            .padding(11)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(Color.surface)
+            .overlay(Rectangle().stroke(Color.line, lineWidth: 1))
+    }
+}
+
+// Camera capture wrapper — SwiftUI has no native camera view, so bridge to
+// UIImagePickerController. Returns the captured UIImage via the callback.
+private struct CameraPicker: UIViewControllerRepresentable {
+    let onImage: (UIImage) -> Void
+    @Environment(\.dismiss) private var dismiss
+
+    func makeUIViewController(context: Context) -> UIImagePickerController {
+        let picker = UIImagePickerController()
+        picker.sourceType = .camera
+        picker.delegate = context.coordinator
+        return picker
+    }
+
+    func updateUIViewController(_ uiViewController: UIImagePickerController, context: Context) {}
+
+    func makeCoordinator() -> Coordinator { Coordinator(self) }
+
+    final class Coordinator: NSObject, UIImagePickerControllerDelegate, UINavigationControllerDelegate {
+        let parent: CameraPicker
+        init(_ parent: CameraPicker) { self.parent = parent }
+
+        func imagePickerController(
+            _ picker: UIImagePickerController,
+            didFinishPickingMediaWithInfo info: [UIImagePickerController.InfoKey: Any]
+        ) {
+            if let image = info[.originalImage] as? UIImage {
+                parent.onImage(image)
+            }
+            parent.dismiss()
+        }
+
+        func imagePickerControllerDidCancel(_ picker: UIImagePickerController) {
+            parent.dismiss()
+        }
+    }
+}
+
+private extension UIImage {
+    /// Downscale so the longest side is at most `maxDimension`, preserving aspect
+    /// ratio. Used to shrink uploads (and strip metadata via re-encoding).
+    func outfitResized(maxDimension: CGFloat) -> UIImage {
+        let longestSide = max(size.width, size.height)
+        guard longestSide > maxDimension, longestSide > 0 else { return self }
+        let scale = maxDimension / longestSide
+        let newSize = CGSize(width: size.width * scale, height: size.height * scale)
+        let format = UIGraphicsImageRendererFormat.default()
+        format.scale = 1
+        let renderer = UIGraphicsImageRenderer(size: newSize, format: format)
+        return renderer.image { _ in draw(in: CGRect(origin: .zero, size: newSize)) }
+    }
+}
+
+/// Downscale + JPEG-encode + base64 an image for upload. Returns nil if the data
+/// can't be decoded as an image.
+private func outfitImagePayload(
+    from data: Data,
+    maxDimension: CGFloat = 1024,
+    quality: CGFloat = 0.7
+) -> (base64: String, mediaType: String)? {
+    guard let image = UIImage(data: data) else { return nil }
+    let resized = image.outfitResized(maxDimension: maxDimension)
+    guard let jpeg = resized.jpegData(compressionQuality: quality) else { return nil }
+    return (jpeg.base64EncodedString(), "image/jpeg")
+}
+
+private func splitList(_ text: String) -> [String] {
+    text.split(separator: ",")
+        .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+        .filter { !$0.isEmpty }
 }
 
 #Preview {

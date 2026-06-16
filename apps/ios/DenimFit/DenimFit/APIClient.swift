@@ -89,6 +89,26 @@ final class APIClient: Sendable {
         try await send(path: "/api/appointments/\(id)/feedback", method: "PUT", input: AppointmentFeedbackRequest(rating: rating, comment: comment))
     }
 
+    // Sends the (downscaled, base64) outfit photo for analysis. The server never
+    // stores the image — only the returned text analysis.
+    func analyzeOutfit(imageBase64: String, mediaType: String) async throws -> OutfitAnalysis {
+        let response: OutfitAnalysisResponse = try await post(
+            path: "/api/outfit-analysis",
+            input: OutfitAnalysisRequest(imageBase64: imageBase64, mediaType: mediaType)
+        )
+        return response.analysis
+    }
+
+    // Attaches a signed-off outfit analysis to an existing appointment and re-runs
+    // the recommendation engine; returns the updated appointment.
+    func attachOutfitAnalysis(appointmentId: String, analysis: OutfitAnalysis) async throws -> AppointmentResponse {
+        try await send(
+            path: "/api/appointments/\(appointmentId)/outfit-analysis",
+            method: "PATCH",
+            input: AttachOutfitAnalysisRequest(outfitAnalysis: analysis)
+        )
+    }
+
     private func get<T: Decodable>(path: String) async throws -> T {
         let (data, response) = try await URLSession.shared.data(from: url(for: path))
         try validate(response: response)
