@@ -24,6 +24,7 @@ import {
 	type CatalogProduct,
 	closeDb,
 	countProducts,
+	productIdsForAudience,
 	upsertProduct,
 } from "./db.js";
 import {
@@ -100,7 +101,12 @@ async function main() {
 	}
 
 	let totalUpserted = 0;
-	const seen = new Set<string>();
+	const seen = await preloadSeenProductKeys(config.catalogAudiences);
+	if (seen.size > 0) {
+		console.log(
+			`Loaded ${seen.size} existing product/audience keys; already-scraped items will be skipped.`,
+		);
+	}
 
 	for (const [i, category] of categories.entries()) {
 		const categoryName = categoryNameFromUrl(category.url, category.audience);
@@ -152,6 +158,19 @@ async function main() {
 	console.log(
 		`\nDone. Upserted ${totalUpserted} products this run. catalog_products now holds ${total} rows.`,
 	);
+}
+
+async function preloadSeenProductKeys(
+	audiences: CatalogAudience[],
+): Promise<Set<string>> {
+	const seen = new Set<string>();
+	for (const audience of audiences) {
+		const productIds = await productIdsForAudience(audience);
+		for (const productId of productIds) {
+			seen.add(`${audience}:${productId}`);
+		}
+	}
+	return seen;
 }
 
 export function parseCatalogAudiences(value: string): CatalogAudience[] {
