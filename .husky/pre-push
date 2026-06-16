@@ -1,0 +1,8 @@
+echo "▶ pre-push: typecheck"
+npm run typecheck
+
+echo "▶ pre-push: build"
+npm run build
+
+echo "▶ pre-push: test"
+npm test
