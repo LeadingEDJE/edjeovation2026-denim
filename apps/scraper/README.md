@@ -46,6 +46,12 @@ CATALOG_AUDIENCES=womens,mens MAX_PER_CATEGORY=0 npm run scrape
 MAX_PER_CATEGORY=0 npm run scrape   # full catalog (slow — potentially hours)
 ```
 
+The scraper preloads product IDs that already have the requested
+`catalog_audiences` tag and skips those PDPs, so an interrupted long crawl can be
+run again without starting from scratch. Keep the API container stopped while
+scraping into the local database; API startup refreshes `catalog_products` from
+`infra/db/seed-catalog.sql`.
+
 ## How it works
 
 1. **Discover** category PLP URLs from each configured landing-page navigation.

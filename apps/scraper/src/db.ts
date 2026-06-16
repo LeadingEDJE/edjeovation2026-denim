@@ -82,6 +82,16 @@ export async function countProducts(): Promise<number> {
 	return Number(rows[0]?.count ?? 0);
 }
 
+export async function productIdsForAudience(
+	audience: string,
+): Promise<string[]> {
+	const { rows } = await pool.query<{ product_id: string }>(
+		"SELECT product_id FROM catalog_products WHERE catalog_audiences ? $1",
+		[audience],
+	);
+	return rows.map((row) => row.product_id);
+}
+
 export async function closeDb(): Promise<void> {
 	await pool.end();
 }
