@@ -1,0 +1,17 @@
+{
+	"user": {
+		"customerId": "cust_casey_006",
+		"loyaltyId": "anf-loyalty-10006",
+		"displayName": "Casey",
+		"measurements": {
+			"heightInches": 65,
+			"waistInches": 27,
+			"hipInches": 37,
+			"inseamInches": 29
+		},
+		"preferences": {
+			"fitPreference": "slim",
+			"stretchPreference": "comfort-stretch"
+		}
+	}
+}
