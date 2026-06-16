@@ -1,0 +1,2 @@
+echo "▶ pre-commit: biome ci ."
+npx biome ci .
