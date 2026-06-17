@@ -231,6 +231,7 @@ struct FittingView: View {
             OutfitMatchView(
                 apiClient: apiClient,
                 eyebrow: "Step 5 of 8",
+                measurements: currentUser?.measurements,
                 showBack: true,
                 onBack: { step = .catalog },
                 onSkip: {
@@ -640,6 +641,7 @@ struct FittingView: View {
                 OutfitMatchView(
                     apiClient: apiClient,
                     eyebrow: "Outfit to match",
+                    measurements: currentUser?.measurements,
                     initial: appointment.outfitAnalysis,
                     showBack: false,
                     onBack: {},
@@ -2024,6 +2026,9 @@ private struct ColorSwatchGrid: View {
 private struct OutfitMatchView: View {
     let apiClient: APIClient
     var eyebrow: String = "Outfit to match"
+    // The customer's measurements, forwarded with a "this is me" photo to sharpen
+    // the (hidden) body-shape read. Nil when unavailable.
+    var measurements: Measurements? = nil
     var initial: OutfitAnalysis? = nil
     var showBack: Bool = false
     var onBack: () -> Void = {}
@@ -2038,6 +2043,11 @@ private struct OutfitMatchView: View {
     @State private var isAnalyzing = false
     @State private var showCamera = false
     @State private var errorText: String?
+    // When the customer marks the photo as being of themselves, we ask the server
+    // for a discreet body-shape read alongside the outfit. The read is hidden — it
+    // never appears in this view — and is carried through to the recommender.
+    @State private var isSelfPhoto = false
+    @State private var bodyType: String?
 
     // Editable, customer-facing fields — the sign-off surface.
     @State private var summary = ""
@@ -2090,7 +2100,12 @@ private struct OutfitMatchView: View {
         }
         .background(Color.canvas)
         .onAppear {
-            if let initial, stage == .chooser { apply(initial) }
+            if let initial, stage == .chooser {
+                // Reflect whether this outfit was previously read as the customer,
+                // so replacing the photo keeps requesting the body-shape read.
+                isSelfPhoto = initial.bodyType != nil
+                apply(initial)
+            }
         }
         .task(id: photoItem) {
             guard let photoItem else { return }
@@ -2122,6 +2137,11 @@ private struct OutfitMatchView: View {
                 .buttonStyle(.plain)
                 .disabled(isAnalyzing)
             }
+
+            // Grouped with the photo options above — it only applies when a photo is
+            // added, so we don't show it for the describe/skip paths below.
+            SelfPhotoToggle(isOn: $isSelfPhoto)
+                .disabled(isAnalyzing)
 
             Button {
                 beginManual()
@@ -2202,6 +2222,12 @@ private struct OutfitMatchView: View {
                 }
             }
             .disabled(isAnalyzing)
+
+            // Applies to the photo added/replaced above. Present here too so the
+            // update-outfit flow (which opens straight into this editor) can request
+            // the body-shape read when a new photo is the customer themselves.
+            SelfPhotoToggle(isOn: $isSelfPhoto)
+                .disabled(isAnalyzing)
 
             if isAnalyzing {
                 HStack(spacing: 8) {
@@ -2310,6 +2336,9 @@ private struct OutfitMatchView: View {
         summary = ""
         focusColorsText = ""
         keywordsText = ""
+        // No photo, so there is no body-shape read to carry and nothing to flag.
+        bodyType = nil
+        isSelfPhoto = false
         stage = .editing
     }
 
@@ -2332,6 +2361,8 @@ private struct OutfitMatchView: View {
         }
         if editableGarments.isEmpty { editableGarments = [EditableGarment()] }
         engine = analysis.engine
+        // Preserve the hidden body-shape read across edits (it has no editable field).
+        bodyType = analysis.bodyType
         stage = .editing
     }
 
@@ -2370,7 +2401,10 @@ private struct OutfitMatchView: View {
         do {
             let analysis = try await apiClient.analyzeOutfit(
                 imageBase64: payload.base64,
-                mediaType: payload.mediaType
+                mediaType: payload.mediaType,
+                analyzeBodyType: isSelfPhoto,
+                // Only share measurements when the body-shape read was requested.
+                measurements: isSelfPhoto ? measurements : nil
             )
             apply(analysis)
         } catch {
@@ -2403,7 +2437,9 @@ private struct OutfitMatchView: View {
             suggestedFocusColors: splitList(focusColorsText),
             suggestedStyleKeywords: splitList(keywordsText),
             pairingContext: trimmedSummary,
-            engine: engine
+            engine: engine,
+            // Pass the hidden body-shape read through untouched; it stays out of the UI.
+            bodyType: bodyType
         )
         onDone(analysis)
     }
@@ -2467,6 +2503,48 @@ private struct GarmentEditorRow: View {
             .overlay(Rectangle().stroke(Color.line, lineWidth: 1))
         }
         .brandCard(padding: 14)
+    }
+}
+
+// "This is me" opt-in shown above the photo capture options. When checked, the
+// photo is analyzed for the customer's own fit (in addition to the outfit) so the
+// stylist's recommendations can be tailored to them. Square brand checkbox.
+private struct SelfPhotoToggle: View {
+    @Binding var isOn: Bool
+
+    var body: some View {
+        Button {
+            isOn.toggle()
+        } label: {
+            HStack(spacing: 13) {
+                ZStack {
+                    Rectangle()
+                        .fill(isOn ? Color.ink : Color.surface)
+                        .frame(width: 24, height: 24)
+                        .overlay(Rectangle().stroke(isOn ? Color.ink : Color.line, lineWidth: 1))
+                    if isOn {
+                        Image(systemName: "checkmark")
+                            .font(.system(size: 12, weight: .bold))
+                            .foregroundStyle(.white)
+                    }
+                }
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("This is me")
+                        .font(.system(size: 15, weight: .bold))
+                        .foregroundStyle(Color.ink)
+                    Text("Check this if the photo you add is of you — helps your stylist tailor the fit.")
+                        .font(.system(size: 12))
+                        .foregroundStyle(Color.muted)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                Spacer()
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(15)
+            .background(Color.surface)
+            .overlay(Rectangle().stroke(isOn ? Color.ink : Color.line, lineWidth: 1))
+        }
+        .buttonStyle(.plain)
     }
 }
 

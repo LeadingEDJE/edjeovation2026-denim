@@ -11,6 +11,7 @@ import {
 	coarseCategory,
 	type FitProfile,
 	type ScoredCandidate,
+	targetLength,
 } from "./recommendation-scoring.js";
 
 export type RankedRecommendation = {
@@ -36,6 +37,10 @@ export type StyleContext = {
 	// A garment the customer already owns/is wearing and wants to build around
 	// (from an outfit photo or manual entry). Recommendations should complement it.
 	pairingContext?: string;
+	// Confidential body-shape read (e.g. "pear", "hourglass"), present only when the
+	// customer opted in via a "this is me" photo. Used purely to steer silhouette/fit
+	// choices — NEVER mentioned in any rationale, summary, or customer/stylist view.
+	bodyType?: string | null;
 };
 
 // Stable across all requests → safe to mark for prompt caching. The volatile
@@ -58,6 +63,10 @@ Rules:
   to the customer's preferences AND the appointment's occasion, colors, or style.
   For bottoms, reference fit/size; for other categories, lean on color and style.
 - Favor focus colors and avoid the colors to skip. Lead with the strongest match.
+- Inseam/length: for bottoms sized by length (a "lengths" list of Short/Regular/Long),
+  strongly prefer ones that offer the customer's target length and rank down any that
+  do not — only fall back to an off-length pant when there's no better option in that
+  category. Bottoms with "lengths: n/a" come in a single length; judge them on fit/size.
 
 Completing a look — when the appointment context lists pieces to "complement" (an
 item the customer already owns and wants to build around), treat that piece as worn
@@ -75,6 +84,15 @@ and recommend things that go WITH it, never an alternative to it:
 These no-second-bottom rules apply ONLY to "complement" pieces. For pieces listed as
 "find similar," recommend items of the same kind and style as the named piece (a
 skirt for a skirt is correct there).
+
+Body shape (confidential) — the context may include the customer's body shape (e.g.
+pear, apple, hourglass, rectangle, inverted-triangle). When present, use it silently
+to favor genuinely flattering silhouettes, rises, and proportions for that shape
+(e.g. for pear, balance the lower half with structured or detailed tops and bootcut/
+straight bottoms; for apple, favor definition near the waist and clean vertical lines).
+This is private styling intelligence: NEVER mention, hint at, or describe the
+customer's body or shape in any rationale or in the summary — speak only about the
+garments and how they suit the occasion, colors, and style.
 
 Occasion appropriateness — only recommend specialized categories when the occasion
 or style context clearly calls for them:
@@ -113,6 +131,9 @@ function candidateLine(c: ScoredCandidate): string {
 		`price: ${p.price ?? "?"} ${p.currency ?? ""}`.trim(),
 		`colors: ${p.colors.join(", ") || "n/a"}`,
 		`sizes: ${p.sizes.join(", ") || "n/a"}`,
+		// Explicit length availability so the model never has to guess which size
+		// tokens are lengths. "n/a" means the product isn't sized by length.
+		`lengths: ${p.lengthSizes.join(", ") || "n/a"}`,
 		`ruleScore: ${c.score.toFixed(2)}`,
 		`description: ${(p.description ?? "").slice(0, 200)}`,
 	].join(" | ");
@@ -126,7 +147,7 @@ function buildUserPrompt(
 ): string {
 	const profile = [
 		`waist: ${input.waistInches} in`,
-		`inseam: ${input.inseamInches} in`,
+		`inseam: ${input.inseamInches} in (target length: ${targetLength(input.inseamInches)})`,
 		`fitPreference: ${input.fitPreference}`,
 		`stretchPreference: ${input.stretchPreference}`,
 	].join(", ");
@@ -153,12 +174,17 @@ function buildUserPrompt(
 		? `\n\nOutfit to build around: ${style.pairingContext}\nFavor pieces that complete or complement this look (e.g. a top for a skirt), and reference the pairing in the rationale.`
 		: "";
 
+	// Confidential — drives silhouette/fit choices but must never appear in output.
+	const bodyShape = style.bodyType
+		? `\n\nConfidential body shape: ${style.bodyType}. Favor silhouettes and proportions that flatter this shape, but do NOT mention the body or shape anywhere in your rationale or summary.`
+		: "";
+
 	const candidates = shortlist
 		.map((c, i) => `${i + 1}. ${candidateLine(c)}`)
 		.join("\n");
 
 	return `Customer profile: ${profile}
-Appointment style context: ${styleLines || "none provided"}${pairing}
+Appointment style context: ${styleLines || "none provided"}${pairing}${bodyShape}
 
 Candidate products (pre-scored shortlist):
 ${candidates}

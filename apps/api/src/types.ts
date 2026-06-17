@@ -168,7 +168,15 @@ export type CatalogProduct = {
 	fit: string | null;
 	rise: string | null;
 	stretch: string | null;
+	// Flat, display-oriented list of every size token (mixes waist + length).
 	sizes: string[];
+	// Structured size dimensions split out from the scraped `raw` payload. For
+	// bottoms, waistSizes are the numeric waist labels and lengthSizes are the
+	// Short/Regular/Long options. Both are empty for products without that
+	// dimension (e.g. alpha-sized tops). Used to match the customer's inseam to an
+	// actually-available length.
+	waistSizes: string[];
+	lengthSizes: string[];
 	colors: string[];
 	scrapedAt: string;
 };
@@ -243,6 +251,12 @@ export type OutfitAnalysis = {
 	suggestedStyleKeywords: string[];
 	pairingContext: string;
 	engine: "claude" | "sample" | "manual";
+	// Hidden, internal-only read of the customer's body shape (e.g. "pear",
+	// "apple", "hourglass"), inferred ONLY when the customer marks a photo as being
+	// of themselves. Null when not requested or not confidently determined. Never
+	// shown to the customer or stylist — it exists solely to steer the recommender's
+	// silhouette/fit choices. See claude-reranker.ts for how it's applied.
+	bodyType?: string | null;
 };
 
 export type CreateAppointmentInput = {

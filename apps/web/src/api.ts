@@ -70,6 +70,9 @@ export type OutfitAnalysis = {
 	suggestedStyleKeywords: string[];
 	pairingContext: string;
 	engine: "claude" | "sample" | "manual";
+	// Hidden, internal-only body-shape read used to steer recommendations. Never
+	// rendered in the stylist view; carried here only so edits round-trip it intact.
+	bodyType?: string | null;
 };
 
 export type AppointmentStatus =

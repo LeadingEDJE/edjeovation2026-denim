@@ -51,6 +51,57 @@ Rules:
 const OUTPUT_INSTRUCTION = `Analyze this outfit photo. Return ONLY a JSON object (no markdown fences, no prose) of the form:
 {"garments":[{"type":string,"colors":string[],"material":string|null,"pattern":string|null,"descriptors":string[]}],"styleSummary":string,"suggestedFocusColors":string[],"suggestedStyleKeywords":string[],"pairingContext":string}`;
 
+// Appended only when the customer marked the photo as being of themselves. We do
+// the normal outfit read AND a discreet body-shape read in the same call. The
+// body-shape value is internal styling context (never shown to anyone), so we ask
+// for a single conventional shape term and, crucially, null when the photo doesn't
+// support a confident read — a wrong guess is worse than none.
+const BODY_TYPE_INSTRUCTION = `This photo is of the customer themselves. In addition to the outfit, discreetly assess their overall body shape to help tailor silhouette and fit. Add a "bodyType" field to the JSON: one of "pear", "apple", "hourglass", "rectangle", or "inverted-triangle" (the closest fit), or null if you cannot make a confident assessment from the evidence available (e.g. the body is not clearly visible and no measurements are provided). Do not guess — prefer null over an uncertain label. You may also be given the customer's self-reported measurements; weigh them together with the photo (the waist-to-hip relationship is a strong shape signal). Never describe, comment on, or restate the customer's body or measurements in any other field.`;
+
+const BODY_TYPE_OUTPUT_INSTRUCTION = `Analyze this photo. Return ONLY a JSON object (no markdown fences, no prose) of the form:
+{"garments":[{"type":string,"colors":string[],"material":string|null,"pattern":string|null,"descriptors":string[]}],"styleSummary":string,"suggestedFocusColors":string[],"suggestedStyleKeywords":string[],"pairingContext":string,"bodyType":string|null}`;
+
+// Conventional shape terms we accept from the model; anything else (or an
+// uncertain free-text answer) is treated as "not determined" and dropped.
+const knownBodyTypes = new Set([
+	"pear",
+	"apple",
+	"hourglass",
+	"rectangle",
+	"inverted-triangle",
+]);
+
+function normalizeBodyType(v: unknown): string | null {
+	if (typeof v !== "string") return null;
+	const cleaned = v.trim().toLowerCase().replace(/\s+/g, "-");
+	return knownBodyTypes.has(cleaned) ? cleaned : null;
+}
+
+// Self-reported measurements that sharpen the body-shape read. All optional — we
+// only feed through whatever the client actually has. Field names mirror
+// CurrentUser.measurements so the client can pass them straight through.
+export type BodyMeasurements = {
+	heightInches?: number;
+	waistInches?: number;
+	hipInches?: number;
+	inseamInches?: number;
+};
+
+// Render the measurements as a short context line for the user turn (kept OUT of
+// the cached system prompt, since the numbers are per-customer). Returns "" when
+// nothing usable is present so the prompt is unchanged.
+function formatBodyMeasurements(m: BodyMeasurements | undefined): string {
+	if (!m) return "";
+	const parts = [
+		Number.isFinite(m.heightInches) ? `height ${m.heightInches} in` : null,
+		Number.isFinite(m.waistInches) ? `waist ${m.waistInches} in` : null,
+		Number.isFinite(m.hipInches) ? `hip ${m.hipInches} in` : null,
+		Number.isFinite(m.inseamInches) ? `inseam ${m.inseamInches} in` : null,
+	].filter(Boolean);
+	if (parts.length === 0) return "";
+	return `The customer's self-reported measurements: ${parts.join(", ")}. Weigh these together with the photo when assessing body shape.\n\n`;
+}
+
 /** Coerce a possibly-partial model/client payload into a safe OutfitAnalysis. */
 export function normalizeOutfitAnalysis(
 	raw: Partial<OutfitAnalysis> | null | undefined,
@@ -82,15 +133,43 @@ export function normalizeOutfitAnalysis(
 		suggestedStyleKeywords: asStrings(raw?.suggestedStyleKeywords),
 		pairingContext: String(raw?.pairingContext ?? ""),
 		engine,
+		bodyType: normalizeBodyType(raw?.bodyType),
 	};
 }
+
+export type AnalyzeOutfitOptions = {
+	// Set when the customer marked the photo as being of themselves ("this is
+	// me"). Adds a discreet body-shape read to the same vision call, stored as the
+	// hidden OutfitAnalysis.bodyType.
+	analyzeBodyType?: boolean;
+	// The customer's self-reported measurements, used only alongside
+	// analyzeBodyType to sharpen the body-shape read. Ignored otherwise.
+	measurements?: BodyMeasurements;
+};
 
 /** Analyze an outfit photo with Claude, or fall back to a canned sample. */
 export async function analyzeOutfit(
 	imageBase64: string,
 	mediaType: SupportedMediaType,
+	options: AnalyzeOutfitOptions = {},
 ): Promise<OutfitAnalysis> {
 	if (!config.anthropicApiKey) return sampleAnalysis();
+
+	// When "this is me" is set we extend BOTH the cached system prompt and the
+	// per-request output instruction so the model also returns a bodyType field.
+	const withBodyType = Boolean(options.analyzeBodyType);
+	const systemPrompt = withBodyType
+		? `${SYSTEM_PROMPT}\n\n${BODY_TYPE_INSTRUCTION}`
+		: SYSTEM_PROMPT;
+	const outputInstruction = withBodyType
+		? BODY_TYPE_OUTPUT_INSTRUCTION
+		: OUTPUT_INSTRUCTION;
+	// Per-customer measurements ride in the user turn (not the cached system
+	// prompt) so the cache stays shared across requests. Empty unless body-type
+	// analysis was requested with usable numbers.
+	const bodyContext = withBodyType
+		? formatBodyMeasurements(options.measurements)
+		: "";
 
 	try {
 		const client = new Anthropic({
@@ -105,7 +184,7 @@ export async function analyzeOutfit(
 			system: [
 				{
 					type: "text",
-					text: SYSTEM_PROMPT,
+					text: systemPrompt,
 					cache_control: { type: "ephemeral" },
 				},
 			],
@@ -121,7 +200,7 @@ export async function analyzeOutfit(
 								data: imageBase64,
 							},
 						},
-						{ type: "text", text: OUTPUT_INSTRUCTION },
+						{ type: "text", text: `${bodyContext}${outputInstruction}` },
 					],
 				},
 			],
