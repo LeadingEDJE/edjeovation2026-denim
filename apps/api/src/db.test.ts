@@ -58,9 +58,7 @@ describe("db pool configuration", () => {
 	it("uses DATABASE_URL without SSL by default", async () => {
 		process.env.DATABASE_URL = "postgres://user:pass@db.example/app";
 		const config = await loadConfig();
-		expect(config.connectionString).toBe(
-			"postgres://user:pass@db.example/app",
-		);
+		expect(config.connectionString).toBe("postgres://user:pass@db.example/app");
 		expect(config.ssl).toBeUndefined();
 	});
 

@@ -13,7 +13,12 @@ function stylist(id: string, displayName: string): StylistProfile {
 		displayName,
 		pronouns: "they/them",
 		title: "Denim Stylist",
-		store: { storeId: "store-1", name: "Flagship", city: "Columbus", state: "OH" },
+		store: {
+			storeId: "store-1",
+			name: "Flagship",
+			city: "Columbus",
+			state: "OH",
+		},
 		bio: "",
 		specialties: [],
 		stylePointOfView: [],
@@ -92,18 +97,14 @@ const stylists = [stylist("sty-1", "Jordan Lee")];
 
 describe("RecapDetail", () => {
 	it("renders the customer, reference, and stylist header", () => {
-		render(
-			<RecapDetail appointment={makeAppointment()} stylists={stylists} />,
-		);
+		render(<RecapDetail appointment={makeAppointment()} stylists={stylists} />);
 		expect(screen.getByText("Avery Parker")).toBeInTheDocument();
 		expect(screen.getByText(/Appointment · #/)).toBeInTheDocument();
 		expect(screen.getByText("Jordan Lee")).toBeInTheDocument();
 	});
 
 	it("shows the empty state when nothing was pulled", () => {
-		render(
-			<RecapDetail appointment={makeAppointment()} stylists={stylists} />,
-		);
+		render(<RecapDetail appointment={makeAppointment()} stylists={stylists} />);
 		expect(
 			screen.getByText(/no products were pulled in this session/i),
 		).toBeInTheDocument();
@@ -138,7 +139,9 @@ describe("RecapDetail", () => {
 	it("renders recap fields and their fallbacks", () => {
 		render(
 			<RecapDetail
-				appointment={makeAppointment({ customerRecap: "Found the perfect fit" })}
+				appointment={makeAppointment({
+					customerRecap: "Found the perfect fit",
+				})}
 				stylists={stylists}
 			/>,
 		);

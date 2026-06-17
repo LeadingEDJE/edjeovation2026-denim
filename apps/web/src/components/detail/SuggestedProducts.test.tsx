@@ -6,7 +6,9 @@ import {
 	SuggestedProducts,
 } from "./SuggestedProducts.js";
 
-function suggestion(overrides: Partial<SuggestedProduct> = {}): SuggestedProduct {
+function suggestion(
+	overrides: Partial<SuggestedProduct> = {},
+): SuggestedProduct {
 	return {
 		rank: 1,
 		rationale: "Great match for the occasion",
@@ -41,8 +43,7 @@ function renderPanel(
 		onRegenerate: vi.fn(),
 		onUpdateProductPrep: vi.fn(),
 	};
-	const appointment =
-		overrides.appointment ?? makeAppointment([suggestion()]);
+	const appointment = overrides.appointment ?? makeAppointment([suggestion()]);
 	render(
 		<SuggestedProducts
 			appointment={appointment}
@@ -82,7 +83,9 @@ describe("SuggestedProducts", () => {
 		renderPanel();
 		expect(screen.getByText("Slim Dark Wash")).toBeInTheDocument();
 		expect(screen.getByText("$98.00")).toBeInTheDocument();
-		expect(screen.getByText("Denim · Slim · High · Comfort")).toBeInTheDocument();
+		expect(
+			screen.getByText("Denim · Slim · High · Comfort"),
+		).toBeInTheDocument();
 		expect(screen.getByText("1 to pull")).toBeInTheDocument();
 	});
 

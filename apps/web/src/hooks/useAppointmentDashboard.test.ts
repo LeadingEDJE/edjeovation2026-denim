@@ -36,7 +36,12 @@ function stylist(id: string, displayName: string): StylistProfile {
 		displayName,
 		pronouns: "they/them",
 		title: "Denim Stylist",
-		store: { storeId: "store-1", name: "Flagship", city: "Columbus", state: "OH" },
+		store: {
+			storeId: "store-1",
+			name: "Flagship",
+			city: "Columbus",
+			state: "OH",
+		},
 		bio: "",
 		specialties: [],
 		stylePointOfView: [],
@@ -83,7 +88,11 @@ function makeAppointment(overrides: Partial<Appointment> = {}): Appointment {
 		},
 		suggestedProducts: [],
 		outfitAnalysis: null,
-		notificationSummary: { count: 0, confirmationStatus: null, reminderStatus: null },
+		notificationSummary: {
+			count: 0,
+			confirmationStatus: null,
+			reminderStatus: null,
+		},
 		checkedInAt: null,
 		completedAt: null,
 		cancelledAt: null,
@@ -287,7 +296,10 @@ describe("useAppointmentDashboard — appointment actions", () => {
 	});
 
 	it("saves outfit intents without regenerating", async () => {
-		const analysis = { engine: "manual", garments: [] } as unknown as OutfitAnalysis;
+		const analysis = {
+			engine: "manual",
+			garments: [],
+		} as unknown as OutfitAnalysis;
 		mocked.updateOutfitAnalysis.mockResolvedValue(makeAppointment());
 		const { result } = await renderLoaded();
 		await act(async () => {

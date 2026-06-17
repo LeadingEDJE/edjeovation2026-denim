@@ -1,7 +1,7 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import type { Appointment, OutfitAnalysis } from "../../api.js";
-import { catalogAudienceLabel, CustomerSnapshot } from "./CustomerSnapshot.js";
+import { CustomerSnapshot, catalogAudienceLabel } from "./CustomerSnapshot.js";
 
 function makeAppointment(overrides: Partial<Appointment> = {}): Appointment {
 	return {
@@ -60,7 +60,9 @@ describe("CustomerSnapshot", () => {
 		render(<CustomerSnapshot appointment={makeAppointment()} />);
 		expect(screen.getByText("Womens")).toBeInTheDocument();
 		expect(screen.getByText("minimal")).toBeInTheDocument();
-		expect(screen.getByText(/looking for something sharp/i)).toBeInTheDocument();
+		expect(
+			screen.getByText(/looking for something sharp/i),
+		).toBeInTheDocument();
 		expect(screen.getByText("5")).toBeInTheDocument(); // total orders
 		expect(screen.getByText("Total orders")).toBeInTheDocument();
 	});

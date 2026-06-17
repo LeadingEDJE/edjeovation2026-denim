@@ -3,7 +3,9 @@ import { describe, expect, it, vi } from "vitest";
 import type { AppointmentMessage } from "../../api.js";
 import { MessagingPanel } from "./MessagingPanel.js";
 
-function message(overrides: Partial<AppointmentMessage> = {}): AppointmentMessage {
+function message(
+	overrides: Partial<AppointmentMessage> = {},
+): AppointmentMessage {
 	return {
 		id: "msg-1",
 		appointmentId: "appt-1",

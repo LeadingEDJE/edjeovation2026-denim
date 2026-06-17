@@ -106,7 +106,9 @@ describe("assignStylist", () => {
 	});
 
 	it("returns undefined when no scheduled stylist is found", () => {
-		expect(assignStylist(["ghost"], [stylist("s1", [])], "Clean Muse")).toBeUndefined();
+		expect(
+			assignStylist(["ghost"], [stylist("s1", [])], "Clean Muse"),
+		).toBeUndefined();
 	});
 });
 
@@ -530,7 +532,10 @@ describe("buildSuggestedProducts", () => {
 
 	it("scores the catalog and returns enriched, ranked suggestions", async () => {
 		query.mockResolvedValueOnce({
-			rows: [catalogRow({ product_id: "p1" }), catalogRow({ product_id: "p2" })],
+			rows: [
+				catalogRow({ product_id: "p1" }),
+				catalogRow({ product_id: "p2" }),
+			],
 		});
 
 		const result = await buildSuggestedProducts(
@@ -541,7 +546,10 @@ describe("buildSuggestedProducts", () => {
 		);
 
 		expect(result.map((s) => s.product.productId).sort()).toEqual(["p1", "p2"]);
-		expect(result[0]).toMatchObject({ prepStatus: "suggested", associateNote: "" });
+		expect(result[0]).toMatchObject({
+			prepStatus: "suggested",
+			associateNote: "",
+		});
 		expect(typeof result[0].score).toBe("number");
 	});
 
@@ -566,8 +574,16 @@ describe("buildSuggestedProducts", () => {
 	it("restricts to like categories when every garment intent is 'similar'", async () => {
 		query.mockResolvedValueOnce({
 			rows: [
-				catalogRow({ product_id: "jean", name: "Straight Jean", category: "jeans" }),
-				catalogRow({ product_id: "tank", name: "Ribbed Tank", category: "tops" }),
+				catalogRow({
+					product_id: "jean",
+					name: "Straight Jean",
+					category: "jeans",
+				}),
+				catalogRow({
+					product_id: "tank",
+					name: "Ribbed Tank",
+					category: "tops",
+				}),
 			],
 		});
 

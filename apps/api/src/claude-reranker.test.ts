@@ -85,10 +85,19 @@ describe("extractJson", () => {
 describe("rerank — rule-based fallback (no API key)", () => {
 	it("diversifies across categories, strongest category first", async () => {
 		const shortlist = [
-			candidate({ productId: "b1", name: "Straight Jean", category: "jeans" }, 0.9),
-			candidate({ productId: "t1", name: "Ribbed Tank", category: "tops" }, 0.8),
+			candidate(
+				{ productId: "b1", name: "Straight Jean", category: "jeans" },
+				0.9,
+			),
+			candidate(
+				{ productId: "t1", name: "Ribbed Tank", category: "tops" },
+				0.8,
+			),
 			candidate({ productId: "b2", name: "Wide Jean", category: "jeans" }, 0.7),
-			candidate({ productId: "d1", name: "Slip Dress", category: "dresses" }, 0.6),
+			candidate(
+				{ productId: "d1", name: "Slip Dress", category: "dresses" },
+				0.6,
+			),
 		];
 
 		const result = await rerank(fitProfile, style, shortlist, 3);

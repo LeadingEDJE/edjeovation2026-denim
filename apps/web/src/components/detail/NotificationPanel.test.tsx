@@ -34,9 +34,7 @@ describe("NotificationPanel", () => {
 			/>,
 		);
 		expect(
-			screen.getByText(
-				(_, el) => el?.textContent === "confirmation sent",
-			),
+			screen.getByText((_, el) => el?.textContent === "confirmation sent"),
 		).toBeInTheDocument();
 		expect(
 			screen.getByText((_, el) => el?.textContent === "reminder queued"),

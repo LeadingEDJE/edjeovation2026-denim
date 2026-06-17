@@ -44,7 +44,12 @@ function makeStylist(overrides: Partial<StylistProfile> = {}): StylistProfile {
 		displayName: "Jordan Lee",
 		pronouns: "they/them",
 		title: "Senior Denim Stylist",
-		store: { storeId: "store-1", name: "Flagship", city: "Columbus", state: "OH" },
+		store: {
+			storeId: "store-1",
+			name: "Flagship",
+			city: "Columbus",
+			state: "OH",
+		},
 		bio: "Denim specialist.",
 		specialties: ["curvy-fit"],
 		stylePointOfView: ["timeless"],
@@ -352,7 +357,12 @@ describe("stylist availability route", () => {
 	it("returns the availability schedule", async () => {
 		fetchMock.mockResolvedValueOnce(
 			jsonResponse({
-				store: { storeId: "store-1", name: "Flagship", city: "Columbus", state: "OH" },
+				store: {
+					storeId: "store-1",
+					name: "Flagship",
+					city: "Columbus",
+					state: "OH",
+				},
 				timezone: "America/New_York",
 				startDate: "2026-06-16",
 				endDate: "2026-06-26",
@@ -455,7 +465,9 @@ describe("POST /api/appointments/:id/cancel", () => {
 	it("cancels a scheduled appointment", async () => {
 		fetchMock.mockResolvedValueOnce(jsonResponse(currentUserBody()));
 		(query as Mock).mockResolvedValueOnce({
-			rows: [appointmentRow({ status: "cancelled", cancel_reason: "Plans changed" })],
+			rows: [
+				appointmentRow({ status: "cancelled", cancel_reason: "Plans changed" }),
+			],
 		});
 		const res = await app.inject({
 			method: "POST",
@@ -498,7 +510,9 @@ describe("PATCH /api/appointments/:id/stylist", () => {
 		(query as Mock)
 			.mockResolvedValueOnce({ rows: [appointmentRow()] })
 			.mockResolvedValueOnce({
-				rows: [appointmentRow({ assigned_stylist: makeStylist({ id: "st-2" }) })],
+				rows: [
+					appointmentRow({ assigned_stylist: makeStylist({ id: "st-2" }) }),
+				],
 			});
 		fetchMock
 			.mockResolvedValueOnce(jsonResponse(schedulePatternsResponse()))
