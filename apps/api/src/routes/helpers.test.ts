@@ -10,9 +10,11 @@ vi.mock("../claude-reranker.js", () => ({ rerank: rerankMock }));
 
 import type {
 	Appointment,
+	CreateAppointmentInput,
 	CurrentUser,
 	OrderHistory,
 	OutfitAnalysis,
+	StoreSchedulePattern,
 	StylistProfile,
 } from "../types.js";
 import {
@@ -146,7 +148,7 @@ describe("buildPairingInstruction", () => {
 			garments: [
 				{ type: "midi skirt", colors: ["indigo"], intent: "complement" },
 			],
-		} as OutfitAnalysis;
+		} as unknown as OutfitAnalysis;
 		const text = buildPairingInstruction(analysis);
 		expect(text).toContain("Build around the skirt.");
 		expect(text).toMatch(/complement/i);
@@ -157,12 +159,15 @@ describe("buildPairingInstruction", () => {
 		const analysis = {
 			pairingContext: "",
 			garments: [{ type: "blazer", colors: [], intent: "similar" }],
-		} as OutfitAnalysis;
+		} as unknown as OutfitAnalysis;
 		expect(buildPairingInstruction(analysis)).toMatch(/similar in style/i);
 	});
 
 	it("returns undefined when there is nothing to say", () => {
-		const analysis = { pairingContext: "", garments: [] } as OutfitAnalysis;
+		const analysis = {
+			pairingContext: "",
+			garments: [],
+		} as unknown as OutfitAnalysis;
 		expect(buildPairingInstruction(analysis)).toBeUndefined();
 	});
 });
@@ -411,7 +416,7 @@ describe("mapAppointment", () => {
 });
 
 describe("slot scheduling math", () => {
-	const pattern = {
+	const pattern: StoreSchedulePattern = {
 		storeId: "store-1",
 		timezone: "America/New_York",
 		weekly: [
@@ -499,14 +504,14 @@ describe("buildSuggestedProducts", () => {
 		...overrides,
 	});
 
-	const input = {
+	const input: CreateAppointmentInput = {
 		storeId: "store-1",
 		slotStart: "2026-06-16T15:00:00.000Z",
 		occasion: "Weekend trip",
 		focusColors: "indigo",
 		avoidColors: "",
 		styleKeywords: ["minimal"],
-		catalogAudiences: ["womens"] as const,
+		catalogAudiences: ["womens"],
 		guidance: "",
 	};
 
