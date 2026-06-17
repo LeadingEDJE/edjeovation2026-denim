@@ -143,11 +143,17 @@ CREATE TABLE IF NOT EXISTS catalog_products (
   sizes JSONB NOT NULL DEFAULT '[]'::jsonb,
   colors JSONB NOT NULL DEFAULT '[]'::jsonb,
   raw JSONB NOT NULL DEFAULT '{}'::jsonb,
+  -- Structured visual style cues read from the product image by a vision model
+  -- (summary + silhouette/pattern/wash/details/formality/styleKeywords). NULL
+  -- until the image-analysis backfill (apps/api: npm run analyze:images) runs.
+  -- Fed to the recommender so selections weigh how a garment actually looks.
+  image_analysis JSONB,
   scraped_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
 ALTER TABLE catalog_products ADD COLUMN IF NOT EXISTS catalog_audiences JSONB NOT NULL DEFAULT '["womens"]'::jsonb;
+ALTER TABLE catalog_products ADD COLUMN IF NOT EXISTS image_analysis JSONB;
 
 CREATE INDEX IF NOT EXISTS idx_catalog_products_fit ON catalog_products (fit);
 CREATE INDEX IF NOT EXISTS idx_catalog_products_rise ON catalog_products (rise);

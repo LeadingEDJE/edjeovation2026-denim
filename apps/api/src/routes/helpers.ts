@@ -581,6 +581,9 @@ export function mapCatalogProduct(
 		catalogAudiences: normalizeCatalogAudiences(row.catalog_audiences),
 		productUrl: String(row.product_url),
 		imageUrl: row.image_url == null ? null : String(row.image_url),
+		// JSONB — arrives already parsed (object) or null when not yet analyzed.
+		imageAnalysis: (row.image_analysis ??
+			null) as CatalogProduct["imageAnalysis"],
 		description: row.description == null ? null : String(row.description),
 		price: row.price == null ? null : Number(row.price),
 		currency: row.currency == null ? null : String(row.currency),

@@ -28,6 +28,7 @@ function product(overrides: Partial<CatalogProduct>): CatalogProduct {
 		catalogAudiences: ["womens"],
 		productUrl: "https://example.com/p1",
 		imageUrl: null,
+		imageAnalysis: null,
 		description: null,
 		price: 90,
 		currency: "USD",
