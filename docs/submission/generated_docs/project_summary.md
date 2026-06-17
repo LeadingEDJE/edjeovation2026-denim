@@ -9,7 +9,12 @@ womens and/or mens catalog.
 
 ## Team Members
 
-<!-- TODO: team members and roles (e.g. Tech Lead, Designer, Product) -->
+Terry Welsh - Meat-bag as a Service
+Jeremy Fensch - Principal Human-AI Systems Architect
+Nicole Hoying - Suggestion Engineer
+Tim Williams - Splashzone Expert
+Ted Cegelka - K-pop Bug Hunter
+Wesley King - UX Specialist
 
 ## Client
 

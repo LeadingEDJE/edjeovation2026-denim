@@ -156,7 +156,12 @@ General approach for every doc:
 - **Never fabricate facts.** No invented metrics, customers, benchmarks, or
   performance numbers. Label all ROI/impact figures as estimates with assumptions.
 - **Team Members:** do not invent names. If unknown, insert a
-  `<!-- TODO: team members and roles -->` placeholder.
+  - Terry Welsh - Meat-bag as a Service
+  - Jeremy Fensch - Principal Human-AI Systems Architect
+  - Nicole Hoying - Suggestion Engineer
+  - Tim Williams - Splashzone Expert
+  - Ted Cegelka - K-pop Bug Hunter
+  - Wesley King - UX Specialist
 - **Don't claim production-readiness.** Data is mocked/synthetic; say so.
 - **Don't overstate AI dependency** — it's Integrated (works via fallback).
 - **Preserve human edits.** Update only what the PR changed; don't rewrite
