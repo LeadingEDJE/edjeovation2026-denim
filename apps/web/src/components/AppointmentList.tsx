@@ -94,10 +94,10 @@ export function AppointmentList({
 	);
 }
 
-type DayGroup = { label: string; appointments: Appointment[] };
+export type DayGroup = { label: string; appointments: Appointment[] };
 
 /** Bucket appointments into Today / Upcoming / Earlier, preserving incoming order. */
-function groupByDay(appointments: Appointment[]): DayGroup[] {
+export function groupByDay(appointments: Appointment[]): DayGroup[] {
 	const now = new Date();
 	const startOfToday = new Date(
 		now.getFullYear(),
