@@ -6,12 +6,12 @@ Personalized Denim Fitting Experience
 
 ## Team Members
 
-Terry Welsh - Meat-bag as a Service
-Jeremy Fensch - Principal Human-AI Systems Architect
-Nicole Hoying - Suggestion Engineer
-Tim Williams - Splashzone Expert
-Ted Cegelka - K-pop Bug Hunter
-Wesley King - UX Specialist
+- Terry Welsh - Meat-bag as a Service
+- Jeremy Fensch - Principal Human-AI Systems Architect
+- Nicole Hoying - Suggestion Engineer
+- Tim Williams - Splashzone Expert
+- Ted Cegelka - K-pop Bug Hunter
+- Wesley King - UX Specialist
 
 ## Client
 
