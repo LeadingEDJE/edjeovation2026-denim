@@ -140,7 +140,7 @@ function OutfitMatchBlock({
 	);
 }
 
-function catalogAudienceLabel(audiences: string[]) {
+export function catalogAudienceLabel(audiences: string[]) {
 	if (audiences.includes("womens") && audiences.includes("mens")) {
 		return "Womens + Mens";
 	}
