@@ -28,6 +28,8 @@ function product(overrides: Partial<CatalogProduct> = {}): CatalogProduct {
 		rise: "high",
 		stretch: "comfort-stretch",
 		sizes: ["28"],
+		waistSizes: ["28"],
+		lengthSizes: ["Regular"],
 		colors: ["indigo"],
 		scrapedAt: "2026-06-01T00:00:00.000Z",
 		...overrides,
