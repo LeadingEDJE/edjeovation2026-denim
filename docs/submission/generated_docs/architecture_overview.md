@@ -24,9 +24,17 @@ around a shared API and database:
   two-stage recommendation pipeline. Exposes OpenAPI docs at `/docs`.
 - **Data flow for a booking:** client submits intake + slot + catalog selection
   (womens, mens, or both) → API assigns a stylist, maps a Muse tag, summarizes
-  order history, builds suggested products from the selected catalog audience,
-  and stores the appointment → associate dashboard reads it for prep → lifecycle
-  actions (check-in, complete, etc.) and messages mutate the same record.
+  order history, **inserts the appointment with an empty suggestion list in
+  status `pending` and returns confirmation immediately** → a fire-and-forget
+  background task runs the two-stage recommender and writes the products back to
+  the row, flipping `suggestions_status` to `ready` (or `failed` on error) →
+  associate dashboard reads it for prep, polling
+  `GET /api/appointments/:appointmentId` every ~2.5s while a row is `pending`
+  so freshly-generated picks appear without a manual refresh → lifecycle actions
+  (check-in, complete, etc.) and messages mutate the same record. The
+  regenerate-suggestions and attach-outfit-analysis flows follow the same
+  pattern: the row is set to `pending` (existing products stay visible), the
+  endpoint returns, and the re-rank runs in the background.
 
 ## Technologies Used
 
@@ -70,7 +78,7 @@ around a shared API and database:
 |---|---|---|---|
 | WireMock fixtures (`infra/wiremock/`) | Customers, order history, stores, stylist profiles, weekly schedules | Mocked | Available locally |
 | `catalog_products` (PostgreSQL, seeded `infra/db/`) | Abercrombie womens/mens catalog snapshot (name, category, catalog audiences, fit/rise/stretch, price, image URL) | Synthetic (scraped/seeded snapshot) | Available locally |
-| `appointments` (PostgreSQL) | Bookings, intake, assigned stylist, suggestions, lifecycle state, messages, recaps | Mixed: app-generated plus deterministic synthetic local seed history | Available locally |
+| `appointments` (PostgreSQL) | Bookings, intake, assigned stylist, suggestions (with `suggestions_status` lifecycle: `pending`/`ready`/`failed`), lifecycle state, messages, recaps | Mixed: app-generated plus deterministic synthetic local seed history | Available locally |
 | Anthropic / LiteLLM | Re-ranking + rationale generation | Real external call | Optional; falls back to rule-based |
 
 ## Known Limitations & Risks
@@ -95,6 +103,14 @@ around a shared API and database:
   returns the deterministic rule-based ranking, so prep still works, but rationale
   quality is reduced. Some LiteLLM→Bedrock gateway configs reject structured
   output, which the code handles defensively.
+- **Background suggestion generation is best-effort.** Suggestion generation
+  runs as a fire-and-forget task on the API process: a server crash or restart
+  before the task finishes can leave a row stuck on `suggestions_status =
+  'pending'` (no durable job queue or retry); the stylist can recover with the
+  regenerate-suggestions action, which re-queues the work. The dashboard polls
+  every ~2.5s while a row is pending, which is fine at hackathon scale but would
+  need replacing with a push channel (e.g. SSE/WebSocket) and a real job
+  runner for production load.
 - **Notifications are mock records** (no real email/push delivery).
 - **Cloud deployment is defined in Bicep but not a hardened, production
   environment** (secrets, scaling, networking would need review).
