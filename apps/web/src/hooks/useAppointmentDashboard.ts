@@ -5,6 +5,7 @@ import {
 	type AppointmentNotification,
 	checkInAppointment,
 	completeAppointment,
+	getAppointment,
 	listAppointmentMessages,
 	listAppointmentNotifications,
 	listAppointments,
@@ -155,6 +156,17 @@ export function useAppointmentDashboard() {
 			[updatedAppointment.id]: updatedAppointment.associateFeedback,
 		}));
 	};
+
+	// Replace just the appointment in the list, leaving the note/recap/feedback
+	// drafts untouched — used by background polling so a refresh mid-edit doesn't
+	// clobber what the stylist is typing.
+	const replaceAppointmentInList = useCallback((updated: Appointment) => {
+		setAppointments((current) =>
+			current.map((appointment) =>
+				appointment.id === updated.id ? updated : appointment,
+			),
+		);
+	}, []);
 
 	const runAppointmentAction = async (
 		action: () => Promise<Appointment>,
@@ -337,6 +349,31 @@ export function useAppointmentDashboard() {
 			void loadAppointmentMeta(selectedAppointment.id);
 		}
 	}, [loadAppointmentMeta, selectedAppointment?.id]);
+
+	// Suggestions are generated asynchronously after booking/regenerate. While the
+	// selected appointment is 'pending', poll for the finished result. The effect
+	// re-runs when the status flips (to 'ready'/'failed'), which clears the timer.
+	useEffect(() => {
+		if (selectedAppointment?.suggestionsStatus !== "pending") return;
+		const appointmentId = selectedAppointment.id;
+		let cancelled = false;
+		const interval = setInterval(async () => {
+			try {
+				const updated = await getAppointment(appointmentId);
+				if (!cancelled) replaceAppointmentInList(updated);
+			} catch {
+				// Transient error — keep polling; the next tick may succeed.
+			}
+		}, 2500);
+		return () => {
+			cancelled = true;
+			clearInterval(interval);
+		};
+	}, [
+		selectedAppointment?.id,
+		selectedAppointment?.suggestionsStatus,
+		replaceAppointmentInList,
+	]);
 
 	const counts = useMemo(
 		() => ({

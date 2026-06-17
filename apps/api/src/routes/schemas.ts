@@ -647,6 +647,7 @@ export const appointmentSummaryJsonSchema = {
 		"assignedStylist",
 		"orderHistorySummary",
 		"suggestedProducts",
+		"suggestionsStatus",
 		"outfitAnalysis",
 		"notificationSummary",
 		"checkedInAt",
@@ -718,6 +719,10 @@ export const appointmentSummaryJsonSchema = {
 					associateNote: { type: "string" },
 				},
 			},
+		},
+		suggestionsStatus: {
+			type: "string",
+			enum: ["pending", "ready", "failed"],
 		},
 		outfitAnalysis: {
 			anyOf: [outfitAnalysisJsonSchema, { type: "null" }],

@@ -21,7 +21,6 @@ import type {
 } from "../types.js";
 import {
 	assignStylist,
-	buildSuggestedProducts,
 	createMockNotifications,
 	createStoreAppointmentSlots,
 	findPatternForStore,
@@ -38,6 +37,7 @@ import {
 	resolveAppointmentCustomer,
 	scheduledStylistIdsForSlot,
 	selectAppointmentById,
+	startSuggestionGeneration,
 	summarizeOrderHistory,
 } from "./helpers.js";
 import {
@@ -215,6 +215,42 @@ export async function appointmentRoutes(app: FastifyInstance) {
 		},
 	);
 
+	// Single appointment by id (stylist portal). Used to poll for asynchronously
+	// generated suggestions without re-fetching the whole queue.
+	app.get(
+		"/api/appointments/:appointmentId",
+		{
+			schema: {
+				tags: ["appointments"],
+				summary: "Get a single appointment by id",
+				params: appointmentIdParamsJsonSchema,
+				response: {
+					200: {
+						type: "object",
+						required: ["appointment"],
+						properties: { appointment: appointmentSummaryJsonSchema },
+					},
+					404: errorJsonSchema,
+					502: errorJsonSchema,
+				},
+			},
+		},
+		async (request, reply) => {
+			const { appointmentId } = request.params as { appointmentId: string };
+			try {
+				const appointment = await selectAppointmentById(appointmentId);
+				if (!appointment) {
+					return reply.code(404).send({ message: "Appointment not found" });
+				}
+				return { appointment };
+			} catch (error) {
+				throw new HttpError(502, "Unable to load appointment", {
+					cause: error,
+				});
+			}
+		},
+	);
+
 	app.post(
 		"/api/appointments",
 		{
@@ -316,13 +352,10 @@ export async function appointmentRoutes(app: FastifyInstance) {
 					input.catalogAudiences ?? currentUser.preferences.catalogAudiences,
 				);
 				const appointmentInput = { ...input, catalogAudiences };
-				const suggestedProducts = await buildSuggestedProducts(
-					currentUser,
-					appointmentInput,
-					museTag,
-					orderHistorySummary,
-				);
 
+				// Suggestions are generated asynchronously (the Claude re-rank is slow),
+				// so the row is inserted with an empty list in the 'pending' state and
+				// confirmation returns immediately. A background task fills it in below.
 				const insertResult = await repository.insertAppointment([
 					appointmentId,
 					currentUser.customerId,
@@ -340,7 +373,7 @@ export async function appointmentRoutes(app: FastifyInstance) {
 					museTag,
 					JSON.stringify(assignedStylist),
 					JSON.stringify(orderHistorySummary),
-					JSON.stringify(suggestedProducts),
+					"[]",
 					JSON.stringify({
 						input: appointmentInput,
 						currentUser,
@@ -353,6 +386,17 @@ export async function appointmentRoutes(app: FastifyInstance) {
 					appointmentId,
 					new Date(selectedSlot.slotStart).toISOString(),
 				);
+
+				// Kick off recommendation generation without blocking the response.
+				startSuggestionGeneration({
+					appointmentId,
+					customer: currentUser,
+					input: appointmentInput,
+					museTag,
+					orderHistorySummary,
+					log: request.log,
+				});
+
 				const appointment =
 					(await selectAppointmentById(appointmentId)) ??
 					mapAppointment(insertResult.rows[0]);
@@ -1115,9 +1159,16 @@ export async function appointmentRoutes(app: FastifyInstance) {
 						.code(502)
 						.send({ message: "Unable to resolve customer for suggestions" });
 				}
-				const suggestedProducts = await buildSuggestedProducts(
+				// Mark pending and return immediately; the (slow) re-rank runs in the
+				// background and updates the row to 'ready'. The existing products stay
+				// visible until the refresh completes.
+				const result =
+					await repository.setAppointmentSuggestionsPending(appointmentId);
+
+				startSuggestionGeneration({
+					appointmentId,
 					customer,
-					{
+					input: {
 						storeId: appointment.store.storeId,
 						slotStart: appointment.slotStart,
 						occasion: appointment.occasion,
@@ -1128,14 +1179,10 @@ export async function appointmentRoutes(app: FastifyInstance) {
 						guidance: appointment.guidance,
 						outfitAnalysis: appointment.outfitAnalysis,
 					},
-					appointment.museTag,
-					appointment.orderHistorySummary,
-				);
-
-				const result = await repository.updateAppointmentSuggestedProducts(
-					JSON.stringify(suggestedProducts),
-					appointmentId,
-				);
+					museTag: appointment.museTag,
+					orderHistorySummary: appointment.orderHistorySummary,
+					log: request.log,
+				});
 
 				return { appointment: mapAppointment(result.rows[0]) };
 			} catch (error) {
@@ -1275,9 +1322,17 @@ export async function appointmentRoutes(app: FastifyInstance) {
 						.code(502)
 						.send({ message: "Unable to resolve customer for suggestions" });
 				}
-				const suggestedProducts = await buildSuggestedProducts(
+				// Save the analysis and mark suggestions pending, then regenerate in the
+				// background so the request returns without waiting on the re-rank.
+				const result = await repository.updateAppointmentOutfitAnalysisPending(
+					normalized ? JSON.stringify(normalized) : null,
+					appointmentId,
+				);
+
+				startSuggestionGeneration({
+					appointmentId,
 					customer,
-					{
+					input: {
 						storeId: appointment.store.storeId,
 						slotStart: appointment.slotStart,
 						occasion: appointment.occasion,
@@ -1288,16 +1343,11 @@ export async function appointmentRoutes(app: FastifyInstance) {
 						guidance: appointment.guidance,
 						outfitAnalysis: normalized,
 					},
-					appointment.museTag,
-					appointment.orderHistorySummary,
-				);
+					museTag: appointment.museTag,
+					orderHistorySummary: appointment.orderHistorySummary,
+					log: request.log,
+				});
 
-				const result =
-					await repository.updateAppointmentOutfitAnalysisAndProducts(
-						normalized ? JSON.stringify(normalized) : null,
-						JSON.stringify(suggestedProducts),
-						appointmentId,
-					);
 				return { appointment: mapAppointment(result.rows[0]) };
 			} catch (error) {
 				throw new HttpError(502, "Unable to update outfit analysis", {

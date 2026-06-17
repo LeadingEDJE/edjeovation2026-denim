@@ -21,6 +21,9 @@ CREATE TABLE IF NOT EXISTS appointments (
   assigned_stylist JSONB NOT NULL,
   order_history_summary JSONB NOT NULL,
   suggested_products JSONB NOT NULL DEFAULT '[]'::jsonb,
+  -- Tracks async suggestion generation: 'pending' while the recommender runs in
+  -- the background after booking, 'ready' once stored, 'failed' on error.
+  suggestions_status TEXT NOT NULL DEFAULT 'ready' CHECK (suggestions_status IN ('pending', 'ready', 'failed')),
   source_payload JSONB NOT NULL,
   -- Text-only analysis of an outfit the customer wants to build around (from a
   -- photo or typed manually). Nullable; the photo itself is never stored.
@@ -52,6 +55,7 @@ ALTER TABLE appointments ADD COLUMN IF NOT EXISTS customer_feedback_rating INTEG
 ALTER TABLE appointments ADD COLUMN IF NOT EXISTS customer_feedback_comment TEXT NOT NULL DEFAULT '';
 ALTER TABLE appointments ADD COLUMN IF NOT EXISTS customer_feedback_at TIMESTAMPTZ;
 ALTER TABLE appointments ADD COLUMN IF NOT EXISTS suggested_products JSONB NOT NULL DEFAULT '[]'::jsonb;
+ALTER TABLE appointments ADD COLUMN IF NOT EXISTS suggestions_status TEXT NOT NULL DEFAULT 'ready' CHECK (suggestions_status IN ('pending', 'ready', 'failed'));
 ALTER TABLE appointments ADD COLUMN IF NOT EXISTS outfit_analysis JSONB;
 ALTER TABLE appointments ADD COLUMN IF NOT EXISTS catalog_audiences JSONB NOT NULL DEFAULT '["womens"]'::jsonb;
 ALTER TABLE appointments DROP CONSTRAINT IF EXISTS appointments_status_check;

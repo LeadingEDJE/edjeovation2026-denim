@@ -63,13 +63,20 @@ handheld; on ≥ 1040 px the desktop multi-column data row returns.
 The appointment detail shows the customer's profile, selected catalog, and a
 **Suggested products** list — each item with a **thumbnail**, attributes (fit /
 rise / stretch / price), and a **rationale** explaining why it fits this
-customer. The shortlist is built by the rule-based scorer and re-ranked by Claude. On phones, **Suggested
-Products lead** (the customer-snapshot column drops below them via a CSS grid
-order swap), the hero **Check In / No-Show** buttons go full-width, and the
-**Save / Complete** action bar sticks to the bottom of the viewport so the next
-step is always reachable. Above 1040 px the layout returns to the two-column
-desk frame (snapshot left, suggestions + messaging + capture right).
+customer. The shortlist is built by the rule-based scorer and re-ranked by
+Claude. Because that re-rank is the slowest step, suggestions are generated
+**asynchronously after booking**: a brand-new appointment lands in the list
+with an empty Suggested Products card showing a **"Preparing your picks…"**
+banner with a small spinner; the dashboard polls in the background and the
+list re-renders in place when the picks are ready (no manual refresh). On
+phones, **Suggested Products lead** (the customer-snapshot column drops below
+them via a CSS grid order swap), the hero **Check In / No-Show** buttons go
+full-width, and the **Save / Complete** action bar sticks to the bottom of the
+viewport so the next step is always reachable. Above 1040 px the layout returns
+to the two-column desk frame (snapshot left, suggestions + messaging + capture
+right).
 
+<!-- SCREENSHOT: appointment detail with "Preparing your picks…" banner (suggestions still generating) -->
 <!-- SCREENSHOT: appointment detail with suggested products + rationale (desktop) -->
 <!-- SCREENSHOT: appointment detail on a phone (suggestions first, sticky action bar) -->
 
@@ -99,8 +106,13 @@ After the fitting, the associate **marks the appointment complete** and writes a
 - **No-show / reassignment:** mark a customer **no-show**, or **reassign** a
   scheduled appointment to another eligible same-store stylist.
   <!-- SCREENSHOT: reassign stylist / no-show action -->
-- **Regenerate suggestions:** trigger a re-rank to refresh the shortlist.
-  <!-- SCREENSHOT: regenerate suggestions -->
+- **Regenerate suggestions:** trigger a re-rank to refresh the shortlist. The
+  current list stays visible while the background re-rank runs; the
+  "Preparing your picks…" banner reappears and the list updates in place when
+  it's ready. If generation fails, the banner switches to a "We couldn't
+  generate suggestions. Use Regenerate to try again." message.
+  <!-- SCREENSHOT: regenerate suggestions (pending banner over existing list) -->
+  <!-- SCREENSHOT: failed-suggestions banner with retry copy -->
 - **Customer cancels their own appointment (iOS):** on the appointment detail,
   the **Cancel Appointment** button (explicit copy, not a back-style "Cancel")
   opens a confirmation dialog warning that the slot is given up and the store is

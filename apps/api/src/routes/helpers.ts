@@ -340,6 +340,8 @@ export function mapStoreSnapshot(row: Record<string, unknown>): Store {
 
 export const outfitEngineValues = ["claude", "sample", "manual"] as const;
 
+export const suggestionsStatusValues = ["pending", "ready", "failed"] as const;
+
 /** Parse a stored outfit_analysis JSONB cell, preserving its original engine. */
 export function mapOutfitAnalysis(value: unknown): OutfitAnalysis | null {
 	if (!value) return null;
@@ -381,6 +383,11 @@ export function mapAppointment(row: Record<string, unknown>): Appointment {
 			row.order_history_summary,
 		),
 		suggestedProducts,
+		suggestionsStatus: suggestionsStatusValues.includes(
+			row.suggestions_status as Appointment["suggestionsStatus"],
+		)
+			? (row.suggestions_status as Appointment["suggestionsStatus"])
+			: "ready",
 		outfitAnalysis: mapOutfitAnalysis(row.outfit_analysis),
 		notificationSummary: {
 			count: Number(row.notification_count ?? 0),
@@ -697,6 +704,59 @@ export async function buildSuggestedProducts(
 			},
 		];
 	});
+}
+
+/**
+ * Run the recommendation engine for an appointment in the BACKGROUND and store
+ * the result, flipping suggestions_status to 'ready' (or 'failed'). Fire-and-
+ * forget: callers should have already set the row to 'pending' and returned to
+ * the client, so booking/regenerate don't block on the ~slow Claude re-rank.
+ *
+ * Intentionally not awaited by callers; it swallows its own errors (recording
+ * 'failed' so the UI can offer a retry) and never rejects the caller's request.
+ */
+export function startSuggestionGeneration(args: {
+	appointmentId: string;
+	customer: CurrentUser;
+	input: CreateAppointmentInput;
+	museTag: MuseTag;
+	orderHistorySummary: Appointment["orderHistorySummary"];
+	log?: { error: (...args: unknown[]) => void };
+}): void {
+	const { appointmentId, customer, input, museTag, orderHistorySummary, log } =
+		args;
+	void (async () => {
+		try {
+			const suggestedProducts = await buildSuggestedProducts(
+				customer,
+				input,
+				museTag,
+				orderHistorySummary,
+			);
+			await repository.updateAppointmentSuggestionsResult(
+				JSON.stringify(suggestedProducts),
+				"ready",
+				appointmentId,
+			);
+		} catch (error) {
+			log?.error(
+				{ err: error, appointmentId },
+				"Background suggestion generation failed",
+			);
+			// Record the failure so the row doesn't sit on 'pending' forever; the
+			// stylist can retry via regenerate-suggestions. Best-effort — never let a
+			// failure here escape as an unhandled rejection.
+			try {
+				await repository.updateAppointmentSuggestionsResult(
+					"[]",
+					"failed",
+					appointmentId,
+				);
+			} catch {
+				// Swallow — nothing more we can do from the background task.
+			}
+		}
+	})();
 }
 
 export async function selectAppointmentById(appointmentId: string) {

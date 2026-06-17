@@ -1,4 +1,4 @@
-import { Sparkles } from "lucide-react";
+import { Loader2, Sparkles } from "lucide-react";
 import { useEffect, useState } from "react";
 import type { Appointment, SuggestedProduct } from "../../api";
 import { formatPrice, ProductShot, specLine } from "./shared";
@@ -81,6 +81,9 @@ export function SuggestedProducts({
 
 	const toPull = computeProductsToPull(appointment.suggestedProducts);
 
+	const isPending = appointment.suggestionsStatus === "pending";
+	const hasFailed = appointment.suggestionsStatus === "failed";
+
 	return (
 		<div className="border border-ink">
 			<div className="flex items-center justify-between gap-3 bg-ink px-5 py-4 text-white">
@@ -105,10 +108,26 @@ export function SuggestedProducts({
 				</button>
 			</div>
 
+			{isPending ? (
+				<div className="flex items-center gap-2.5 border-line-subtle border-b bg-surface-subtle px-5 py-3.5 text-[13px] text-muted">
+					<Loader2 size={15} className="animate-spin" />
+					Preparing your picks… this can take a moment.
+				</div>
+			) : hasFailed ? (
+				<div className="border-line-subtle border-b bg-surface-subtle px-5 py-3.5 text-[13px] text-sale">
+					We couldn't generate suggestions. Use Regenerate to try again.
+				</div>
+			) : null}
+
 			{appointment.suggestedProducts.length === 0 ? (
-				<p className="p-5 text-[0.9rem] text-muted">
-					No suggested products for this appointment.
-				</p>
+				// While pending (first run) or failed, the banner above already
+				// explains the empty list — otherwise show the "none" copy. (Treating
+				// an unset status as ready keeps legacy/un-annotated rows working.)
+				!isPending && !hasFailed ? (
+					<p className="p-5 text-[0.9rem] text-muted">
+						No suggested products for this appointment.
+					</p>
+				) : null
 			) : (
 				appointment.suggestedProducts.map((suggestion) => {
 					const productId = suggestion.product.productId;

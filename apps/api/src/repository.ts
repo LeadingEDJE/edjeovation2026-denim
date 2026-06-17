@@ -206,9 +206,9 @@ export function insertAppointment(values: unknown[]) {
 				id, customer_id, loyalty_id, customer_name, slot_start, slot_end, store_snapshot,
 				occasion, focus_colors, avoid_colors, style_keywords, catalog_audiences, guidance,
 				session_notes, status, muse_tag, assigned_stylist,
-				order_history_summary, suggested_products, source_payload, outfit_analysis
+				order_history_summary, suggested_products, suggestions_status, source_payload, outfit_analysis
 			)
-			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, '', 'scheduled', $14, $15, $16, $17, $18, $19)
+			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, '', 'scheduled', $14, $15, $16, $17, 'pending', $18, $19)
 			RETURNING *
 		`,
 		values,
@@ -366,6 +366,64 @@ export function updateAppointmentSuggestedProducts(
 			RETURNING *
 		`,
 		[suggestedProductsJson, appointmentId],
+	);
+}
+
+/**
+ * Stores the result of a background suggestion run: the products plus the
+ * terminal status ('ready' on success, 'failed' on error).
+ */
+export function updateAppointmentSuggestionsResult(
+	suggestedProductsJson: string,
+	suggestionsStatus: string,
+	appointmentId: string,
+) {
+	return pool.query(
+		`
+			UPDATE appointments
+			SET suggested_products = $1,
+				suggestions_status = $2
+			WHERE id = $3
+			RETURNING *
+		`,
+		[suggestedProductsJson, suggestionsStatus, appointmentId],
+	);
+}
+
+/**
+ * Flips an appointment into the 'pending' suggestion state without touching the
+ * existing products, so a regenerate keeps the current list visible while the
+ * background run refreshes it.
+ */
+export function setAppointmentSuggestionsPending(appointmentId: string) {
+	return pool.query(
+		`
+			UPDATE appointments
+			SET suggestions_status = 'pending'
+			WHERE id = $1
+			RETURNING *
+		`,
+		[appointmentId],
+	);
+}
+
+/**
+ * Saves a signed-off outfit analysis and marks suggestions 'pending' in one
+ * write, for the attach-outfit flow that regenerates in the background.
+ */
+export function updateAppointmentOutfitAnalysisPending(
+	outfitAnalysisJson: string | null,
+	appointmentId: string,
+) {
+	return pool.query(
+		`
+			UPDATE appointments
+			SET outfit_analysis = $1,
+				suggestions_status = 'pending'
+			WHERE id = $2
+			RETURNING *
+		`,
+		[outfitAnalysisJson, appointmentId],
 	);
 }
 

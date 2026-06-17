@@ -426,9 +426,9 @@ describe("POST /api/appointments", () => {
 			String(sql).includes("INSERT INTO appointments"),
 		);
 		expect(JSON.parse(insertCall?.[1][11] as string)).toEqual(["mens"]);
-		expect(JSON.parse(insertCall?.[1][16] as string)[0].product.productId).toBe(
-			"mens-1",
-		);
+		// Suggestions are generated asynchronously after booking, so the insert
+		// stores an empty list (filled in by the background run).
+		expect(insertCall?.[1][16]).toBe("[]");
 	});
 });
 
