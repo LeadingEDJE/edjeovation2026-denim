@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import type {
 	Appointment,
+	CurrentUser,
 	OutfitAnalysis,
 	OutfitGarment,
 	OutfitIntent,
@@ -154,15 +155,148 @@ export function catalogAudienceLabel(audiences: string[] | undefined | null) {
 
 export function CustomerSnapshot({
 	appointment,
+	customerProfile,
+	onSaveCustomerFitProfile,
 	onSaveOutfitIntents,
 }: {
 	appointment: Appointment;
+	customerProfile?: CurrentUser;
+	onSaveCustomerFitProfile?: (
+		customerId: string,
+		profile: Pick<CurrentUser, "measurements" | "preferences">,
+	) => void;
 	onSaveOutfitIntents?: (analysis: OutfitAnalysis) => void;
 }) {
 	const order = appointment.orderHistorySummary;
+	const [draftProfile, setDraftProfile] = useState<CurrentUser | undefined>(
+		customerProfile,
+	);
+	useEffect(() => setDraftProfile(customerProfile), [customerProfile]);
+
 	return (
 		<>
 			<SectionTitle>Customer Preferences</SectionTitle>
+
+			{draftProfile ? (
+				<div className="mb-5 border border-line-subtle bg-surface-subtle p-4">
+					<div className="mb-3 flex items-center justify-between gap-3">
+						<MetaLabel>Fit profile</MetaLabel>
+						{onSaveCustomerFitProfile ? (
+							<button
+								type="button"
+								className="border border-ink px-3 py-1.5 font-bold text-2xs text-ink uppercase tracking-label"
+								onClick={() =>
+									onSaveCustomerFitProfile(draftProfile.customerId, {
+										measurements: draftProfile.measurements,
+										preferences: draftProfile.preferences,
+									})
+								}
+							>
+								Save
+							</button>
+						) : null}
+					</div>
+					<div className="grid grid-cols-2 gap-2">
+						{(
+							[
+								["heightInches", "Height"],
+								["chestInches", "Chest"],
+								["waistInches", "Waist"],
+								["hipInches", "Hip"],
+								["inseamInches", "Inseam"],
+							] as const
+						).map(([key, label]) => (
+							<label key={key} className="text-[11px] text-muted">
+								<span className="mb-1 block font-bold uppercase tracking-label">
+									{label}
+								</span>
+								<input
+									type="number"
+									className="w-full border border-line bg-surface px-2 py-1.5 text-[13px] text-ink"
+									value={draftProfile.measurements[key] ?? ""}
+									onChange={(event) =>
+										setDraftProfile((current) =>
+											current
+												? {
+														...current,
+														measurements: {
+															...current.measurements,
+															[key]: event.target.value
+																? Number(event.target.value)
+																: undefined,
+														},
+													}
+												: current,
+										)
+									}
+								/>
+							</label>
+						))}
+					</div>
+					<div className="mt-3 grid grid-cols-1 gap-2">
+						<label className="text-[11px] text-muted">
+							<span className="mb-1 block font-bold uppercase tracking-label">
+								Fit
+							</span>
+							<select
+								className="w-full border border-line bg-surface px-2 py-1.5 text-[13px] text-ink"
+								value={draftProfile.preferences.fitPreference}
+								onChange={(event) =>
+									setDraftProfile((current) =>
+										current
+											? {
+													...current,
+													preferences: {
+														...current.preferences,
+														fitPreference: event.target
+															.value as CurrentUser["preferences"]["fitPreference"],
+													},
+												}
+											: current,
+									)
+								}
+							>
+								{["skinny", "slim", "straight", "relaxed", "wide"].map(
+									(value) => (
+										<option key={value} value={value}>
+											{value}
+										</option>
+									),
+								)}
+							</select>
+						</label>
+						<label className="text-[11px] text-muted">
+							<span className="mb-1 block font-bold uppercase tracking-label">
+								Stretch
+							</span>
+							<select
+								className="w-full border border-line bg-surface px-2 py-1.5 text-[13px] text-ink"
+								value={draftProfile.preferences.stretchPreference}
+								onChange={(event) =>
+									setDraftProfile((current) =>
+										current
+											? {
+													...current,
+													preferences: {
+														...current.preferences,
+														stretchPreference: event.target
+															.value as CurrentUser["preferences"]["stretchPreference"],
+													},
+												}
+											: current,
+									)
+								}
+							>
+								{["rigid", "comfort-stretch", "high-stretch"].map((value) => (
+									<option key={value} value={value}>
+										{value}
+									</option>
+								))}
+							</select>
+						</label>
+					</div>
+				</div>
+			) : null}
 
 			<MetaLabel>Focus colors</MetaLabel>
 			<div className="mb-4">

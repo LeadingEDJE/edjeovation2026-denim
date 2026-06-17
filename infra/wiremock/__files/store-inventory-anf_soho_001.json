@@ -1,0 +1,29 @@
+{
+	"storeId": "anf_soho_001",
+	"inventory": [
+		{
+			"productId": "62234856",
+			"storeId": "anf_soho_001",
+			"quantityAvailable": 1,
+			"lowStock": true,
+			"availabilityLabel": "1 more available",
+			"locationLabel": "Women's denim wall, bay 2"
+		},
+		{
+			"productId": "61808905",
+			"storeId": "anf_soho_001",
+			"quantityAvailable": 3,
+			"lowStock": false,
+			"availabilityLabel": "In stock on sales floor",
+			"locationLabel": "Women's denim wall, bay 4"
+		},
+		{
+			"productId": "63080326",
+			"storeId": "anf_soho_001",
+			"quantityAvailable": 2,
+			"lowStock": true,
+			"availabilityLabel": "Low stock - 2 left",
+			"locationLabel": "Tops table, front room"
+		}
+	]
+}

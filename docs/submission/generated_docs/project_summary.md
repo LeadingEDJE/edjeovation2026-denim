@@ -54,13 +54,17 @@ deterministic rule-based engine scopes the catalog to the customer's per-booking
 selection, scores it against the fit profile and color context, and builds a
 diverse shortlist; Claude then re-ranks it for the specific customer and writes
 the rationale. While the picks are still being generated the detail view shows a
-"Preparing your picks…" banner and refreshes itself when they arrive. If AI is
+"Preparing your picks…" banner and refreshes itself when they arrive. Suggested
+items are enriched with mocked sales-floor availability and location labels so an
+associate can pull the right pieces faster. If AI is
 unavailable the rule-based order is used, so prep always works.
 
 Associates manage the full appointment lifecycle (check-in, no-show, complete),
 reassign stylists when needed, track product-prep states, exchange async messages
 through a shared stylist inbox, and write a customer-facing recap after the
-visit — purchase or not. This beats both "do nothing" (cold, manual prep) and
+visit — purchase or not. Both web and iOS refresh active appointment detail on a
+short polling interval so messages, prep changes, and recaps stay in sync during
+the session. This beats both "do nothing" (cold, manual prep) and
 generic clienteling tools by being denim-fit-specific and grounded in real
 customer signals. (~250 words)
 
@@ -81,6 +85,10 @@ customer signals. (~250 words)
   a confirmed stylist and an undivided non-peak session.
 - **Catalog choice matches the shopping mission** — customers can default to one
   source but choose womens, mens, or both catalogs for each booking.
+- **Fit profiles stay editable** — customer measurement/preference changes are
+  persisted as mock profile overrides and reflected in the app and dashboard.
+- **Sales-floor prep is more actionable** with low-stock labels, "1 more
+  available" copy, and location hints attached to suggested products.
 - **Higher confidence, fewer returns** by anchoring suggestions to the customer's
   fit profile, color preferences, and Muse.
 - **Async communication** via a shared stylist inbox keeps the customer connected

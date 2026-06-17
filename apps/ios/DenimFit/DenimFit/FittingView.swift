@@ -29,11 +29,18 @@ struct FittingView: View {
     @State private var feedbackComment = ""
     @State private var outfitAnalysis: OutfitAnalysis?
     @State private var showOutfitSheet = false
+    @State private var fitHeight = ""
+    @State private var fitChest = ""
+    @State private var fitWaist = ""
+    @State private var fitHip = ""
+    @State private var fitInseam = ""
+    @State private var fitPreference = "straight"
+    @State private var stretchPreference = "comfort-stretch"
     @State private var status = "Loading your profile"
     @State private var isLoading = false
 
     private let apiClient = APIClient()
-    private let styleOptions = StyleOption.all
+    private let styleGroups = MuseStyleGroup.all
     private let colorOptions = [
         "No preference",
         "Black",
@@ -148,9 +155,11 @@ struct FittingView: View {
                                 Text(starter)
                                     .font(.system(size: 13))
                                     .foregroundStyle(selected ? Color.white : Color(hex: 0x3A3A3A))
+                                    .lineLimit(2)
+                                    .multilineTextAlignment(.center)
                                     .padding(.vertical, 9)
                                     .padding(.horizontal, 13)
-                                    .frame(maxWidth: .infinity)
+                                    .frame(maxWidth: .infinity, minHeight: 58, maxHeight: 58)
                                     .background(selected ? Color.ink : Color.surface)
                                     .overlay(Rectangle().stroke(selected ? Color.ink : Color.line, lineWidth: 1))
                             }
@@ -165,8 +174,8 @@ struct FittingView: View {
                 title: "Any colors in mind?",
                 subtitle: "Optional. Pick washes to lean into — and any to steer clear of."
             ) {
-                ColorSwatchGrid(title: "Focus on", selections: $focusColors, options: selectableColorOptions, mode: .focus)
-                ColorSwatchGrid(title: "Avoid", selections: $avoidColors, options: selectableColorOptions, mode: .avoid)
+                ColorSwatchGrid(title: "Focus on", selections: focusColorBinding, options: selectableColorOptions, mode: .focus)
+                ColorSwatchGrid(title: "Avoid", selections: avoidColorBinding, options: selectableColorOptions, mode: .avoid)
             }
         case .style:
             questionPage(
@@ -175,21 +184,23 @@ struct FittingView: View {
                 subtitle: "Choose the words that feel most like you."
             ) {
                 LazyVGrid(columns: [GridItem(.flexible(), spacing: 8), GridItem(.flexible(), spacing: 8)], spacing: 8) {
-                    ForEach(styleOptions) { option in
-                        let selected = selectedKeywords.contains(option.value)
+                    ForEach(styleGroups) { group in
+                        let selected = selectedKeywords == Set(group.values)
                         Button {
-                            toggleKeyword(option.value)
+                            selectedKeywords = Set(group.values)
                         } label: {
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(option.label)
-                                    .font(.system(size: 13, weight: .bold))
+                            VStack(alignment: .leading, spacing: 5) {
+                                Text(group.title)
+                                    .font(.system(size: 14, weight: .bold))
                                     .foregroundStyle(selected ? Color.white : Color.ink)
-                                Text(option.muse)
-                                    .font(.system(size: 10))
-                                    .foregroundStyle(selected ? Color(hex: 0x9FB6C6) : Color.muted)
+                                Text(group.description)
+                                    .font(.system(size: 12))
+                                    .foregroundStyle(selected ? Color(hex: 0xC9D4DC) : Color.muted)
+                                    .fixedSize(horizontal: false, vertical: true)
                             }
                             .frame(maxWidth: .infinity, alignment: .leading)
-                            .padding(.vertical, 11)
+                            .frame(minHeight: 78, alignment: .topLeading)
+                            .padding(.vertical, 12)
                             .padding(.horizontal, 12)
                             .background(selected ? Color.ink : Color.surface)
                             .overlay(Rectangle().stroke(selected ? Color.ink : Color.line, lineWidth: 1))
@@ -634,7 +645,14 @@ struct FittingView: View {
         }
         .background(Color.canvas)
         .refreshable {
-            await refreshCustomerData()
+            await refreshAppointmentDetail()
+        }
+        .task(id: detailAppointment?.id) {
+            guard detailAppointment != nil else { return }
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .seconds(5))
+                await refreshAppointmentDetail(silent: true)
+            }
         }
         .sheet(isPresented: $showOutfitSheet) {
             NavigationStack {
@@ -653,6 +671,35 @@ struct FittingView: View {
                 )
                 .navigationTitle("Outfit to match")
                 .navigationBarTitleDisplayMode(.inline)
+            }
+        }
+    }
+
+    @MainActor
+    private func refreshAppointmentDetail(silent: Bool = false) async {
+        guard let detailAppointment else { return }
+        if !silent {
+            isLoading = true
+            status = "Refreshing appointment"
+        }
+        defer {
+            if !silent { isLoading = false }
+        }
+
+        do {
+            let updated = try await apiClient.getAppointment(id: detailAppointment.id)
+            self.detailAppointment = updated
+            if appointment?.id == updated.id {
+                appointment = updated.status == "cancelled" ? nil : updated
+            }
+            appointmentMessages = try await apiClient.getAppointmentMessages(id: updated.id)
+            appointmentNotifications = try await apiClient.getAppointmentNotifications(id: updated.id)
+            if !silent {
+                status = "Ready"
+            }
+        } catch {
+            if !silent {
+                status = "Could not refresh appointment"
             }
         }
     }
@@ -915,11 +962,6 @@ struct FittingView: View {
         VStack(alignment: .leading, spacing: 9) {
             Text("Note for your stylist").eyebrow()
             brandTextField("Anything you'd like your stylist to know…", text: $guidance, lines: 4)
-            if canCancel {
-                Text("Cancellation reason (optional)").eyebrow()
-                    .padding(.top, 4)
-                brandTextField("Let the store know why…", text: $cancelReason, lines: 3)
-            }
         }
         .brandCard()
     }
@@ -1077,42 +1119,71 @@ struct FittingView: View {
         .padding(.bottom, 24)
         .background(Color.surface)
         .overlay(Rectangle().fill(Color.line).frame(height: 1), alignment: .top)
-        .confirmationDialog(
-            "Cancel this appointment?",
-            isPresented: $showCancelConfirmation,
-            titleVisibility: .visible
-        ) {
+        .alert("Cancel this appointment?", isPresented: $showCancelConfirmation) {
+            TextField("Reason optional", text: $cancelReason)
             Button("Cancel Appointment", role: .destructive) {
                 Task { await cancelAppointment() }
             }
             Button("Keep Appointment", role: .cancel) {}
         } message: {
-            Text("This gives up your time slot and notifies the store. This can't be undone.")
+            Text("This gives up your time slot and notifies the store.")
         }
     }
 
     private func fitProfileContext(_ user: CurrentUser) -> some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Your fit profile").eyebrow(Color.ink)
-            StatStrip(items: [
-                (formattedHeight(user.measurements.heightInches), "Height"),
-                (formattedMeasurement(user.measurements.waistInches), "Waist"),
-                (formattedMeasurement(user.measurements.hipInches), "Hip"),
-                (formattedMeasurement(user.measurements.inseamInches), "Inseam")
-            ])
-            (
-                Text("Prefers ")
-                    .font(.system(size: 13))
-                    .foregroundColor(Color.bodyCopy)
-                    + Text("\(user.preferences.fitPreference) fits")
-                        .font(.system(size: 13, weight: .semibold))
-                        .foregroundColor(Color(hex: 0x2A2A2A))
-                    + Text(" with \(user.preferences.stretchPreference) denim.")
-                        .font(.system(size: 13))
-                        .foregroundColor(Color.bodyCopy)
-            )
+            HStack {
+                Text("Your fit profile").eyebrow(Color.ink)
+                Spacer()
+                Button {
+                    Task { await saveFitProfile() }
+                } label: {
+                    Text("Save")
+                        .font(.brandDisplay(12))
+                        .tracking(Brand.trackingCTA)
+                        .textCase(.uppercase)
+                        .foregroundStyle(Color.ink)
+                        .padding(.vertical, 8)
+                        .padding(.horizontal, 12)
+                        .overlay(Rectangle().stroke(Color.ink, lineWidth: 1))
+                }
+                .buttonStyle(.plain)
+                .disabled(isLoading)
+            }
+            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 10) {
+                fitNumberField("Height", text: $fitHeight)
+                fitNumberField("Chest", text: $fitChest)
+                fitNumberField("Waist", text: $fitWaist)
+                fitNumberField("Hip", text: $fitHip)
+                fitNumberField("Inseam", text: $fitInseam)
+            }
+            Picker("Fit", selection: $fitPreference) {
+                ForEach(["skinny", "slim", "straight", "relaxed", "wide"], id: \.self) { value in
+                    Text(value.capitalized).tag(value)
+                }
+            }
+            .pickerStyle(.segmented)
+            Picker("Stretch", selection: $stretchPreference) {
+                Text("Rigid").tag("rigid")
+                Text("Comfort").tag("comfort-stretch")
+                Text("High").tag("high-stretch")
+            }
+            .pickerStyle(.segmented)
         }
         .brandCard()
+    }
+
+    private func fitNumberField(_ label: String, text: Binding<String>) -> some View {
+        VStack(alignment: .leading, spacing: 5) {
+            Text(label).eyebrow(Color.muted)
+            TextField(label, text: text)
+                .keyboardType(.decimalPad)
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundStyle(Color.ink)
+                .padding(10)
+                .background(Color.surface)
+                .overlay(Rectangle().stroke(Color.line, lineWidth: 1))
+        }
     }
 
     private func questionPage<Content: View>(
@@ -1435,6 +1506,7 @@ struct FittingView: View {
 
         do {
             currentUser = try await apiClient.getCurrentUser()
+            syncFitProfileDraft(currentUser)
             users = try await apiClient.getUsers()
             stores = try await apiClient.getStores()
             selectedStore = stores.first
@@ -1458,6 +1530,7 @@ struct FittingView: View {
 
         do {
             currentUser = try await apiClient.getCurrentUser()
+            syncFitProfileDraft(currentUser)
             users = try await apiClient.getUsers()
             stores = try await apiClient.getStores()
             selectedStore = selectedStore ?? stores.first
@@ -1526,14 +1599,6 @@ struct FittingView: View {
         }
     }
 
-    private func toggleKeyword(_ keyword: String) {
-        if selectedKeywords.contains(keyword) {
-            selectedKeywords.remove(keyword)
-        } else {
-            selectedKeywords.insert(keyword)
-        }
-    }
-
     private func resetJourney() {
         clearJourney()
         appointment = nil
@@ -1585,6 +1650,51 @@ struct FittingView: View {
     }
 
     @MainActor
+    private func saveFitProfile() async {
+        guard let currentUser else { return }
+        let chestValue = fitChest.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            ? nil
+            : Double(fitChest)
+        guard
+            let height = Int(fitHeight),
+            let waist = Double(fitWaist),
+            let hip = Double(fitHip),
+            let inseam = Double(fitInseam),
+            fitChest.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || chestValue != nil
+        else {
+            status = "Check the fit profile numbers"
+            return
+        }
+
+        isLoading = true
+        status = "Saving fit profile"
+        defer { isLoading = false }
+
+        do {
+            let updated = try await apiClient.updateFitProfile(
+                customerId: currentUser.customerId,
+                measurements: Measurements(
+                    heightInches: height,
+                    chestInches: chestValue,
+                    waistInches: waist,
+                    hipInches: hip,
+                    inseamInches: inseam
+                ),
+                preferences: UserPreferences(
+                    fitPreference: fitPreference,
+                    stretchPreference: stretchPreference,
+                    catalogAudiences: currentUser.preferences.catalogAudiences
+                )
+            )
+            self.currentUser = updated
+            syncFitProfileDraft(updated)
+            status = "Fit profile saved"
+        } catch {
+            status = "Could not save fit profile"
+        }
+    }
+
+    @MainActor
     private func updateAppointmentGuidance() async {
         guard let detailAppointment else { return }
         isLoading = true
@@ -1627,16 +1737,17 @@ struct FittingView: View {
         isLoading = true
         defer { isLoading = false }
 
-        guidance = appointment.guidance
-        detailAppointment = appointment
-        feedbackRating = appointment.customerFeedbackRating ?? 5
-        feedbackComment = appointment.customerFeedbackComment
+        let baseAppointment = (try? await apiClient.getAppointment(id: appointment.id)) ?? appointment
+        guidance = baseAppointment.guidance
+        detailAppointment = baseAppointment
+        feedbackRating = baseAppointment.customerFeedbackRating ?? 5
+        feedbackComment = baseAppointment.customerFeedbackComment
         messageDraft = ""
-        cancelReason = appointment.cancelReason ?? ""
+        cancelReason = baseAppointment.cancelReason ?? ""
 
         do {
-            appointmentMessages = try await apiClient.getAppointmentMessages(id: appointment.id)
-            appointmentNotifications = try await apiClient.getAppointmentNotifications(id: appointment.id)
+            appointmentMessages = try await apiClient.getAppointmentMessages(id: baseAppointment.id)
+            appointmentNotifications = try await apiClient.getAppointmentNotifications(id: baseAppointment.id)
             screen = .appointmentDetail
             status = "Ready"
         } catch {
@@ -1692,6 +1803,7 @@ struct FittingView: View {
         do {
             let active = try await apiClient.setActiveUser(customerId: user.customerId)
             currentUser = active.user
+            syncFitProfileDraft(currentUser)
             stores = try await apiClient.getStores()
             selectedStore = stores.first
             if let selectedStore {
@@ -1716,6 +1828,37 @@ struct FittingView: View {
 
     private var selectableColorOptions: [String] {
         colorOptions.filter { $0 != noColorPreference }
+    }
+
+    private var focusColorBinding: Binding<Set<String>> {
+        Binding(
+            get: { focusColors },
+            set: { next in
+                focusColors = next
+                avoidColors.subtract(next)
+            }
+        )
+    }
+
+    private var avoidColorBinding: Binding<Set<String>> {
+        Binding(
+            get: { avoidColors },
+            set: { next in
+                avoidColors = next
+                focusColors.subtract(next)
+            }
+        )
+    }
+
+    private func syncFitProfileDraft(_ user: CurrentUser?) {
+        guard let user else { return }
+        fitHeight = String(user.measurements.heightInches)
+        fitChest = user.measurements.chestInches.map(formattedMeasurement) ?? ""
+        fitWaist = formattedMeasurement(user.measurements.waistInches)
+        fitHip = formattedMeasurement(user.measurements.hipInches)
+        fitInseam = formattedMeasurement(user.measurements.inseamInches)
+        fitPreference = user.preferences.fitPreference
+        stretchPreference = user.preferences.stretchPreference
     }
 
     private func displayDate(_ value: String) -> String {
@@ -1869,26 +2012,37 @@ private enum AppScreen {
     case admin
 }
 
-private struct StyleOption: Identifiable {
-    let id = UUID()
-    let value: String
-    let label: String
-    let muse: String
+private struct MuseStyleGroup: Identifiable {
+    let id: String
+    let title: String
+    let description: String
+    let values: [String]
 
     static let all = [
-        StyleOption(value: "minimal", label: "Minimal", muse: "Clean Muse"),
-        StyleOption(value: "effortless", label: "Effortless", muse: "Clean Muse"),
-        StyleOption(value: "timeless essentials", label: "Timeless essentials", muse: "Clean Muse"),
-        StyleOption(value: "feminine", label: "Feminine", muse: "Romantic Muse"),
-        StyleOption(value: "soft", label: "Soft", muse: "Romantic Muse"),
-        StyleOption(value: "subtly dressed-up", label: "Subtly dressed-up", muse: "Romantic Muse"),
-        StyleOption(value: "preppy", label: "Preppy", muse: "Boyish Muse"),
-        StyleOption(value: "relaxed", label: "Relaxed", muse: "Boyish Muse"),
-        StyleOption(value: "sporty", label: "Sporty", muse: "Boyish Muse"),
-        StyleOption(value: "menswear-inspired", label: "Menswear-inspired", muse: "Boyish Muse"),
-        StyleOption(value: "trend-forward", label: "Trend-forward", muse: "Statement Maker"),
-        StyleOption(value: "bold", label: "Bold", muse: "Statement Maker"),
-        StyleOption(value: "boundary-pushing", label: "Boundary-pushing", muse: "Statement Maker")
+        MuseStyleGroup(
+            id: "clean",
+            title: "Clean Muse",
+            description: "Minimal, effortless, timeless essentials",
+            values: ["minimal", "effortless", "timeless essentials"]
+        ),
+        MuseStyleGroup(
+            id: "romantic",
+            title: "Romantic Muse",
+            description: "Feminine, soft, subtly dressed-up",
+            values: ["feminine", "soft", "subtly dressed-up"]
+        ),
+        MuseStyleGroup(
+            id: "boyish",
+            title: "Boyish Muse",
+            description: "Preppy, relaxed, sporty, menswear-inspired",
+            values: ["preppy", "relaxed", "sporty", "menswear-inspired"]
+        ),
+        MuseStyleGroup(
+            id: "statement",
+            title: "Statement Maker",
+            description: "Trend-forward, bold, boundary-pushing",
+            values: ["trend-forward", "bold", "boundary-pushing"]
+        )
     ]
 }
 
@@ -2138,11 +2292,6 @@ private struct OutfitMatchView: View {
                 .disabled(isAnalyzing)
             }
 
-            // Grouped with the photo options above — it only applies when a photo is
-            // added, so we don't show it for the describe/skip paths below.
-            SelfPhotoToggle(isOn: $isSelfPhoto)
-                .disabled(isAnalyzing)
-
             Button {
                 beginManual()
             } label: {
@@ -2223,11 +2372,10 @@ private struct OutfitMatchView: View {
             }
             .disabled(isAnalyzing)
 
-            // Applies to the photo added/replaced above. Present here too so the
-            // update-outfit flow (which opens straight into this editor) can request
-            // the body-shape read when a new photo is the customer themselves.
-            SelfPhotoToggle(isOn: $isSelfPhoto)
-                .disabled(isAnalyzing)
+            if previewImage != nil {
+                SelfPhotoToggle(isOn: $isSelfPhoto)
+                    .disabled(isAnalyzing)
+            }
 
             if isAnalyzing {
                 HStack(spacing: 8) {

@@ -21,8 +21,8 @@ or link.*
 - A stylist is assigned and confirmed; order-history signals are combined with the
   intake.
 - The associate gets a **prepared, AI-curated shortlist with rationale** to pull
-  before the customer arrives — plus full lifecycle management, async messaging,
-  and a post-visit recap.
+  before the customer arrives, now with sales-floor location/stock labels — plus
+  full lifecycle management, async messaging, and a post-visit recap.
 
 ## Slide 3 — How It Works
 
@@ -32,6 +32,8 @@ or link.*
 - **Hybrid recommender:** deterministic rule-based scoring builds a diverse
   shortlist from the selected womens/mens catalog audience → **Claude re-ranks**
   it for the customer and writes rationale.
+- Active detail views poll appointment/message/notification state so customer and
+  associate changes sync during the fitting.
 - *(Insert architecture diagram or dashboard screenshot.)*
 
 ## Slide 4 — AI Usage Highlight
@@ -52,6 +54,8 @@ or link.*
 - Plausible conversion lift on higher-intent appointments and reduced fit-driven
   returns.
 - Deeper clienteling via confirmed stylist, async messaging, and recaps.
+- More actionable floor prep through editable fit profiles, eligible-stylist
+  reassignment, and inventory/location labels.
 - Launchable in **non-peak hours with existing qualified associates** — low risk.
 
 ## Slide 6 — Team

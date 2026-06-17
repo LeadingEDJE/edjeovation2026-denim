@@ -104,32 +104,57 @@ export function relativeSlotLabel(appointment: Appointment): {
 	return { eyebrow: `${weekday} · ${monthDay}`, big: timeStr, imminent: false };
 }
 
-const COLOR_NAME_HEX: Record<string, string> = {
-	indigo: "#2f3b66",
-	ecru: "#dcd3bd",
+const MOBILE_SWATCH_HEX: Record<string, string> = {
 	black: "#1c1c1c",
-	"deep blue": "#1f3a5f",
-	navy: "#27455c",
-	blue: "#2f3b66",
-	"bright white": "#ffffff",
 	white: "#ffffff",
-	ivory: "#f4efe3",
-	pastels: "#f1d9e2",
-	pastel: "#f1d9e2",
+	cream: "#dcd3bd",
+	"light wash": "#b9c2d4",
+	"medium wash": "#7d92b8",
+	"dark wash": "#2f3b66",
+	grey: "#9a9a9a",
+	navy: "#27455c",
+	green: "#5b7050",
+	pink: "#e8a0b8",
+	red: "#a32d2d",
+};
+
+const COLOR_NAME_HEX: Record<string, string> = {
+	...MOBILE_SWATCH_HEX,
+	gray: MOBILE_SWATCH_HEX.grey,
+	"washed black": MOBILE_SWATCH_HEX.black,
+	"black wash": MOBILE_SWATCH_HEX.black,
+	"bright white": MOBILE_SWATCH_HEX.white,
+	"washed white": MOBILE_SWATCH_HEX.white,
+	ecru: MOBILE_SWATCH_HEX.cream,
+	ivory: MOBILE_SWATCH_HEX.cream,
+	lightwash: MOBILE_SWATCH_HEX["light wash"],
+	"light denim": MOBILE_SWATCH_HEX["light wash"],
+	mediumwash: MOBILE_SWATCH_HEX["medium wash"],
+	denim: MOBILE_SWATCH_HEX["medium wash"],
+	"medium denim": MOBILE_SWATCH_HEX["medium wash"],
+	darkwash: MOBILE_SWATCH_HEX["dark wash"],
+	indigo: MOBILE_SWATCH_HEX["dark wash"],
+	blue: MOBILE_SWATCH_HEX["dark wash"],
+	"dark denim": MOBILE_SWATCH_HEX["dark wash"],
+	"deep blue": "#1f3a5f",
+	olive: MOBILE_SWATCH_HEX.green,
+	pastels: MOBILE_SWATCH_HEX.pink,
+	pastel: MOBILE_SWATCH_HEX.pink,
 	stone: "#d8cfc0",
 	khaki: "#b3a380",
-	denim: "#3b5a7a",
 	charcoal: "#36393d",
-	grey: "#9a9a9a",
-	gray: "#9a9a9a",
-	olive: "#5b5a36",
 	rust: "#9c4a2b",
 	burgundy: "#5e1f2a",
 };
 
 /** Best-effort swatch hex for a free-text color name; neutral line color as fallback. */
 export function colorNameToHex(name: string): string {
-	return COLOR_NAME_HEX[name.trim().toLowerCase()] ?? "#c6c6c6";
+	const key = name
+		.trim()
+		.toLowerCase()
+		.replace(/[-_]+/g, " ")
+		.replace(/\s+/g, " ");
+	return COLOR_NAME_HEX[key] ?? "#c6c6c6";
 }
 
 /** Split a free-text color field ("Indigo, Ecru") into trimmed labels. */

@@ -115,6 +115,13 @@ CREATE TABLE IF NOT EXISTS appointment_notifications (
 CREATE INDEX IF NOT EXISTS idx_appointment_notifications_appointment
   ON appointment_notifications (appointment_id, type);
 
+CREATE TABLE IF NOT EXISTS customer_fit_profile_overrides (
+  customer_id TEXT PRIMARY KEY,
+  measurements JSONB NOT NULL,
+  preferences JSONB NOT NULL,
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
 -- Scraped third-party catalog (e.g. Abercrombie womens/mens) used as the candidate
 -- pool the recommendation engine queries against. Structured columns hold the
 -- fit-relevant attributes; `raw` keeps the full extracted payload so we can pull

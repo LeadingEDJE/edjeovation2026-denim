@@ -15,7 +15,10 @@ import {
 	rankCandidates,
 	shortlistDiverse,
 } from "../recommendation-scoring.js";
-import { fetchThirdPartyUser } from "../recommendations.js";
+import {
+	fetchThirdPartyStoreInventory,
+	fetchThirdPartyUser,
+} from "../recommendations.js";
 import * as repository from "../repository.js";
 import type {
 	Appointment,
@@ -29,6 +32,7 @@ import type {
 	OutfitAnalysis,
 	OutfitGarment,
 	Store,
+	StoreInventoryItem,
 	StoreSchedulePattern,
 	StoreSchedulePatternList,
 	StylistAvailabilityStatus,
@@ -441,6 +445,10 @@ export async function getActiveUser() {
 	return normalizeCurrentUser(await fetchThirdPartyUser(activeUserId));
 }
 
+export async function getActiveUserProfile() {
+	return getCustomerProfile(activeUserId);
+}
+
 export function normalizeCatalogAudiences(value: unknown): CatalogAudience[] {
 	const rawValues = (() => {
 		if (Array.isArray(value)) return value;
@@ -476,8 +484,60 @@ export function normalizeCurrentUser(user: CurrentUser): CurrentUser {
 	};
 }
 
-export function normalizeUserList(users: UserList): UserList {
-	return { users: users.users.map(normalizeCurrentUser) };
+export function applyFitProfileOverride(
+	user: CurrentUser,
+	overrideRow: Record<string, unknown> | undefined,
+): CurrentUser {
+	const normalized = normalizeCurrentUser(user);
+	if (!overrideRow) return normalized;
+
+	return normalizeCurrentUser({
+		...normalized,
+		measurements: {
+			...normalized.measurements,
+			...parseJsonField<Partial<CurrentUser["measurements"]>>(
+				overrideRow.measurements,
+			),
+		},
+		preferences: {
+			...normalized.preferences,
+			...parseJsonField<Partial<CurrentUser["preferences"]>>(
+				overrideRow.preferences,
+			),
+		},
+	});
+}
+
+export async function getCustomerProfile(customerId: string) {
+	const user = await fetchThirdPartyUser(customerId);
+	let overrideRows: Record<string, unknown>[] = [];
+	try {
+		const override =
+			await repository.selectCustomerFitProfileOverride(customerId);
+		overrideRows = override?.rows ?? [];
+	} catch {
+		overrideRows = [];
+	}
+
+	return applyFitProfileOverride(user, overrideRows[0]);
+}
+
+export async function normalizeUserList(users: UserList): Promise<UserList> {
+	let overrideRows: Record<string, unknown>[] = [];
+	try {
+		const overrides = await repository.selectCustomerFitProfileOverrides();
+		overrideRows = overrides?.rows ?? [];
+	} catch {
+		overrideRows = [];
+	}
+	const byCustomerId = new Map(
+		overrideRows.map((row) => [String(row.customer_id), row]),
+	);
+	return {
+		users: users.users.map((user) =>
+			applyFitProfileOverride(user, byCustomerId.get(user.customerId)),
+		),
+	};
 }
 
 export function userExists(users: UserList, customerId: string) {
@@ -688,6 +748,7 @@ export async function buildSuggestedProducts(
 		bodyType: analysis?.bodyType ?? null,
 	};
 	const reranked = await rerank(context, style, shortlist, 5);
+	const salesFloorByProductId = await loadSalesFloorByProductId(input.storeId);
 
 	const byId = new Map(shortlist.map((c) => [c.product.productId, c]));
 	return reranked.rankings.flatMap((r) => {
@@ -701,9 +762,30 @@ export async function buildSuggestedProducts(
 				product: scored.product,
 				prepStatus: "suggested",
 				associateNote: "",
+				salesFloor: salesFloorByProductId.get(scored.product.productId),
 			},
 		];
 	});
+}
+
+async function loadSalesFloorByProductId(
+	storeId: string,
+): Promise<Map<string, StoreInventoryItem>> {
+	try {
+		const inventory = await fetchThirdPartyStoreInventory(storeId);
+		return new Map(
+			inventory.inventory.map((item) => [
+				item.productId,
+				{
+					...item,
+					storeId: item.storeId || storeId,
+					lowStock: item.lowStock || item.quantityAvailable <= 1,
+				},
+			]),
+		);
+	} catch {
+		return new Map();
+	}
 }
 
 /**

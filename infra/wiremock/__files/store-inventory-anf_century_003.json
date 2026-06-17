@@ -1,0 +1,29 @@
+{
+	"storeId": "anf_century_003",
+	"inventory": [
+		{
+			"productId": "62234856",
+			"storeId": "anf_century_003",
+			"quantityAvailable": 2,
+			"lowStock": true,
+			"availabilityLabel": "Low stock - 2 left",
+			"locationLabel": "Denim feature table"
+		},
+		{
+			"productId": "61808905",
+			"storeId": "anf_century_003",
+			"quantityAvailable": 5,
+			"lowStock": false,
+			"availabilityLabel": "In stock on sales floor",
+			"locationLabel": "Women's denim wall, bay 3"
+		},
+		{
+			"productId": "61711873",
+			"storeId": "anf_century_003",
+			"quantityAvailable": 1,
+			"lowStock": true,
+			"availabilityLabel": "1 more available",
+			"locationLabel": "Logo shop table"
+		}
+	]
+}

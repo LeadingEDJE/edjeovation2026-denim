@@ -358,6 +358,7 @@ describe("POST /api/appointments", () => {
 			);
 		(query as Mock)
 			.mockResolvedValueOnce({ rows: [] })
+			.mockResolvedValueOnce({ rows: [] })
 			.mockResolvedValueOnce({
 				rows: [
 					{

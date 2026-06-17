@@ -1,0 +1,29 @@
+{
+	"storeId": "anf_easton_002",
+	"inventory": [
+		{
+			"productId": "62234856",
+			"storeId": "anf_easton_002",
+			"quantityAvailable": 4,
+			"lowStock": false,
+			"availabilityLabel": "In stock on sales floor",
+			"locationLabel": "Women's denim wall, bay 1"
+		},
+		{
+			"productId": "61808905",
+			"storeId": "anf_easton_002",
+			"quantityAvailable": 1,
+			"lowStock": true,
+			"availabilityLabel": "1 more available",
+			"locationLabel": "Fitting room go-back rack"
+		},
+		{
+			"productId": "62008819",
+			"storeId": "anf_easton_002",
+			"quantityAvailable": 2,
+			"lowStock": true,
+			"availabilityLabel": "Low stock - 2 left",
+			"locationLabel": "Logo shop wall"
+		}
+	]
+}

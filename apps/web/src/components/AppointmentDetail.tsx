@@ -3,6 +3,7 @@ import type {
 	Appointment,
 	AppointmentMessage,
 	AppointmentNotification,
+	CurrentUser,
 	OutfitAnalysis,
 	StylistProfile,
 	SuggestedProduct,
@@ -14,9 +15,12 @@ import { RecapDetail } from "./detail/RecapDetail";
 type AppointmentDetailProps = {
 	appointment: Appointment;
 	stylists: StylistProfile[];
+	eligibleStylists?: StylistProfile[];
+	customerProfile?: CurrentUser;
 	messages: AppointmentMessage[];
 	notifications: AppointmentNotification[];
 	isLoading: boolean;
+	isRegenerating?: boolean;
 	sessionNote: string;
 	customerRecap: string;
 	associateFeedback: string;
@@ -42,6 +46,10 @@ type AppointmentDetailProps = {
 		suggestion: SuggestedProduct,
 		prepStatus: SuggestedProduct["prepStatus"],
 		associateNote: string,
+	) => void;
+	onSaveCustomerFitProfile?: (
+		customerId: string,
+		profile: Pick<CurrentUser, "measurements" | "preferences">,
 	) => void;
 };
 
@@ -119,9 +127,12 @@ export function AppointmentDetail(props: AppointmentDetailProps) {
 				<InteractiveDetail
 					appointment={appointment}
 					stylists={props.stylists}
+					eligibleStylists={props.eligibleStylists ?? []}
+					customerProfile={props.customerProfile}
 					messages={props.messages}
 					notifications={props.notifications}
 					isLoading={isLoading}
+					isRegenerating={props.isRegenerating ?? false}
 					sessionNote={props.sessionNote}
 					customerRecap={props.customerRecap}
 					associateFeedback={props.associateFeedback}
@@ -140,6 +151,7 @@ export function AppointmentDetail(props: AppointmentDetailProps) {
 					onPostMessage={props.onPostMessage}
 					onSaveOutfitIntents={props.onSaveOutfitIntents}
 					onUpdateProductPrep={props.onUpdateProductPrep}
+					onSaveCustomerFitProfile={props.onSaveCustomerFitProfile}
 				/>
 			) : (
 				<RecapDetail appointment={appointment} stylists={props.stylists} />

@@ -4,6 +4,7 @@
 	"displayName": "Avery",
 	"measurements": {
 		"heightInches": 67,
+		"chestInches": 34,
 		"waistInches": 29,
 		"hipInches": 39,
 		"inseamInches": 30

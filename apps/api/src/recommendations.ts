@@ -3,6 +3,7 @@ import type {
 	CurrentUser,
 	OrderHistory,
 	OrderHistoryScenario,
+	StoreInventory,
 	StoreList,
 	StoreSchedulePatternList,
 	StylistAvailabilitySchedule,
@@ -31,6 +32,23 @@ export async function fetchThirdPartyStores(): Promise<StoreList> {
 	}
 
 	return response.json() as Promise<StoreList>;
+}
+
+export async function fetchThirdPartyStoreInventory(
+	storeId: string,
+): Promise<StoreInventory> {
+	const response = await fetch(
+		`${config.thirdPartyBaseUrl}/stores/${encodeURIComponent(storeId)}/inventory`,
+	);
+
+	if (!response.ok) {
+		throw new ThirdPartyHttpError(
+			`Third-party store inventory failed with ${response.status}`,
+			response.status,
+		);
+	}
+
+	return response.json() as Promise<StoreInventory>;
 }
 
 export async function fetchThirdPartyStoreSchedulePatterns(): Promise<StoreSchedulePatternList> {

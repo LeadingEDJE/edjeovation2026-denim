@@ -13,8 +13,11 @@ import { useAppointmentDashboard } from "./useAppointmentDashboard.js";
 // is cleaner than stubbing global fetch (and avoids api.ts touching window).
 vi.mock("../api", () => ({
 	listAppointments: vi.fn(),
+	getAppointment: vi.fn(),
+	getCustomerProfile: vi.fn(),
 	listStores: vi.fn(),
 	listStylists: vi.fn(),
+	listEligibleStylists: vi.fn(),
 	listAppointmentMessages: vi.fn(),
 	listAppointmentNotifications: vi.fn(),
 	postAppointmentMessage: vi.fn(),
@@ -24,6 +27,7 @@ vi.mock("../api", () => ({
 	reassignAppointmentStylist: vi.fn(),
 	regenerateSuggestions: vi.fn(),
 	updateSessionNotes: vi.fn(),
+	updateCustomerFitProfile: vi.fn(),
 	updateOutfitAnalysis: vi.fn(),
 	updateSuggestedProductPrep: vi.fn(),
 }));
@@ -114,8 +118,28 @@ const mocked = vi.mocked(api);
 beforeEach(() => {
 	vi.clearAllMocks();
 	mocked.listAppointments.mockResolvedValue([makeAppointment()]);
+	mocked.getAppointment.mockResolvedValue(makeAppointment());
+	mocked.getCustomerProfile.mockResolvedValue({
+		customerId: "cust_1",
+		loyaltyId: "anf-1",
+		displayName: "Avery Parker",
+		measurements: {
+			heightInches: 66,
+			waistInches: 28,
+			hipInches: 38,
+			inseamInches: 30,
+		},
+		preferences: {
+			fitPreference: "straight",
+			stretchPreference: "comfort-stretch",
+			catalogAudiences: ["womens"],
+		},
+	});
 	mocked.listStores.mockResolvedValue([]);
 	mocked.listStylists.mockResolvedValue([stylist("sty-1", "Jordan Lee")]);
+	mocked.listEligibleStylists.mockResolvedValue([
+		stylist("sty-1", "Jordan Lee"),
+	]);
 	mocked.listAppointmentMessages.mockResolvedValue([]);
 	mocked.listAppointmentNotifications.mockResolvedValue([]);
 });

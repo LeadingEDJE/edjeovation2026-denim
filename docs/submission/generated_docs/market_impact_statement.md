@@ -30,6 +30,9 @@ results from this hackathon build.*
 - **Associate prep time saved:** if AI-curated, rationale-backed shortlists save
   ~10–15 minutes of manual rack-pulling and guesswork per appointment, a store
   running 5 non-peak fittings/day saves ~1 hour/day of associate time.
+- **Faster floor pulls:** mocked location labels and low-stock copy make the demo
+  closer to a real store workflow where associates need to know whether an item
+  is on the denim wall, a feature table, or nearly gone.
 - **Conversion lift:** a better-prepared, personalized session plausibly improves
   fitting-to-purchase conversion; even a few points on appointment-driven sales is
   meaningful given denim's basket size. *(Assumption: appointments are already
@@ -56,9 +59,10 @@ return rate on appointment purchases, and repeat-booking rate.
 
 **Why ours is better/different:** it is purpose-built for the *associate-led,
 in-store denim fitting* — combining a lightweight customer intake (mapped to
-Abercrombie Muses), per-booking catalog selection, order-history signals, and a
-hybrid (rules + Claude) recommender that outputs a curated shortlist *with
-talking points*, plus the full appointment lifecycle and async messaging.
+Abercrombie Muses), editable fit profiles, per-booking catalog selection,
+order-history signals, sales-floor location hints, and a hybrid (rules + Claude)
+recommender that outputs a curated shortlist *with talking points*, plus the
+full appointment lifecycle and async messaging.
 
 ## Why This Matters Right Now
 

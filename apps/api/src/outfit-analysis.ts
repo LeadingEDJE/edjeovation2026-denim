@@ -82,6 +82,7 @@ function normalizeBodyType(v: unknown): string | null {
 // CurrentUser.measurements so the client can pass them straight through.
 export type BodyMeasurements = {
 	heightInches?: number;
+	chestInches?: number;
 	waistInches?: number;
 	hipInches?: number;
 	inseamInches?: number;
@@ -94,6 +95,7 @@ function formatBodyMeasurements(m: BodyMeasurements | undefined): string {
 	if (!m) return "";
 	const parts = [
 		Number.isFinite(m.heightInches) ? `height ${m.heightInches} in` : null,
+		Number.isFinite(m.chestInches) ? `chest ${m.chestInches} in` : null,
 		Number.isFinite(m.waistInches) ? `waist ${m.waistInches} in` : null,
 		Number.isFinite(m.hipInches) ? `hip ${m.hipInches} in` : null,
 		Number.isFinite(m.inseamInches) ? `inseam ${m.inseamInches} in` : null,

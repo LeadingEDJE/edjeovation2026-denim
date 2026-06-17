@@ -17,6 +17,8 @@ function App() {
 		filters,
 		stores,
 		stylists,
+		eligibleStylists,
+		customerProfiles,
 		filteredAppointments,
 		counts,
 		selectedAppointment,
@@ -43,6 +45,8 @@ function App() {
 		postMessage,
 		saveOutfitIntents,
 		updateProductPrep,
+		saveCustomerFitProfile,
+		regeneratingAppointmentId,
 	} = useAppointmentDashboard();
 
 	const activeTitle =
@@ -67,9 +71,14 @@ function App() {
 					<AppointmentDetail
 						appointment={selectedAppointment}
 						stylists={stylists}
+						eligibleStylists={eligibleStylists[selectedAppointment.id] ?? []}
+						customerProfile={customerProfiles[selectedAppointment.customerId]}
 						messages={messages[selectedAppointment.id] ?? []}
 						notifications={notifications[selectedAppointment.id] ?? []}
 						isLoading={isLoading}
+						isRegenerating={
+							regeneratingAppointmentId === selectedAppointment.id
+						}
 						sessionNote={sessionNotes[selectedAppointment.id] ?? ""}
 						customerRecap={customerRecaps[selectedAppointment.id] ?? ""}
 						associateFeedback={associateFeedbacks[selectedAppointment.id] ?? ""}
@@ -106,6 +115,7 @@ function App() {
 								associateNote,
 							)
 						}
+						onSaveCustomerFitProfile={saveCustomerFitProfile}
 					/>
 				) : (
 					<AppointmentList

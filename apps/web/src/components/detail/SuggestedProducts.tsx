@@ -1,4 +1,4 @@
-import { Loader2, Sparkles } from "lucide-react";
+import { Loader2, MapPin, Sparkles } from "lucide-react";
 import { useEffect, useState } from "react";
 import type { Appointment, SuggestedProduct } from "../../api";
 import { formatPrice, ProductShot, specLine } from "./shared";
@@ -53,11 +53,13 @@ export function PrepSegment({
 export function SuggestedProducts({
 	appointment,
 	canEdit,
+	isRegenerating,
 	onRegenerate,
 	onUpdateProductPrep,
 }: {
 	appointment: Appointment;
 	canEdit: boolean;
+	isRegenerating?: boolean;
 	onRegenerate: (appointment: Appointment) => void;
 	onUpdateProductPrep: (
 		appointment: Appointment,
@@ -101,10 +103,14 @@ export function SuggestedProducts({
 					type="button"
 					className="inline-flex items-center gap-2 border border-white/40 px-3.5 py-2 font-bold text-2xs text-white uppercase tracking-label transition-colors hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-50"
 					onClick={() => onRegenerate(appointment)}
-					disabled={!canEdit}
+					disabled={!canEdit || isRegenerating}
 				>
-					<Sparkles size={13} />
-					Regenerate
+					{isRegenerating ? (
+						<Loader2 size={13} className="animate-spin" />
+					) : (
+						<Sparkles size={13} />
+					)}
+					{isRegenerating ? "Regenerating" : "Regenerate"}
 				</button>
 			</div>
 
@@ -165,6 +171,23 @@ export function SuggestedProducts({
 								<p className="mt-2 text-[13px] text-body leading-relaxed">
 									{suggestion.rationale}
 								</p>
+								{suggestion.salesFloor ? (
+									<div className="mt-3 flex flex-wrap items-center gap-2 text-[12px]">
+										<span
+											className={`border px-2 py-1 font-bold uppercase tracking-label ${
+												suggestion.salesFloor.lowStock
+													? "border-sale text-sale"
+													: "border-success text-success"
+											}`}
+										>
+											{suggestion.salesFloor.availabilityLabel}
+										</span>
+										<span className="inline-flex items-center gap-1 text-muted">
+											<MapPin size={13} />
+											{suggestion.salesFloor.locationLabel}
+										</span>
+									</div>
+								) : null}
 								<div className="mt-3 flex flex-col gap-2.5 min-[640px]:flex-row min-[640px]:items-center">
 									<PrepSegment
 										value={suggestion.prepStatus}

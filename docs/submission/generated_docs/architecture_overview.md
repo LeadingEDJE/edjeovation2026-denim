@@ -18,23 +18,26 @@ around a shared API and database:
 - **Clients:** the SwiftUI iOS app (customer booking, intake, messaging, recap,
   feedback) and the React/Vite associate dashboard (appointment prep, lifecycle
   actions, messaging, product prep, recaps) both call the same API.
-- **API (`apps/api`):** a Fastify service that persists appointments to
-  PostgreSQL, queries the `catalog_products` table for candidates, calls the
-  mocked third-party services for customer/order/store/stylist data, and runs the
-  two-stage recommendation pipeline. Exposes OpenAPI docs at `/docs`.
+- **API (`apps/api`):** a Fastify service that persists appointments and mock
+  fit-profile overrides to PostgreSQL, queries the `catalog_products` table for
+  candidates, calls the mocked third-party services for customer/order/store/
+  stylist/sales-floor data, and runs the two-stage recommendation pipeline.
+  Exposes OpenAPI docs at `/docs`.
 - **Data flow for a booking:** client submits intake + slot + catalog selection
   (womens, mens, or both) → API assigns a stylist, maps a Muse tag, summarizes
   order history, **inserts the appointment with an empty suggestion list in
   status `pending` and returns confirmation immediately** → a fire-and-forget
   background task runs the two-stage recommender and writes the products back to
-  the row, flipping `suggestions_status` to `ready` (or `failed` on error) →
-  associate dashboard reads it for prep, polling
-  `GET /api/appointments/:appointmentId` every ~2.5s while a row is `pending`
-  so freshly-generated picks appear without a manual refresh → lifecycle actions
-  (check-in, complete, etc.) and messages mutate the same record. The
-  regenerate-suggestions and attach-outfit-analysis flows follow the same
-  pattern: the row is set to `pending` (existing products stay visible), the
-  endpoint returns, and the re-rank runs in the background.
+  the row, flipping `suggestions_status` to `ready` (or `failed` on error).
+  Suggestions are scoped to the selected catalog audience, enriched with mocked
+  sales-floor availability/location data, and then read by the associate
+  dashboard for prep. The web detail view and iOS appointment detail poll the
+  selected appointment, messages, and notifications every few seconds to
+  approximate real-time sync. Lifecycle actions (check-in, complete, etc.) and
+  messages mutate the same record. The regenerate-suggestions and
+  attach-outfit-analysis flows follow the same pattern: the row is set to
+  `pending` (existing products stay visible), the endpoint returns, and the
+  re-rank runs in the background.
 
 ## Technologies Used
 
@@ -76,17 +79,19 @@ around a shared API and database:
 
 | Source | Contents | Real / Mocked / Synthetic | Status |
 |---|---|---|---|
-| WireMock fixtures (`infra/wiremock/`) | Customers, order history, stores, stylist profiles, weekly schedules | Mocked | Available locally |
+| WireMock fixtures (`infra/wiremock/`) | Customers, order history, stores, stylist profiles, weekly schedules, sales-floor inventory/location labels | Mocked | Available locally |
 | `catalog_products` (PostgreSQL, seeded `infra/db/`) | Abercrombie womens/mens catalog snapshot (name, category, catalog audiences, fit/rise/stretch, price, image URL) | Synthetic (scraped/seeded snapshot) | Available locally |
 | `appointments` (PostgreSQL) | Bookings, intake, assigned stylist, suggestions (with `suggestions_status` lifecycle: `pending`/`ready`/`failed`), lifecycle state, messages, recaps | Mixed: app-generated plus deterministic synthetic local seed history | Available locally |
+| `customer_fit_profile_overrides` (PostgreSQL) | Mock customer measurement and preference overrides layered over WireMock users | App-generated mock data | Available locally |
 | Anthropic / LiteLLM | Re-ranking + rationale generation | Real external call | Optional; falls back to rule-based |
 
 ## Known Limitations & Risks
 
 - **No authentication / identity model.** A mocked "current user" stands in for
   login; consent and privacy handling for measurements is not implemented.
-- **Mocked third parties.** Customer, order, store, and stylist data come from
-  WireMock; there is no live integration or inventory/availability check. The
+- **Mocked third parties.** Customer, order, store, stylist, and sales-floor
+  inventory data come from WireMock; there is no live integration with real
+  inventory or workforce systems. The
   regenerate-suggestions path tolerates a failed third-party customer lookup by
   falling back to the customer snapshot stored in the appointment's
   `source_payload` at booking time, but a real production deployment would still

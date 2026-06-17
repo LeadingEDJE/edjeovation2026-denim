@@ -940,7 +940,9 @@ describe("POST /api/appointments — error paths", () => {
 			.mockResolvedValueOnce(jsonResponse(storesResponse()))
 			.mockResolvedValueOnce(jsonResponse(schedulePatternsResponse()))
 			.mockResolvedValueOnce(jsonResponse({ stylists: [makeStylist()] }));
-		(query as Mock).mockResolvedValueOnce({ rowCount: 1, rows: [{ id: "x" }] });
+		(query as Mock)
+			.mockResolvedValueOnce({ rows: [] })
+			.mockResolvedValueOnce({ rowCount: 1, rows: [{ id: "x" }] });
 		const res = await app.inject({
 			method: "POST",
 			url: "/api/appointments",
@@ -956,7 +958,9 @@ describe("POST /api/appointments — error paths", () => {
 			.mockResolvedValueOnce(jsonResponse(storesResponse()))
 			.mockResolvedValueOnce(jsonResponse(schedulePatternsResponse()))
 			.mockResolvedValueOnce(jsonResponse({ stylists: [makeStylist()] }));
-		(query as Mock).mockResolvedValueOnce({ rowCount: 0, rows: [] });
+		(query as Mock)
+			.mockResolvedValueOnce({ rows: [] })
+			.mockResolvedValueOnce({ rowCount: 0, rows: [] });
 		const res = await app.inject({
 			method: "POST",
 			url: "/api/appointments",
@@ -972,7 +976,9 @@ describe("POST /api/appointments — error paths", () => {
 			.mockResolvedValueOnce(jsonResponse(storesResponse()))
 			.mockResolvedValueOnce(jsonResponse(schedulePatternsResponse()))
 			.mockResolvedValueOnce(jsonResponse({ stylists: [] }));
-		(query as Mock).mockResolvedValueOnce({ rowCount: 0, rows: [] });
+		(query as Mock)
+			.mockResolvedValueOnce({ rows: [] })
+			.mockResolvedValueOnce({ rowCount: 0, rows: [] });
 		const res = await app.inject({
 			method: "POST",
 			url: "/api/appointments",

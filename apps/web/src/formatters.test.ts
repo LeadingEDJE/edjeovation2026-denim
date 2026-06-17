@@ -88,6 +88,28 @@ describe("colorNameToHex", () => {
 		expect(colorNameToHex("Deep Blue")).toBe("#1f3a5f");
 	});
 
+	it("mirrors the mobile selectable swatch palette", () => {
+		expect(colorNameToHex("Black")).toBe("#1c1c1c");
+		expect(colorNameToHex("White")).toBe("#ffffff");
+		expect(colorNameToHex("Cream")).toBe("#dcd3bd");
+		expect(colorNameToHex("Light wash")).toBe("#b9c2d4");
+		expect(colorNameToHex("Medium wash")).toBe("#7d92b8");
+		expect(colorNameToHex("Dark wash")).toBe("#2f3b66");
+		expect(colorNameToHex("Grey")).toBe("#9a9a9a");
+		expect(colorNameToHex("Navy")).toBe("#27455c");
+		expect(colorNameToHex("Green")).toBe("#5b7050");
+		expect(colorNameToHex("Pink")).toBe("#e8a0b8");
+		expect(colorNameToHex("Red")).toBe("#a32d2d");
+	});
+
+	it("maps generated color aliases to the mobile palette", () => {
+		expect(colorNameToHex("washed black")).toBe("#1c1c1c");
+		expect(colorNameToHex("lightwash")).toBe("#b9c2d4");
+		expect(colorNameToHex("medium-denim")).toBe("#7d92b8");
+		expect(colorNameToHex("dark_denim")).toBe("#2f3b66");
+		expect(colorNameToHex("RED")).toBe("#a32d2d");
+	});
+
 	it("falls back to a neutral line color for unknown names", () => {
 		expect(colorNameToHex("chartreuse")).toBe("#c6c6c6");
 	});

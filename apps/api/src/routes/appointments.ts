@@ -25,6 +25,7 @@ import {
 	createStoreAppointmentSlots,
 	findPatternForStore,
 	getActiveUser,
+	getActiveUserProfile,
 	isActiveStatus,
 	isTerminalStatus,
 	mapAppointment,
@@ -55,6 +56,7 @@ import {
 	feedbackJsonSchema,
 	outfitAnalysisJsonSchema,
 	reassignStylistJsonSchema,
+	stylistJsonSchema,
 	suggestedProductParamsJsonSchema,
 	updateAppointmentJsonSchema,
 	updateProductPrepJsonSchema,
@@ -140,6 +142,40 @@ export async function appointmentRoutes(app: FastifyInstance) {
 	);
 
 	app.get(
+		"/api/appointments/:appointmentId",
+		{
+			schema: {
+				tags: ["appointments"],
+				summary: "Get a booked guided fitting appointment",
+				params: appointmentIdParamsJsonSchema,
+				response: {
+					200: {
+						type: "object",
+						required: ["appointment"],
+						properties: { appointment: appointmentSummaryJsonSchema },
+					},
+					404: errorJsonSchema,
+					502: errorJsonSchema,
+				},
+			},
+		},
+		async (request, reply) => {
+			const { appointmentId } = request.params as { appointmentId: string };
+			try {
+				const appointment = await selectAppointmentById(appointmentId);
+				if (!appointment) {
+					return reply.code(404).send({ message: "Appointment not found" });
+				}
+				return { appointment };
+			} catch (error) {
+				throw new HttpError(502, "Unable to load appointment", {
+					cause: error,
+				});
+			}
+		},
+	);
+
+	app.get(
 		"/api/appointments/me/upcoming",
 		{
 			schema: {
@@ -215,42 +251,6 @@ export async function appointmentRoutes(app: FastifyInstance) {
 		},
 	);
 
-	// Single appointment by id (stylist portal). Used to poll for asynchronously
-	// generated suggestions without re-fetching the whole queue.
-	app.get(
-		"/api/appointments/:appointmentId",
-		{
-			schema: {
-				tags: ["appointments"],
-				summary: "Get a single appointment by id",
-				params: appointmentIdParamsJsonSchema,
-				response: {
-					200: {
-						type: "object",
-						required: ["appointment"],
-						properties: { appointment: appointmentSummaryJsonSchema },
-					},
-					404: errorJsonSchema,
-					502: errorJsonSchema,
-				},
-			},
-		},
-		async (request, reply) => {
-			const { appointmentId } = request.params as { appointmentId: string };
-			try {
-				const appointment = await selectAppointmentById(appointmentId);
-				if (!appointment) {
-					return reply.code(404).send({ message: "Appointment not found" });
-				}
-				return { appointment };
-			} catch (error) {
-				throw new HttpError(502, "Unable to load appointment", {
-					cause: error,
-				});
-			}
-		},
-	);
-
 	app.post(
 		"/api/appointments",
 		{
@@ -279,7 +279,7 @@ export async function appointmentRoutes(app: FastifyInstance) {
 
 			try {
 				const [currentUser, stores, patterns, stylistList] = await Promise.all([
-					getActiveUser(),
+					getActiveUserProfile(),
 					fetchThirdPartyStores(),
 					fetchThirdPartyStoreSchedulePatterns(),
 					fetchThirdPartyStylists(),
@@ -494,11 +494,17 @@ export async function appointmentRoutes(app: FastifyInstance) {
 		},
 		async (request, reply) => {
 			const { appointmentId } = request.params as { appointmentId: string };
-			const input = request.body as { sessionNotes: string };
+			const input = request.body as {
+				sessionNotes: string;
+				customerRecap?: string;
+				associateFeedback?: string;
+			};
 
 			try {
 				const result = await repository.updateAppointmentSessionNotes(
 					input.sessionNotes,
+					input.customerRecap,
+					input.associateFeedback,
 					appointmentId,
 				);
 
@@ -516,6 +522,65 @@ export async function appointmentRoutes(app: FastifyInstance) {
 				return { appointment: mapAppointment(result.rows[0]) };
 			} catch (error) {
 				throw new HttpError(502, "Unable to update session notes", {
+					cause: error,
+				});
+			}
+		},
+	);
+
+	app.get(
+		"/api/appointments/:appointmentId/eligible-stylists",
+		{
+			schema: {
+				tags: ["appointments"],
+				summary: "List stylists scheduled for the appointment store and time",
+				params: appointmentIdParamsJsonSchema,
+				response: {
+					200: {
+						type: "object",
+						required: ["stylists"],
+						properties: {
+							stylists: { type: "array", items: stylistJsonSchema },
+						},
+					},
+					404: errorJsonSchema,
+					409: errorJsonSchema,
+					502: errorJsonSchema,
+				},
+			},
+		},
+		async (request, reply) => {
+			const { appointmentId } = request.params as { appointmentId: string };
+			try {
+				const existing =
+					await repository.selectAppointmentRowById(appointmentId);
+				if (!existing.rows[0]) {
+					return reply.code(404).send({ message: "Appointment not found" });
+				}
+				const appointment = mapAppointment(existing.rows[0]);
+				const [patterns, stylistList] = await Promise.all([
+					fetchThirdPartyStoreSchedulePatterns(),
+					fetchThirdPartyStylists(),
+				]);
+				const pattern = findPatternForStore(
+					patterns,
+					appointment.store.storeId,
+				);
+				if (!pattern) {
+					return reply.code(409).send({ message: "Store schedule not found" });
+				}
+				const scheduledIds = new Set(
+					scheduledStylistIdsForSlot(pattern, appointment.slotStart),
+				);
+				return {
+					stylists: stylistList.stylists.filter(
+						(stylist) =>
+							scheduledIds.has(stylist.id) &&
+							stylist.store.storeId === appointment.store.storeId,
+					),
+				};
+			} catch (error) {
+				throw new HttpError(502, "Unable to load eligible stylists", {
 					cause: error,
 				});
 			}

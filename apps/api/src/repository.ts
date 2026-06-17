@@ -235,17 +235,59 @@ export function updateAppointmentGuidance(
 
 export function updateAppointmentSessionNotes(
 	sessionNotes: string,
+	customerRecap: string | undefined,
+	associateFeedback: string | undefined,
 	appointmentId: string,
 ) {
 	return pool.query(
 		`
 			UPDATE appointments
-			SET session_notes = $1
-			WHERE id = $2
+			SET session_notes = $1,
+				customer_recap = COALESCE($2, customer_recap),
+				associate_feedback = COALESCE($3, associate_feedback)
+			WHERE id = $4
 				AND status NOT IN ('completed', 'cancelled', 'no_show')
 			RETURNING *
 		`,
-		[sessionNotes, appointmentId],
+		[sessionNotes, customerRecap, associateFeedback, appointmentId],
+	);
+}
+
+// --- Customer fit-profile overrides -------------------------------------
+
+export function selectCustomerFitProfileOverride(customerId: string) {
+	return pool.query(
+		`
+			SELECT *
+			FROM customer_fit_profile_overrides
+			WHERE customer_id = $1
+		`,
+		[customerId],
+	);
+}
+
+export function selectCustomerFitProfileOverrides() {
+	return pool.query("SELECT * FROM customer_fit_profile_overrides");
+}
+
+export function upsertCustomerFitProfileOverride(
+	customerId: string,
+	measurementsJson: string,
+	preferencesJson: string,
+) {
+	return pool.query(
+		`
+			INSERT INTO customer_fit_profile_overrides (
+				customer_id, measurements, preferences, updated_at
+			)
+			VALUES ($1, $2, $3, now())
+			ON CONFLICT (customer_id) DO UPDATE
+			SET measurements = EXCLUDED.measurements,
+				preferences = EXCLUDED.preferences,
+				updated_at = now()
+			RETURNING *
+		`,
+		[customerId, measurementsJson, preferencesJson],
 	);
 }
 

@@ -29,6 +29,14 @@ final class APIClient: Sendable {
         try await get(path: "/api/me")
     }
 
+    func updateFitProfile(customerId: String, measurements: Measurements, preferences: UserPreferences) async throws -> CurrentUser {
+        try await send(
+            path: "/api/customers/\(customerId)/fit-profile",
+            method: "PATCH",
+            input: FitProfileUpdateRequest(measurements: measurements, preferences: preferences)
+        )
+    }
+
     func getUsers() async throws -> [CurrentUser] {
         let response: UserListResponse = try await get(path: "/api/admin/users")
         return response.users
@@ -50,6 +58,11 @@ final class APIClient: Sendable {
 
     func getUpcomingAppointment() async throws -> Appointment? {
         let response: UpcomingAppointmentResponse = try await get(path: "/api/appointments/me/upcoming")
+        return response.appointment
+    }
+
+    func getAppointment(id: String) async throws -> Appointment {
+        let response: AppointmentResponse = try await get(path: "/api/appointments/\(id)")
         return response.appointment
     }
 

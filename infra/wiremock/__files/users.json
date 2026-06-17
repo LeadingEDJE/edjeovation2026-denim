@@ -6,6 +6,7 @@
 			"displayName": "Avery",
 			"measurements": {
 				"heightInches": 67,
+				"chestInches": 34,
 				"waistInches": 29,
 				"hipInches": 39,
 				"inseamInches": 30
@@ -22,6 +23,7 @@
 			"displayName": "Jordan",
 			"measurements": {
 				"heightInches": 70,
+				"chestInches": 38,
 				"waistInches": 32,
 				"hipInches": 40,
 				"inseamInches": 32
@@ -38,6 +40,7 @@
 			"displayName": "Riley",
 			"measurements": {
 				"heightInches": 64,
+				"chestInches": 33,
 				"waistInches": 26,
 				"hipInches": 36,
 				"inseamInches": 28
@@ -54,6 +57,7 @@
 			"displayName": "Morgan",
 			"measurements": {
 				"heightInches": 72,
+				"chestInches": 40,
 				"waistInches": 34,
 				"hipInches": 42,
 				"inseamInches": 34
@@ -70,6 +74,7 @@
 			"displayName": "Taylor",
 			"measurements": {
 				"heightInches": 66,
+				"chestInches": 36,
 				"waistInches": 30,
 				"hipInches": 41,
 				"inseamInches": 30

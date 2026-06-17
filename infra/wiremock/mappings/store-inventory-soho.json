@@ -1,0 +1,14 @@
+{
+	"priority": 10,
+	"request": {
+		"method": "GET",
+		"urlPath": "/stores/anf_soho_001/inventory"
+	},
+	"response": {
+		"status": 200,
+		"headers": {
+			"Content-Type": "application/json"
+		},
+		"bodyFileName": "store-inventory-anf_soho_001.json"
+	}
+}

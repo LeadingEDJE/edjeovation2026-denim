@@ -10,6 +10,7 @@ struct CurrentUser: Codable {
 
 struct Measurements: Codable {
     let heightInches: Int
+    let chestInches: Double?
     let waistInches: Double
     let hipInches: Double
     let inseamInches: Double
@@ -23,6 +24,11 @@ struct UserPreferences: Codable {
 
 struct UserListResponse: Codable {
     let users: [CurrentUser]
+}
+
+struct FitProfileUpdateRequest: Codable {
+    let measurements: Measurements
+    let preferences: UserPreferences
 }
 
 struct ActiveUserResponse: Codable {

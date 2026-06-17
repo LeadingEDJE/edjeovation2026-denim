@@ -4,6 +4,7 @@ import type {
 	Appointment,
 	AppointmentMessage,
 	AppointmentNotification,
+	CurrentUser,
 	OutfitAnalysis,
 	StylistProfile,
 	SuggestedProduct,
@@ -18,9 +19,12 @@ import { Chips, MetaLabel, SectionTitle, shortRef } from "./shared";
 export type InteractiveDetailProps = {
 	appointment: Appointment;
 	stylists: StylistProfile[];
+	eligibleStylists: StylistProfile[];
+	customerProfile?: CurrentUser;
 	messages: AppointmentMessage[];
 	notifications: AppointmentNotification[];
 	isLoading: boolean;
+	isRegenerating: boolean;
 	sessionNote: string;
 	customerRecap: string;
 	associateFeedback: string;
@@ -47,14 +51,21 @@ export type InteractiveDetailProps = {
 		prepStatus: SuggestedProduct["prepStatus"],
 		associateNote: string,
 	) => void;
+	onSaveCustomerFitProfile?: (
+		customerId: string,
+		profile: Pick<CurrentUser, "measurements" | "preferences">,
+	) => void;
 };
 
 export function InteractiveDetail({
 	appointment,
 	stylists,
+	eligibleStylists,
+	customerProfile,
 	messages,
 	notifications,
 	isLoading,
+	isRegenerating,
 	sessionNote,
 	customerRecap,
 	associateFeedback,
@@ -73,11 +84,14 @@ export function InteractiveDetail({
 	onPostMessage,
 	onSaveOutfitIntents,
 	onUpdateProductPrep,
+	onSaveCustomerFitProfile,
 }: InteractiveDetailProps) {
 	const stylist = appointment.assignedStylist;
-	const sameStoreStylists = stylists.filter(
-		(candidate) => candidate.store.storeId === appointment.store.storeId,
-	);
+	const sameStoreStylists = eligibleStylists.length
+		? eligibleStylists
+		: stylists.filter(
+				(candidate) => candidate.store.storeId === appointment.store.storeId,
+			);
 	const captureUnlocked = appointment.status === "checked_in" && !isLoading;
 	const canSchedule = appointment.status === "scheduled" && !isLoading;
 	const completeLabel =
@@ -140,6 +154,7 @@ export function InteractiveDetail({
 					<SuggestedProducts
 						appointment={appointment}
 						canEdit={canEdit}
+						isRegenerating={isRegenerating}
 						onRegenerate={onRegenerate}
 						onUpdateProductPrep={onUpdateProductPrep}
 					/>
@@ -149,6 +164,10 @@ export function InteractiveDetail({
 				<div className="border-line-subtle px-5 py-7 min-[1040px]:col-start-1 min-[1040px]:row-span-2 min-[1040px]:row-start-1 min-[1040px]:border-r min-[760px]:px-7">
 					<CustomerSnapshot
 						appointment={appointment}
+						customerProfile={customerProfile}
+						onSaveCustomerFitProfile={
+							canEdit ? onSaveCustomerFitProfile : undefined
+						}
 						onSaveOutfitIntents={
 							canEdit
 								? (analysis) => onSaveOutfitIntents(appointment, analysis)
@@ -239,7 +258,9 @@ export function InteractiveDetail({
 								/>
 							</div>
 							<div>
-								<MetaLabel>Customer recap</MetaLabel>
+								<div title="Customer recap is saved when you complete the appointment.">
+									<MetaLabel>Customer recap</MetaLabel>
+								</div>
 								<textarea
 									className="h-24 w-full resize-y border border-line bg-surface p-2.5 text-[13px] text-ink focus:border-ink focus:outline-none disabled:bg-surface-muted disabled:text-muted"
 									value={customerRecap}
@@ -249,10 +270,15 @@ export function InteractiveDetail({
 										onCustomerRecapChange(appointment.id, event.target.value)
 									}
 								/>
+								<p className="mt-1.5 text-[11px] text-muted">
+									Saved on completion
+								</p>
 							</div>
 						</div>
 						<div className="mt-4">
-							<MetaLabel>Internal feedback</MetaLabel>
+							<div title="Internal feedback is saved when you complete the appointment.">
+								<MetaLabel>Internal feedback</MetaLabel>
+							</div>
 							<textarea
 								className="h-20 w-full resize-y border border-line bg-surface p-2.5 text-[13px] text-ink focus:border-ink focus:outline-none disabled:bg-surface-muted disabled:text-muted"
 								value={associateFeedback}
@@ -262,6 +288,9 @@ export function InteractiveDetail({
 									onAssociateFeedbackChange(appointment.id, event.target.value)
 								}
 							/>
+							<p className="mt-1.5 text-[11px] text-muted">
+								Saved on completion
+							</p>
 						</div>
 					</div>
 				</div>
@@ -270,7 +299,8 @@ export function InteractiveDetail({
 			{/* footer */}
 			<div className="sticky bottom-0 z-10 flex flex-col gap-3 border-line-subtle border-t bg-surface px-5 py-4 min-[760px]:static min-[760px]:flex-row min-[760px]:items-center min-[760px]:justify-between min-[760px]:px-8">
 				<span className="text-[12px] text-muted">
-					Save notes to persist this session
+					Save Notes persists associate notes. Recap and internal feedback save
+					on completion.
 				</span>
 				<div className="flex flex-wrap gap-2.5">
 					<Button

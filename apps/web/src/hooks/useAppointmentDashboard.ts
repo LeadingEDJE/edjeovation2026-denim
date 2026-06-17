@@ -1,14 +1,17 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
 	type Appointment,
 	type AppointmentMessage,
 	type AppointmentNotification,
+	type CurrentUser,
 	checkInAppointment,
 	completeAppointment,
 	getAppointment,
+	getCustomerProfile,
 	listAppointmentMessages,
 	listAppointmentNotifications,
 	listAppointments,
+	listEligibleStylists,
 	listStores,
 	listStylists,
 	markNoShowAppointment,
@@ -19,6 +22,7 @@ import {
 	type Store,
 	type StylistProfile,
 	type SuggestedProduct,
+	updateCustomerFitProfile,
 	updateOutfitAnalysis,
 	updateSessionNotes,
 	updateSuggestedProductPrep,
@@ -39,10 +43,33 @@ const emptyFilters: AppointmentFilters = {
 	status: "",
 };
 
+function initialUrlState(): {
+	view: DashboardView;
+	appointmentId: string | null;
+} {
+	const params = new URLSearchParams(window.location.search);
+	const view = params.get("view");
+	return {
+		view: ["open", "in_progress", "completed", "cancelled", "no_show"].includes(
+			view ?? "",
+		)
+			? (view as DashboardView)
+			: "open",
+		appointmentId: params.get("appointment"),
+	};
+}
+
 export function useAppointmentDashboard() {
+	const initialState = useMemo(initialUrlState, []);
 	const [appointments, setAppointments] = useState<Appointment[]>([]);
 	const [stores, setStores] = useState<Store[]>([]);
 	const [stylists, setStylists] = useState<StylistProfile[]>([]);
+	const [eligibleStylists, setEligibleStylists] = useState<
+		Record<string, StylistProfile[]>
+	>({});
+	const [customerProfiles, setCustomerProfiles] = useState<
+		Record<string, CurrentUser>
+	>({});
 	const [sessionNotes, setSessionNotes] = useState<Record<string, string>>({});
 	const [customerRecaps, setCustomerRecaps] = useState<Record<string, string>>(
 		{},
@@ -60,12 +87,61 @@ export function useAppointmentDashboard() {
 		Record<string, AppointmentNotification[]>
 	>({});
 	const [filters, setFilters] = useState<AppointmentFilters>(emptyFilters);
-	const [activeView, setActiveView] = useState<DashboardView>("open");
+	const [activeView, setActiveView] = useState<DashboardView>(
+		initialState.view,
+	);
 	const [selectedAppointmentId, setSelectedAppointmentId] = useState<
 		string | null
-	>(null);
+	>(initialState.appointmentId);
 	const [status, setStatus] = useState("Loading appointments");
 	const [isLoading, setIsLoading] = useState(false);
+	const [regeneratingAppointmentId, setRegeneratingAppointmentId] = useState<
+		string | null
+	>(null);
+	const dirtySessionFields = useRef({
+		sessionNotes: new Set<string>(),
+		customerRecaps: new Set<string>(),
+		associateFeedbacks: new Set<string>(),
+	});
+
+	const seedDrafts = useCallback(
+		(nextAppointments: Appointment[], force = false) => {
+			setSessionNotes((current) => ({
+				...Object.fromEntries(
+					nextAppointments.map((appointment) => [
+						appointment.id,
+						force ||
+						!dirtySessionFields.current.sessionNotes.has(appointment.id)
+							? appointment.sessionNotes
+							: (current[appointment.id] ?? appointment.sessionNotes),
+					]),
+				),
+			}));
+			setCustomerRecaps((current) => ({
+				...Object.fromEntries(
+					nextAppointments.map((appointment) => [
+						appointment.id,
+						force ||
+						!dirtySessionFields.current.customerRecaps.has(appointment.id)
+							? appointment.customerRecap
+							: (current[appointment.id] ?? appointment.customerRecap),
+					]),
+				),
+			}));
+			setAssociateFeedbacks((current) => ({
+				...Object.fromEntries(
+					nextAppointments.map((appointment) => [
+						appointment.id,
+						force ||
+						!dirtySessionFields.current.associateFeedbacks.has(appointment.id)
+							? appointment.associateFeedback
+							: (current[appointment.id] ?? appointment.associateFeedback),
+					]),
+				),
+			}));
+		},
+		[],
+	);
 
 	const refresh = useCallback(async () => {
 		setIsLoading(true);
@@ -78,30 +154,7 @@ export function useAppointmentDashboard() {
 			setAppointments(nextAppointments);
 			setStores(nextStores);
 			setStylists(nextStylists);
-			setSessionNotes(
-				Object.fromEntries(
-					nextAppointments.map((appointment) => [
-						appointment.id,
-						appointment.sessionNotes,
-					]),
-				),
-			);
-			setCustomerRecaps(
-				Object.fromEntries(
-					nextAppointments.map((appointment) => [
-						appointment.id,
-						appointment.customerRecap,
-					]),
-				),
-			);
-			setAssociateFeedbacks(
-				Object.fromEntries(
-					nextAppointments.map((appointment) => [
-						appointment.id,
-						appointment.associateFeedback,
-					]),
-				),
-			);
+			seedDrafts(nextAppointments);
 			setStatus("Appointments loaded");
 		} catch (error) {
 			setStatus(
@@ -110,51 +163,76 @@ export function useAppointmentDashboard() {
 		} finally {
 			setIsLoading(false);
 		}
-	}, []);
+	}, [seedDrafts]);
 
-	const loadAppointmentMeta = useCallback(async (appointmentId: string) => {
-		try {
-			const [nextMessages, nextNotifications] = await Promise.all([
-				listAppointmentMessages(appointmentId),
-				listAppointmentNotifications(appointmentId),
-			]);
-			setMessages((current) => ({
-				...current,
-				[appointmentId]: nextMessages,
-			}));
-			setNotifications((current) => ({
-				...current,
-				[appointmentId]: nextNotifications,
-			}));
-		} catch (error) {
-			setStatus(
-				error instanceof Error
-					? error.message
-					: "Unable to load appointment detail",
-			);
-		}
-	}, []);
+	const mergeAppointment = useCallback(
+		(updatedAppointment: Appointment, forceDrafts = false) => {
+			setAppointments((current) => {
+				const existing = current.some(
+					(appointment) => appointment.id === updatedAppointment.id,
+				);
+				return existing
+					? current.map((appointment) =>
+							appointment.id === updatedAppointment.id
+								? updatedAppointment
+								: appointment,
+						)
+					: [updatedAppointment, ...current];
+			});
+			seedDrafts([updatedAppointment], forceDrafts);
+		},
+		[seedDrafts],
+	);
+
+	const loadAppointmentMeta = useCallback(
+		async (appointmentId: string) => {
+			try {
+				const nextAppointment = await getAppointment(appointmentId);
+				if (nextAppointment.id !== appointmentId) {
+					setSelectedAppointmentId(null);
+					return;
+				}
+				const [
+					nextMessages,
+					nextNotifications,
+					nextEligibleStylists,
+					nextProfile,
+				] = await Promise.all([
+					listAppointmentMessages(appointmentId),
+					listAppointmentNotifications(appointmentId),
+					listEligibleStylists(appointmentId),
+					getCustomerProfile(nextAppointment.customerId),
+				]);
+				mergeAppointment(nextAppointment);
+				setMessages((current) => ({
+					...current,
+					[appointmentId]: nextMessages,
+				}));
+				setNotifications((current) => ({
+					...current,
+					[appointmentId]: nextNotifications,
+				}));
+				setEligibleStylists((current) => ({
+					...current,
+					[appointmentId]: nextEligibleStylists,
+				}));
+				setCustomerProfiles((current) => ({
+					...current,
+					[nextProfile.customerId]: nextProfile,
+				}));
+			} catch (error) {
+				setStatus(
+					error instanceof Error
+						? error.message
+						: "Unable to load appointment detail",
+				);
+			}
+		},
+		[mergeAppointment],
+	);
 
 	const replaceAppointment = (updatedAppointment: Appointment) => {
-		setAppointments((current) =>
-			current.map((appointment) =>
-				appointment.id === updatedAppointment.id
-					? updatedAppointment
-					: appointment,
-			),
-		);
-		setSessionNotes((current) => ({
-			...current,
-			[updatedAppointment.id]: updatedAppointment.sessionNotes,
-		}));
-		setCustomerRecaps((current) => ({
-			...current,
-			[updatedAppointment.id]: updatedAppointment.customerRecap,
-		}));
-		setAssociateFeedbacks((current) => ({
-			...current,
-			[updatedAppointment.id]: updatedAppointment.associateFeedback,
-		}));
+		mergeAppointment(updatedAppointment, true);
 	};
 
 	// Replace just the appointment in the list, leaving the note/recap/feedback
@@ -196,6 +274,7 @@ export function useAppointmentDashboard() {
 				updateSessionNotes(appointment.id, sessionNotes[appointment.id] ?? ""),
 			"Session notes saved",
 		);
+		dirtySessionFields.current.sessionNotes.delete(appointment.id);
 	};
 
 	const completeSession = async (appointment: Appointment) => {
@@ -236,11 +315,37 @@ export function useAppointmentDashboard() {
 	};
 
 	const regenerate = async (appointment: Appointment) => {
+		setRegeneratingAppointmentId(appointment.id);
 		setStatus("Regenerating suggestions...");
 		await runAppointmentAction(
 			() => regenerateSuggestions(appointment.id),
 			"Suggestions regenerated",
 		);
+		setRegeneratingAppointmentId(null);
+	};
+
+	const saveCustomerFitProfile = async (
+		customerId: string,
+		profile: Pick<CurrentUser, "measurements" | "preferences">,
+	) => {
+		setIsLoading(true);
+		try {
+			const updatedProfile = await updateCustomerFitProfile(
+				customerId,
+				profile,
+			);
+			setCustomerProfiles((current) => ({
+				...current,
+				[customerId]: updatedProfile,
+			}));
+			setStatus("Fit profile saved");
+		} catch (error) {
+			setStatus(
+				error instanceof Error ? error.message : "Unable to save fit profile",
+			);
+		} finally {
+			setIsLoading(false);
+		}
 	};
 
 	const postMessage = async (appointment: Appointment) => {
@@ -300,6 +405,7 @@ export function useAppointmentDashboard() {
 
 	const onSessionNoteChange = useCallback(
 		(appointmentId: string, value: string) => {
+			dirtySessionFields.current.sessionNotes.add(appointmentId);
 			setSessionNotes((current) => ({ ...current, [appointmentId]: value }));
 		},
 		[],
@@ -307,6 +413,7 @@ export function useAppointmentDashboard() {
 
 	const onCustomerRecapChange = useCallback(
 		(appointmentId: string, value: string) => {
+			dirtySessionFields.current.customerRecaps.add(appointmentId);
 			setCustomerRecaps((current) => ({ ...current, [appointmentId]: value }));
 		},
 		[],
@@ -314,6 +421,7 @@ export function useAppointmentDashboard() {
 
 	const onAssociateFeedbackChange = useCallback(
 		(appointmentId: string, value: string) => {
+			dirtySessionFields.current.associateFeedbacks.add(appointmentId);
 			setAssociateFeedbacks((current) => ({
 				...current,
 				[appointmentId]: value,
@@ -333,22 +441,36 @@ export function useAppointmentDashboard() {
 		void refresh();
 	}, [refresh]);
 
+	useEffect(() => {
+		const params = new URLSearchParams(window.location.search);
+		params.set("view", activeView);
+		if (selectedAppointmentId) {
+			params.set("appointment", selectedAppointmentId);
+		} else {
+			params.delete("appointment");
+		}
+		const nextUrl = `${window.location.pathname}?${params.toString()}`;
+		window.history.replaceState(null, "", nextUrl);
+	}, [activeView, selectedAppointmentId]);
+
 	const selectedAppointment =
 		appointments.find(
 			(appointment) => appointment.id === selectedAppointmentId,
 		) ?? null;
 
 	useEffect(() => {
-		if (selectedAppointmentId && !selectedAppointment) {
-			setSelectedAppointmentId(null);
+		if (selectedAppointmentId) {
+			void loadAppointmentMeta(selectedAppointmentId);
 		}
-	}, [selectedAppointment, selectedAppointmentId]);
+	}, [loadAppointmentMeta, selectedAppointmentId]);
 
 	useEffect(() => {
-		if (selectedAppointment?.id) {
-			void loadAppointmentMeta(selectedAppointment.id);
-		}
-	}, [loadAppointmentMeta, selectedAppointment?.id]);
+		if (!selectedAppointmentId) return;
+		const interval = window.setInterval(() => {
+			void loadAppointmentMeta(selectedAppointmentId);
+		}, 5000);
+		return () => window.clearInterval(interval);
+	}, [loadAppointmentMeta, selectedAppointmentId]);
 
 	// Suggestions are generated asynchronously after booking/regenerate. While the
 	// selected appointment is 'pending', poll for the finished result. The effect
@@ -411,6 +533,8 @@ export function useAppointmentDashboard() {
 		filters,
 		stores,
 		stylists,
+		eligibleStylists,
+		customerProfiles,
 		filteredAppointments,
 		counts,
 		selectedAppointment,
@@ -437,5 +561,7 @@ export function useAppointmentDashboard() {
 		postMessage,
 		saveOutfitIntents,
 		updateProductPrep,
+		saveCustomerFitProfile,
+		regeneratingAppointmentId,
 	};
 }

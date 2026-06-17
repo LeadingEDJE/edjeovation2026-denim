@@ -2,8 +2,8 @@ import type { FastifyInstance } from "fastify";
 import { HttpError } from "../errors.js";
 import { fetchThirdPartyUsers } from "../recommendations.js";
 import {
-	getActiveUser,
 	getActiveUserId,
+	getActiveUserProfile,
 	normalizeUserList,
 	setActiveUserId,
 	userExists,
@@ -30,7 +30,7 @@ export async function adminRoutes(app: FastifyInstance) {
 		},
 		async (_request, _reply) => {
 			try {
-				return normalizeUserList(await fetchThirdPartyUsers());
+				return await normalizeUserList(await fetchThirdPartyUsers());
 			} catch (error) {
 				throw new HttpError(502, "Unable to load mock users", { cause: error });
 			}
@@ -51,7 +51,7 @@ export async function adminRoutes(app: FastifyInstance) {
 		},
 		async (_request, _reply) => {
 			try {
-				const user = await getActiveUser();
+				const user = await getActiveUserProfile();
 				return { activeUserId: getActiveUserId(), user };
 			} catch (error) {
 				throw new HttpError(502, "Unable to load active mock user", {
@@ -79,13 +79,13 @@ export async function adminRoutes(app: FastifyInstance) {
 			const input = request.body as { customerId: string };
 
 			try {
-				const users = normalizeUserList(await fetchThirdPartyUsers());
+				const users = await normalizeUserList(await fetchThirdPartyUsers());
 				if (!userExists(users, input.customerId)) {
 					return reply.code(404).send({ message: "Mock user not found" });
 				}
 
 				setActiveUserId(input.customerId);
-				const user = await getActiveUser();
+				const user = await getActiveUserProfile();
 				return { activeUserId: getActiveUserId(), user };
 			} catch (error) {
 				throw new HttpError(502, "Unable to set active mock user", {

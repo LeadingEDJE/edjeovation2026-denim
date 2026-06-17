@@ -92,6 +92,7 @@ export const currentUserJsonSchema = {
 			required: ["heightInches", "waistInches", "hipInches", "inseamInches"],
 			properties: {
 				heightInches: { type: "integer" },
+				chestInches: { type: "number" },
 				waistInches: { type: "number" },
 				hipInches: { type: "number" },
 				inseamInches: { type: "number" },
@@ -106,6 +107,15 @@ export const currentUserJsonSchema = {
 				catalogAudiences: catalogAudiencesJsonSchema,
 			},
 		},
+	},
+} as const;
+
+export const updateFitProfileJsonSchema = {
+	type: "object",
+	required: ["measurements", "preferences"],
+	properties: {
+		measurements: currentUserJsonSchema.properties.measurements,
+		preferences: currentUserJsonSchema.properties.preferences,
 	},
 } as const;
 
@@ -295,6 +305,26 @@ export const storeListJsonSchema = {
 	},
 } as const;
 
+export const storeInventoryItemJsonSchema = {
+	type: "object",
+	required: [
+		"productId",
+		"storeId",
+		"quantityAvailable",
+		"lowStock",
+		"availabilityLabel",
+		"locationLabel",
+	],
+	properties: {
+		productId: { type: "string" },
+		storeId: { type: "string" },
+		quantityAvailable: { type: "integer", minimum: 0 },
+		lowStock: { type: "boolean" },
+		availabilityLabel: { type: "string" },
+		locationLabel: { type: "string" },
+	},
+} as const;
+
 export const storeSchedulePatternJsonSchema = {
 	type: "object",
 	required: ["patterns"],
@@ -462,6 +492,7 @@ export const analyzeOutfitJsonSchema = {
 			type: "object",
 			properties: {
 				heightInches: { type: "number" },
+				chestInches: { type: "number" },
 				waistInches: { type: "number" },
 				hipInches: { type: "number" },
 				inseamInches: { type: "number" },
@@ -517,6 +548,8 @@ export const updateSessionNotesJsonSchema = {
 	required: ["sessionNotes"],
 	properties: {
 		sessionNotes: { type: "string", maxLength: 3000 },
+		customerRecap: { type: "string", maxLength: 3000 },
+		associateFeedback: { type: "string", maxLength: 3000 },
 	},
 } as const;
 
@@ -717,6 +750,7 @@ export const appointmentSummaryJsonSchema = {
 					},
 					prepStatus: { type: "string", enum: productPrepStatusEnum },
 					associateNote: { type: "string" },
+					salesFloor: storeInventoryItemJsonSchema,
 				},
 			},
 		},

@@ -22,6 +22,14 @@ export type CatalogProduct = {
 	stretch: string | null;
 };
 
+export type SalesFloorInventory = {
+	storeId: string;
+	quantityAvailable: number;
+	lowStock: boolean;
+	availabilityLabel: string;
+	locationLabel: string;
+};
+
 export type SuggestedProduct = {
 	rank: number;
 	rationale: string;
@@ -29,6 +37,7 @@ export type SuggestedProduct = {
 	prepStatus: "suggested" | "pulled" | "skipped";
 	associateNote: string;
 	product: CatalogProduct;
+	salesFloor?: SalesFloorInventory;
 };
 
 export type StylistProfile = {
@@ -148,6 +157,24 @@ export type AppointmentNotification = {
 	createdAt: string;
 };
 
+export type CurrentUser = {
+	customerId: string;
+	loyaltyId: string;
+	displayName: string;
+	measurements: {
+		heightInches: number;
+		chestInches?: number;
+		waistInches: number;
+		hipInches: number;
+		inseamInches: number;
+	};
+	preferences: {
+		fitPreference: "skinny" | "slim" | "straight" | "relaxed" | "wide";
+		stretchPreference: "rigid" | "comfort-stretch" | "high-stretch";
+		catalogAudiences?: string[];
+	};
+};
+
 const apiBaseUrl =
 	window.__DENIM_FIT_CONFIG__?.apiBaseUrl ||
 	import.meta.env.VITE_API_BASE_URL ||
@@ -202,28 +229,80 @@ export async function getAppointment(
 		`${apiBaseUrl}/api/appointments/${appointmentId}`,
 	);
 
+	return parseAppointment(response, "Could not load appointment");
+}
+
+export async function listEligibleStylists(
+	appointmentId: string,
+): Promise<StylistProfile[]> {
+	const response = await fetch(
+		`${apiBaseUrl}/api/appointments/${appointmentId}/eligible-stylists`,
+	);
+
 	if (!response.ok) {
-		throw new Error("Could not load appointment");
+		throw new Error("Could not load eligible stylists");
 	}
 
-	const data = (await response.json()) as { appointment: Appointment };
-	return data.appointment;
+	const data = (await response.json()) as { stylists: StylistProfile[] };
+	return data.stylists;
 }
 
 export async function updateSessionNotes(
 	appointmentId: string,
-	sessionNotes: string,
+	payload:
+		| string
+		| {
+				sessionNotes: string;
+				customerRecap?: string;
+				associateFeedback?: string;
+		  },
 ): Promise<Appointment> {
+	const body =
+		typeof payload === "string" ? { sessionNotes: payload } : payload;
 	const response = await fetch(
 		`${apiBaseUrl}/api/appointments/${appointmentId}/session-notes`,
 		{
 			method: "PATCH",
 			headers: { "content-type": "application/json" },
-			body: JSON.stringify({ sessionNotes }),
+			body: JSON.stringify(body),
 		},
 	);
 
 	return parseAppointment(response, "Could not save session notes");
+}
+
+export async function getCustomerProfile(
+	customerId: string,
+): Promise<CurrentUser> {
+	const response = await fetch(
+		`${apiBaseUrl}/api/customers/${encodeURIComponent(customerId)}/profile`,
+	);
+
+	if (!response.ok) {
+		throw new Error("Could not load customer fit profile");
+	}
+
+	return response.json() as Promise<CurrentUser>;
+}
+
+export async function updateCustomerFitProfile(
+	customerId: string,
+	profile: Pick<CurrentUser, "measurements" | "preferences">,
+): Promise<CurrentUser> {
+	const response = await fetch(
+		`${apiBaseUrl}/api/customers/${encodeURIComponent(customerId)}/fit-profile`,
+		{
+			method: "PATCH",
+			headers: { "content-type": "application/json" },
+			body: JSON.stringify(profile),
+		},
+	);
+
+	if (!response.ok) {
+		throw new Error("Could not save customer fit profile");
+	}
+
+	return response.json() as Promise<CurrentUser>;
 }
 
 export async function completeAppointment(

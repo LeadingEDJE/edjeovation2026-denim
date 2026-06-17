@@ -10,6 +10,7 @@ export type CurrentUser = {
 	displayName: string;
 	measurements: {
 		heightInches: number;
+		chestInches?: number;
 		waistInches: number;
 		hipInches: number;
 		inseamInches: number;
@@ -73,6 +74,20 @@ export type Store = {
 
 export type StoreList = {
 	stores: Store[];
+};
+
+export type StoreInventoryItem = {
+	productId: string;
+	storeId: string;
+	quantityAvailable: number;
+	lowStock: boolean;
+	availabilityLabel: string;
+	locationLabel: string;
+};
+
+export type StoreInventory = {
+	storeId: string;
+	inventory: StoreInventoryItem[];
 };
 
 export type StylistProfile = {
@@ -211,6 +226,7 @@ export type SuggestedProduct = {
 	product: CatalogProduct;
 	prepStatus: SuggestedProductPrepStatus;
 	associateNote: string;
+	salesFloor?: StoreInventoryItem;
 };
 
 export type AppointmentSlot = {

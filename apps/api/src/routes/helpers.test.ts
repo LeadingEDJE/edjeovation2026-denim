@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 // buildSuggestedProducts reaches the DB (catalog) and the Claude re-ranker; mock
@@ -46,6 +47,37 @@ afterEach(() => {
 	query.mockReset();
 	rerankMock.mockReset();
 	vi.useRealTimers();
+});
+
+function readWireMockJson<T>(fileName: string): T {
+	return JSON.parse(
+		readFileSync(
+			new URL(
+				`../../../../infra/wiremock/__files/${fileName}`,
+				import.meta.url,
+			),
+			"utf8",
+		),
+	) as T;
+}
+
+describe("WireMock user fixtures", () => {
+	it("pre-populates chest measurements for every mock customer profile", () => {
+		const list = readWireMockJson<{ users: CurrentUser[] }>("users.json");
+		const currentUser = readWireMockJson<CurrentUser>("current-user.json");
+
+		for (const user of [currentUser, ...list.users]) {
+			expect(user.measurements.chestInches).toEqual(expect.any(Number));
+			expect(user.measurements.chestInches).toBeGreaterThan(0);
+
+			const detail = readWireMockJson<{ user: CurrentUser }>(
+				`user-${user.customerId}.json`,
+			);
+			expect(detail.user.measurements.chestInches).toBe(
+				user.measurements.chestInches,
+			);
+		}
+	});
 });
 
 describe("mapMuseTag", () => {
