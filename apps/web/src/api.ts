@@ -104,6 +104,10 @@ export type Appointment = {
 		preferredSizes: string[];
 	};
 	suggestedProducts: SuggestedProduct[];
+	// Lifecycle of suggested products, which are generated asynchronously after
+	// booking: 'pending' while the recommender runs, 'ready' once stored, 'failed'
+	// on error.
+	suggestionsStatus: "pending" | "ready" | "failed";
 	outfitAnalysis: OutfitAnalysis | null;
 	notificationSummary: {
 		count: number;
@@ -186,6 +190,21 @@ export async function listAppointments(): Promise<Appointment[]> {
 
 	const data = (await response.json()) as { appointments: Appointment[] };
 	return data.appointments;
+}
+
+export async function getAppointment(
+	appointmentId: string,
+): Promise<Appointment> {
+	const response = await fetch(
+		`${apiBaseUrl}/api/appointments/${appointmentId}`,
+	);
+
+	if (!response.ok) {
+		throw new Error("Could not load appointment");
+	}
+
+	const data = (await response.json()) as { appointment: Appointment };
+	return data.appointment;
 }
 
 export async function updateSessionNotes(

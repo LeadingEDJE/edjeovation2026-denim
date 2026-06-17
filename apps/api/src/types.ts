@@ -187,6 +187,13 @@ export type AppointmentStatus =
 
 export type SuggestedProductPrepStatus = "suggested" | "pulled" | "skipped";
 
+// Lifecycle of an appointment's suggested products. They're generated
+// asynchronously after booking so confirmation returns immediately:
+// - pending: the recommender is running in the background
+// - ready: suggestions are stored (may be an empty list if nothing matched)
+// - failed: generation errored; the stylist can regenerate to retry
+export type SuggestionsStatus = "pending" | "ready" | "failed";
+
 // A catalog product the recommendation engine suggested for an appointment,
 // with the engine's ranking and rationale. Stored on the appointment.
 export type SuggestedProduct = {
@@ -304,6 +311,7 @@ export type Appointment = {
 		preferredSizes: string[];
 	};
 	suggestedProducts: SuggestedProduct[];
+	suggestionsStatus: SuggestionsStatus;
 	outfitAnalysis: OutfitAnalysis | null;
 	notificationSummary: {
 		count: number;
