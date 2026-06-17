@@ -744,10 +744,17 @@ export function startSuggestionGeneration(args: {
 				"Background suggestion generation failed",
 			);
 			// Record the failure so the row doesn't sit on 'pending' forever; the
-			// stylist can retry via regenerate-suggestions.
-			await repository
-				.updateAppointmentSuggestionsResult("[]", "failed", appointmentId)
-				.catch(() => {});
+			// stylist can retry via regenerate-suggestions. Best-effort — never let a
+			// failure here escape as an unhandled rejection.
+			try {
+				await repository.updateAppointmentSuggestionsResult(
+					"[]",
+					"failed",
+					appointmentId,
+				);
+			} catch {
+				// Swallow — nothing more we can do from the background task.
+			}
 		}
 	})();
 }

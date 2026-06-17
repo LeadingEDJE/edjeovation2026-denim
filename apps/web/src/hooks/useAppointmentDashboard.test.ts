@@ -87,6 +87,7 @@ function makeAppointment(overrides: Partial<Appointment> = {}): Appointment {
 			preferredSizes: ["28"],
 		},
 		suggestedProducts: [],
+		suggestionsStatus: "ready",
 		outfitAnalysis: null,
 		notificationSummary: {
 			count: 0,

@@ -121,8 +121,9 @@ export function SuggestedProducts({
 
 			{appointment.suggestedProducts.length === 0 ? (
 				// While pending (first run) or failed, the banner above already
-				// explains the empty list — only show the "none" copy once ready.
-				appointment.suggestionsStatus === "ready" ? (
+				// explains the empty list — otherwise show the "none" copy. (Treating
+				// an unset status as ready keeps legacy/un-annotated rows working.)
+				!isPending && !hasFailed ? (
 					<p className="p-5 text-[0.9rem] text-muted">
 						No suggested products for this appointment.
 					</p>

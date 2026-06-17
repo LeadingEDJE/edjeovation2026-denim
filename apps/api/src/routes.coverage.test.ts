@@ -764,11 +764,14 @@ describe("complete / suggested-products edge cases", () => {
 
 describe("POST /api/appointments/:id/regenerate-suggestions", () => {
 	it("regenerates suggestions for an active appointment", async () => {
+		// Generation is async now: the endpoint marks the row 'pending' and returns
+		// immediately, then a background task fills in the products. The first query
+		// is the lookup, the second marks pending (used for the response); later
+		// queries belong to the background run, so a default mock covers them.
 		(query as Mock)
 			.mockResolvedValueOnce({ rows: [appointmentRow()] })
-			.mockResolvedValueOnce({ rows: [catalogProductRow] })
-			.mockResolvedValueOnce({
-				rows: [appointmentRow()],
+			.mockResolvedValue({
+				rows: [appointmentRow({ suggestions_status: "pending" })],
 			});
 		fetchMock.mockResolvedValueOnce(jsonResponse(currentUserBody()));
 		const res = await app.inject({
@@ -776,6 +779,7 @@ describe("POST /api/appointments/:id/regenerate-suggestions", () => {
 			url: `/api/appointments/${APPT_ID}/regenerate-suggestions`,
 		});
 		expect(res.statusCode).toBe(200);
+		expect(res.json().appointment.suggestionsStatus).toBe("pending");
 	});
 
 	it("returns 404 for a missing appointment", async () => {
@@ -815,11 +819,17 @@ describe("PATCH /api/appointments/:id/outfit-analysis", () => {
 	});
 
 	it("attaches analysis and regenerates suggestions by default", async () => {
+		// Async now: the analysis is saved + marked 'pending' synchronously, then the
+		// re-rank runs in the background (covered by the default mock below).
 		(query as Mock)
 			.mockResolvedValueOnce({ rows: [appointmentRow()] })
-			.mockResolvedValueOnce({ rows: [catalogProductRow] })
-			.mockResolvedValueOnce({
-				rows: [appointmentRow({ outfit_analysis: validOutfitAnalysis })],
+			.mockResolvedValue({
+				rows: [
+					appointmentRow({
+						outfit_analysis: validOutfitAnalysis,
+						suggestions_status: "pending",
+					}),
+				],
 			});
 		fetchMock.mockResolvedValueOnce(jsonResponse(currentUserBody()));
 		const res = await app.inject({
@@ -828,6 +838,7 @@ describe("PATCH /api/appointments/:id/outfit-analysis", () => {
 			payload: { outfitAnalysis: validOutfitAnalysis },
 		});
 		expect(res.statusCode).toBe(200);
+		expect(res.json().appointment.suggestionsStatus).toBe("pending");
 	});
 
 	it("returns 404 for a missing appointment", async () => {
