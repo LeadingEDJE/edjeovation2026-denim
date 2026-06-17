@@ -86,11 +86,20 @@ struct OutfitAnalysis: Codable {
     let suggestedStyleKeywords: [String]
     let pairingContext: String
     let engine: String
+    // Hidden, internal-only body-shape read, set only when the customer marks a
+    // photo as being of themselves. Never displayed; carried so it round-trips
+    // through edits and reaches the recommender. Optional for older payloads.
+    var bodyType: String?
 }
 
 struct OutfitAnalysisRequest: Codable {
     let imageBase64: String
     let mediaType: String
+    // True when the customer checked "This is me" — opts in to the body-shape read.
+    let analyzeBodyType: Bool
+    // The customer's measurements, sent only with a "this is me" photo to sharpen
+    // the body-shape read. Omitted otherwise.
+    let measurements: Measurements?
 }
 
 struct OutfitAnalysisResponse: Codable {

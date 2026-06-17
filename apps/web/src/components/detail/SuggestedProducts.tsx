@@ -12,6 +12,12 @@ const PREP_OPTIONS: Array<{
 	{ value: "skipped", label: "Skip" },
 ];
 
+/** Count suggestions a stylist still needs to pull (everything not skipped). */
+export function computeProductsToPull(suggestions: SuggestedProduct[]): number {
+	return suggestions.filter((suggestion) => suggestion.prepStatus !== "skipped")
+		.length;
+}
+
 export function PrepSegment({
 	value,
 	disabled,
@@ -73,9 +79,7 @@ export function SuggestedProducts({
 		);
 	}, [appointment.suggestedProducts]);
 
-	const toPull = appointment.suggestedProducts.filter(
-		(suggestion) => suggestion.prepStatus !== "skipped",
-	).length;
+	const toPull = computeProductsToPull(appointment.suggestedProducts);
 
 	const isPending = appointment.suggestionsStatus === "pending";
 	const hasFailed = appointment.suggestionsStatus === "failed";

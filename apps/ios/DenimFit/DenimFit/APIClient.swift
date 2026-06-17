@@ -91,10 +91,15 @@ final class APIClient: Sendable {
 
     // Sends the (downscaled, base64) outfit photo for analysis. The server never
     // stores the image — only the returned text analysis.
-    func analyzeOutfit(imageBase64: String, mediaType: String) async throws -> OutfitAnalysis {
+    func analyzeOutfit(imageBase64: String, mediaType: String, analyzeBodyType: Bool = false, measurements: Measurements? = nil) async throws -> OutfitAnalysis {
         let response: OutfitAnalysisResponse = try await post(
             path: "/api/outfit-analysis",
-            input: OutfitAnalysisRequest(imageBase64: imageBase64, mediaType: mediaType)
+            input: OutfitAnalysisRequest(
+                imageBase64: imageBase64,
+                mediaType: mediaType,
+                analyzeBodyType: analyzeBodyType,
+                measurements: measurements
+            )
         )
         return response.analysis
     }

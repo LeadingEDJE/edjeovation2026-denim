@@ -135,7 +135,11 @@ const WEIGHTS = {
 	stretchExact: 0.25,
 	stretchOther: 0.05,
 	waistAvailable: 0.2,
-	lengthAvailable: 0.1,
+	// Length is a strong preference, not a hard filter: reward pants that stock the
+	// customer's length and meaningfully penalize length-sized pants that don't, so
+	// they sink in the ranking but can still surface when options are thin.
+	lengthAvailable: 0.3,
+	lengthUnavailable: -0.35, // penalty
 	// Color signals apply to every product, so they carry more weight — they are
 	// the main cross-category criterion in a styling appointment.
 	colorFocus: 0.3,
@@ -154,6 +158,19 @@ export function targetLength(
 	if (inseamInches < 30) return "Short";
 	if (inseamInches <= 32) return "Regular";
 	return "Long";
+}
+
+const LENGTH_LABELS = new Set(["Short", "Regular", "Long"]);
+
+/**
+ * The length options a product offers, preferring the structured `lengthSizes`
+ * dimension and falling back to any length labels embedded in the flat `sizes`
+ * list (legacy rows without the split). Empty when the product isn't sized by
+ * length at all (tops, single-length bottoms), in which case length is not scored.
+ */
+function lengthOptionsFor(product: CatalogProduct): string[] {
+	if (product.lengthSizes.length > 0) return product.lengthSizes;
+	return product.sizes.filter((s) => LENGTH_LABELS.has(s));
 }
 
 export function scoreProduct(
@@ -185,13 +202,31 @@ export function scoreProduct(
 
 	const waist = targetWaistSize(input.waistInches);
 	const length = targetLength(input.inseamInches);
-	if (product.sizes.includes(waist)) {
+	// Prefer the structured waist dimension; fall back to the flat list (excluding
+	// length labels so a length token can't masquerade as a waist size).
+	const waistOptions = product.waistSizes.length
+		? product.waistSizes
+		: product.sizes.filter((s) => !LENGTH_LABELS.has(s));
+	if (waistOptions.includes(waist)) {
 		score += WEIGHTS.waistAvailable;
 		reasons.push(`Available in your waist size (${waist})`);
 	}
-	if (product.sizes.includes(length)) {
-		score += WEIGHTS.lengthAvailable;
-		reasons.push(`Offered in ${length} length for your inseam`);
+
+	// Length: strong preference, but only for BOTTOMS sized on the inseam axis
+	// (Short/Regular/Long). Dresses/jumpsuits carry a Petite/Regular/Tall *height*
+	// axis that shares the "Regular" label — scoring those against inseam would
+	// wrongly penalize them for a customer whose inseam maps to Short or Long.
+	const lengthOptions = lengthOptionsFor(product);
+	if (coarseCategory(product) === "bottoms" && lengthOptions.length > 0) {
+		if (lengthOptions.includes(length)) {
+			score += WEIGHTS.lengthAvailable;
+			reasons.push(`Offered in ${length} length for your inseam`);
+		} else {
+			score += WEIGHTS.lengthUnavailable;
+			reasons.push(
+				`Not offered in your ${length} length — may run short or long`,
+			);
+		}
 	}
 
 	if (

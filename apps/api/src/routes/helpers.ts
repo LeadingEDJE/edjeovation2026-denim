@@ -484,9 +484,35 @@ export function userExists(users: UserList, customerId: string) {
 	return users.users.some((user) => user.customerId === customerId);
 }
 
+/**
+ * Pull the structured waist/length size dimensions out of a catalog row's `raw`
+ * payload (the scraper stores `raw.sizes = { waist: [...], length: [...] }`).
+ * Returns empty arrays when the structure is missing, so callers can always rely
+ * on arrays.
+ */
+function rawSizeDimensions(raw: unknown): {
+	waistSizes: string[];
+	lengthSizes: string[];
+} {
+	const asStrings = (v: unknown): string[] =>
+		Array.isArray(v) ? v.map((x) => String(x)).filter(Boolean) : [];
+	try {
+		const parsed = parseJsonField<{
+			sizes?: { waist?: unknown; length?: unknown };
+		}>(raw);
+		return {
+			waistSizes: asStrings(parsed?.sizes?.waist),
+			lengthSizes: asStrings(parsed?.sizes?.length),
+		};
+	} catch {
+		return { waistSizes: [], lengthSizes: [] };
+	}
+}
+
 export function mapCatalogProduct(
 	row: Record<string, unknown>,
 ): CatalogProduct {
+	const { waistSizes, lengthSizes } = rawSizeDimensions(row.raw);
 	return {
 		productId: String(row.product_id),
 		source: String(row.source),
@@ -503,6 +529,8 @@ export function mapCatalogProduct(
 		stretch: row.stretch == null ? null : String(row.stretch),
 		// sizes/colors are JSONB and arrive already parsed as arrays.
 		sizes: Array.isArray(row.sizes) ? (row.sizes as string[]) : [],
+		waistSizes,
+		lengthSizes,
 		colors: Array.isArray(row.colors) ? (row.colors as string[]) : [],
 		scrapedAt: new Date(String(row.scraped_at)).toISOString(),
 	};
@@ -655,6 +683,9 @@ export async function buildSuggestedProducts(
 		museTag,
 		preferredSizes: orderHistorySummary.preferredSizes,
 		pairingContext: buildPairingInstruction(analysis),
+		// Hidden body-shape read (only set when the customer used a "this is me"
+		// photo). Steers silhouette/fit; never surfaced anywhere.
+		bodyType: analysis?.bodyType ?? null,
 	};
 	const reranked = await rerank(context, style, shortlist, 5);
 
