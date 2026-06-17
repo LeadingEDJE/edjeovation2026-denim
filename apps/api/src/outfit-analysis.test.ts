@@ -51,6 +51,7 @@ describe("normalizeOutfitAnalysis", () => {
 			suggestedFocusColors: ["cream"],
 			suggestedStyleKeywords: ["chic"],
 			pairingContext: "Build around the skirt",
+			bodyType: null,
 			engine: "claude",
 		});
 	});
@@ -63,6 +64,7 @@ describe("normalizeOutfitAnalysis", () => {
 			suggestedFocusColors: [],
 			suggestedStyleKeywords: [],
 			pairingContext: "",
+			bodyType: null,
 			engine: "manual",
 		});
 	});
