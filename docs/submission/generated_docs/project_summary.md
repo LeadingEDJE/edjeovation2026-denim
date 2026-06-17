@@ -45,14 +45,17 @@ the customer's order-history signals so the store has a clear picture of intent
 before arrival.
 
 The system assigns a store stylist near booking time and confirms the appointment
-and stylist to the customer. Associates work a web dashboard that lists upcoming
-appointments and, for each one, presents a **curated, AI-assisted set of product
-suggestions with a per-item rationale** to pull in advance. A deterministic
-rule-based engine scopes the catalog to the customer's per-booking selection,
-scores it against the fit profile and color context, and builds a diverse
-shortlist; Claude then re-ranks it for the specific customer and writes the
-rationale. If AI is unavailable the rule-based order is used, so prep always
-works.
+and stylist to the customer. Confirmation is **immediate** — the (slower) AI
+re-rank runs in the background after booking, so the customer never waits on a
+model call to learn their slot is locked. Associates work a web dashboard that
+lists upcoming appointments and, for each one, presents a **curated, AI-assisted
+set of product suggestions with a per-item rationale** to pull in advance. A
+deterministic rule-based engine scopes the catalog to the customer's per-booking
+selection, scores it against the fit profile and color context, and builds a
+diverse shortlist; Claude then re-ranks it for the specific customer and writes
+the rationale. While the picks are still being generated the detail view shows a
+"Preparing your picks…" banner and refreshes itself when they arrive. If AI is
+unavailable the rule-based order is used, so prep always works.
 
 Associates manage the full appointment lifecycle (check-in, no-show, complete),
 reassign stylists when needed, track product-prep states, exchange async messages
@@ -93,3 +96,7 @@ customer signals. (~250 words)
   one product, not two.
 - **Resilient by design** — the recommendation engine degrades gracefully to a
   deterministic ranking when AI is unavailable.
+- **Snappy booking, no waiting on the model** — booking confirmation returns as
+  soon as the slot and stylist are saved; the AI re-rank runs in the background
+  and the dashboard surfaces a "Preparing your picks…" state that updates in
+  place when suggestions are ready.
