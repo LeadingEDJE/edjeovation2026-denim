@@ -140,7 +140,7 @@ function OutfitMatchBlock({
 	);
 }
 
-function catalogAudienceLabel(audiences: string[] | undefined | null) {
+export function catalogAudienceLabel(audiences: string[] | undefined | null) {
 	// Defend against records that predate the catalog_audiences field (or any
 	// response that omits it) — default to the womens catalog rather than crashing
 	// the whole detail view.
