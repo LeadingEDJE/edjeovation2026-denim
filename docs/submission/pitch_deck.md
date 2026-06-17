@@ -37,6 +37,7 @@ AI is used as an Integrated enhancement, not a hard dependency.
 - Prompt caching is used for stable system prompts.
 - If no API key is configured or the model call fails, the app falls back to the rule-based order with scorer-derived reasons.
 - Optional outfit photo analysis can turn a customer-provided image into text-only pairing context; image bytes are not persisted.
+- The team also used AI tooling to build and document the submission: Codex for coding-agent work, Claude for implementation and documentation support, Claude Design for visual exploration, and NotebookLM for research/document synthesis. These are development tools, not runtime app dependencies.
 
 ## Slide 5 — Business Value
 

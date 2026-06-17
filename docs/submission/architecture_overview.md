@@ -62,8 +62,14 @@ Optional outfit-to-match flow: the iOS app can send a downscaled base64 image to
 | Claude, configured by `RECOMMENDER_MODEL` and defaulting in code to `claude-opus-4-8` | Anthropic, directly or through an Anthropic-compatible proxy | `apps/api/src/claude-reranker.ts` | Re-ranks a deterministic product shortlist and writes concise per-item rationales. |
 | Claude vision/message API, same configured model | Anthropic, directly or through an Anthropic-compatible proxy | `apps/api/src/outfit-analysis.ts` | Optional outfit-to-match analysis from an uploaded image; returns text-only garment, color, style, and pairing context. |
 | Deterministic recommendation scorer | Local TypeScript rules, not AI | `apps/api/src/recommendation-scoring.ts` | Scores catalog products by fit, stretch, waist, length, focus colors, avoid colors, and category diversity before any Claude call. |
+| Codex | OpenAI | Development workflow | Coding-agent support for repository changes, documentation updates, and implementation iteration. |
+| Claude | Anthropic | Development and documentation workflow | Assisted with implementation reasoning, submission narrative, and documentation refinement. |
+| Claude Design | Anthropic | Design workflow | Supported visual/design exploration for the customer and associate experiences. |
+| NotebookLM | Google | Research and documentation workflow | Supported source review, synthesis, and organization of project/submission materials. |
 
 The AI dependency level is Integrated, not Core. If `ANTHROPIC_API_KEY` is missing or the Claude call fails, recommendation endpoints still return usable products in deterministic rule-based order with scorer-derived rationales. Outfit analysis similarly falls back to a sample analysis so the demo flow remains usable offline. Claude prompts are constrained to known catalog candidates and use prompt caching on stable system prompts.
+
+The last four tools in the table are team productivity and submission-preparation tools, not services called by the running application.
 
 ## Data Sources
 

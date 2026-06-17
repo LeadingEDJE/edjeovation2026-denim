@@ -16,6 +16,8 @@ The implementation uses **Claude via Anthropic's `@anthropic-ai/sdk`**. The mode
 
 For recommendations, Claude receives a pre-scored candidate shortlist and returns ranked product IDs, a short summary, and rationales. For outfit analysis, Claude receives a base64 image plus instructions and returns a normalized JSON description. Both prompts request JSON in plain text rather than SDK structured-output schemas because compatible proxies may reject schema-based structured output.
 
+The team also used AI tooling during project development and submission preparation. **Codex** supported coding-agent tasks in the repository, **Claude** supported implementation and documentation work, **Claude Design** supported visual/design exploration, and **NotebookLM** supported research synthesis and project-document review. These tools helped the team build and explain the hackathon submission; they are separate from the runtime product dependency described above.
+
 ## What does it do at that step?
 
 Claude does not search the catalog, invent products, book appointments, or make final decisions. Its recommendation role is to apply qualitative styling judgment after deterministic filters have narrowed the options. It weighs occasion, color direction, style keywords, Muse tag, previously kept sizes, outfit pairing context, and confidential internal body-shape context when present.
