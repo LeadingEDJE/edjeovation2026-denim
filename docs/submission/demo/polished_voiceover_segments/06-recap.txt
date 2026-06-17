@@ -1,0 +1,3 @@
+The appointment detail becomes the customer-facing memory of the visit. The customer can read the stylist recap, review messages, and submit feedback from the same app experience that started the booking.
+
+That closes the loop: customer intent, outfit context, associate prep, in-store notes, recap, and feedback are connected in one demo flow.

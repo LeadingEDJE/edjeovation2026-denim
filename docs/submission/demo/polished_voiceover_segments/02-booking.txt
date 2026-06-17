@@ -1,0 +1,9 @@
+The iOS flow starts with the shopping moment: what the customer is trying to solve, which colors they want to focus on, and what they want to avoid.
+
+Style signals turn those preferences into a Muse profile, then the customer chooses the catalog scope for the appointment.
+
+The upload step is where the integration becomes more powerful. The customer can add a photo of an outfit or piece they already own. In this demo, the image is read as a clean white tank, olive utility pant, and blue plaid layer. The app converts that photo into structured styling context: visible garments, colors, material cues, style keywords, and an actionable pairing note.
+
+The photo itself is not stored. Only the text analysis moves forward into the appointment, where it can guide product suggestions and associate prep.
+
+After the customer confirms the outfit context, they choose the store, select an available time, add final guidance, and book the appointment with the assigned stylist.

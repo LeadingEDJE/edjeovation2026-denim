@@ -118,6 +118,10 @@ struct FittingView: View {
         return !(mode?.isEmpty ?? true)
     }
 
+    private var shouldDemoIncludeOutfit: Bool {
+        ProcessInfo.processInfo.environment["DENIM_FIT_DEMO_INCLUDE_OUTFIT"] != "0"
+    }
+
     @ViewBuilder
     private var content: some View {
         switch screen {
@@ -1578,9 +1582,17 @@ struct FittingView: View {
         selectedCatalogAudiences = ["womens"]
         await demoPause()
         step = .outfit
-        await demoPause(0.8)
+        if shouldDemoIncludeOutfit {
+            await demoPause()
+            await demoPause()
+            await demoPause()
+            await demoPause()
+            await demoPause()
+        } else {
+            await demoPause(0.8)
+            step = .store
+        }
 
-        step = .store
         if let soho = stores.first(where: { $0.storeId == "anf_soho_001" }) ?? stores.first {
             await selectStore(soho)
         }
@@ -2322,9 +2334,16 @@ private struct OutfitMatchView: View {
     @State private var keywordsText = ""
     @State private var editableGarments: [EditableGarment] = []
     @State private var engine = "manual"
+    @State private var demoAutoplayStarted = false
 
     private var cameraAvailable: Bool {
         UIImagePickerController.isSourceTypeAvailable(.camera)
+    }
+
+    private var isDemoOutfitAutoplay: Bool {
+        let environment = ProcessInfo.processInfo.environment
+        return environment["DENIM_FIT_DEMO_AUTOPLAY"] == "booking"
+            && environment["DENIM_FIT_DEMO_INCLUDE_OUTFIT"] != "0"
     }
 
     private var canConfirm: Bool {
@@ -2377,6 +2396,9 @@ private struct OutfitMatchView: View {
         .task(id: photoItem) {
             guard let photoItem else { return }
             await analyze(item: photoItem)
+        }
+        .task {
+            await startDemoAutoplayIfNeeded()
         }
         .sheet(isPresented: $showCamera) {
             CameraPicker { image in
@@ -2704,6 +2726,68 @@ private struct OutfitMatchView: View {
         )
         onDone(analysis)
     }
+
+    @MainActor
+    private func startDemoAutoplayIfNeeded() async {
+        guard isDemoOutfitAutoplay, !demoAutoplayStarted, stage == .chooser else { return }
+
+        demoAutoplayStarted = true
+        await demoPause()
+        isAnalyzing = true
+        if let image = UIImage(named: "DemoOutfit") {
+            previewImage = image
+        }
+        await demoPause()
+        isAnalyzing = false
+        apply(Self.demoOutfitAnalysis)
+        await demoPause()
+        await demoPause()
+        confirm()
+    }
+
+    private func demoPause() async {
+        let configuredSeconds = ProcessInfo.processInfo.environment["DENIM_FIT_DEMO_PAUSE_SECONDS"]
+            .flatMap(Double.init)
+            .map { max(0.1, $0) }
+        let duration = configuredSeconds ?? 1.0
+        let nanoseconds = UInt64(duration * 1_000_000_000)
+        try? await Task.sleep(nanoseconds: nanoseconds)
+    }
+
+    private static let demoOutfitAnalysis = OutfitAnalysis(
+        garments: [
+            OutfitGarment(
+                type: "white fitted tank",
+                colors: ["white"],
+                material: "cotton rib",
+                pattern: nil,
+                descriptors: ["clean", "minimal", "layering piece"],
+                intent: "complement"
+            ),
+            OutfitGarment(
+                type: "olive cargo pant",
+                colors: ["olive", "khaki"],
+                material: "cotton twill",
+                pattern: nil,
+                descriptors: ["utility", "relaxed", "straight leg"],
+                intent: "complement"
+            ),
+            OutfitGarment(
+                type: "blue plaid shirt",
+                colors: ["blue", "white"],
+                material: "woven cotton",
+                pattern: "plaid",
+                descriptors: ["casual", "waist-tied", "textured"],
+                intent: "similar"
+            )
+        ],
+        styleSummary: "A clean white tank, olive utility pant, and blue plaid layer create a relaxed casual look with polished basics.",
+        suggestedFocusColors: ["dark wash", "cream", "olive", "blue"],
+        suggestedStyleKeywords: ["casual utility", "minimal", "effortless layers"],
+        pairingContext: "Customer uploaded a casual utility outfit; recommend denim that complements the white tank, olive pant, and blue plaid layer.",
+        engine: "claude",
+        bodyType: nil
+    )
 }
 
 // Mutable per-garment row backing the editor (the customer/stylist intent choice).

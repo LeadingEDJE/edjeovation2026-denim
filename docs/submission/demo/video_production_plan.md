@@ -26,8 +26,8 @@ Use these defaults unless the team decides otherwise before recording.
 ## Proposed story arc
 
 1. Customer starts a guided fitting in iOS.
-2. Customer shares occasion, colors, style signals, catalog scope, outfit
-   context, store, and time.
+2. Customer shares occasion, colors, style signals, catalog scope, uploaded
+   outfit context, store, and time.
 3. Customer confirms the appointment and sees the appointment detail.
 4. Associate opens the web dashboard and finds the new appointment in Open.
 5. Associate reviews the customer snapshot and AI-assisted product suggestions.
@@ -65,7 +65,8 @@ records until you press Ctrl-C. It writes timestamped `.mp4` files under
 
 Use `AUTOPLAY=booking` for the customer booking flow and `AUTOPLAY=recap` after
 the web completion flow if you want a second customer recap/feedback capture.
-Set `DEMO_PAUSE_SECONDS=3` for slower, more readable autoplay captures.
+Set `DEMO_PAUSE_SECONDS=2` for readable autoplay captures without making the
+handoff between sections feel padded.
 For a precise recap take, pass the completed appointment id:
 
 ```sh
@@ -133,6 +134,20 @@ uses `edge-tts` with the Microsoft neural voice `en-US-AvaNeural` at rate
 `+0%`. Override with `EDGE_TTS_VOICE` or `EDGE_TTS_RATE` if a different neural
 voice is preferred. Set `TTS_ENGINE=say` only as a local macOS fallback.
 
+Voiceover is split into scene-specific files in
+`docs/submission/demo/polished_voiceover_segments/`. The polish script generates
+each scene's narration separately and pads it to the matching scene. If the
+generated narration runs longer than the scene, the script extends the scene's
+last frame instead of cutting off the voice. This keeps the talkover aligned
+when one recorded flow gets longer or shorter.
+
+The polished export defaults to two-second title cards and trims two seconds
+from the end of the iOS booking clip so the final appointment-detail hold does
+not make the transition into the web dashboard feel artificial. Tune with
+`CARD_SECONDS`, `IOS_BOOKING_TRIM_END`, `WEB_FLOW_TRIM_END`, or
+`IOS_RECAP_TRIM_END`. Tune the small silence after each narration segment with
+`SEGMENT_AUDIO_PAD_SECONDS`.
+
 ## Shot List And Narration
 
 ### 1. Opening customer context, 0:00-0:20
@@ -146,12 +161,13 @@ team to prepare."
 ### 2. Guided booking, 0:20-1:25
 
 **Visual:** Move through the eight booking steps. Show occasion, colors, style
-signals with the Muse result, catalog selection, outfit-to-match skip or sample,
+signals with the Muse result, catalog selection, uploaded outfit-to-match,
 store selection, time selection, and review.
 
 **Narration:** "The app collects appointment intent in plain customer language:
 occasion, preferred washes, colors to avoid, style signals, catalog scope, and
-optional outfit context. Store and time options come from the demo scheduling
+an uploaded outfit photo. The image is converted into structured styling context
+without storing the photo. Store and time options come from the demo scheduling
 data, so the booking flow behaves like a real appointment experience."
 
 **Demo input:** Use a concise occasion such as "Everyday denim for cafe work days

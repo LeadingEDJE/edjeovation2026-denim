@@ -1,0 +1,5 @@
+The associate opens the appointment from the active queue and gets the customer story in one place: timing, store, stylist, occasion, fit profile, order-history signal, color direction, style signals, and the outfit analysis from the uploaded photo.
+
+Recommendations are designed as associate support, not autopilot. Deterministic scoring first narrows the catalog around fit, size, color, and constraints. Claude can then re-rank the shortlist and write concise rationales when available. If AI is unavailable, the workflow still works from the rule-based order.
+
+From the product prep view, the associate can mark items as pulled, add prep notes, message the customer, check the customer in, capture session notes, write a customer-facing recap, and complete the appointment without switching tools.

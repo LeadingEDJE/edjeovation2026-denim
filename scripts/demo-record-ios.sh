@@ -10,6 +10,7 @@ BUILD_AND_LAUNCH="${BUILD_AND_LAUNCH:-1}"
 AUTOPLAY="${AUTOPLAY:-}"
 DEMO_APPOINTMENT_ID="${DEMO_APPOINTMENT_ID:-}"
 DEMO_PAUSE_SECONDS="${DEMO_PAUSE_SECONDS:-}"
+DEMO_INCLUDE_OUTFIT="${DEMO_INCLUDE_OUTFIT:-1}"
 OUTPUT="${OUTPUT:-docs/submission/demo/captures/ios-customer-flow-$(date +%Y%m%d-%H%M%S).mp4}"
 
 fail() {
@@ -33,6 +34,7 @@ printf "Destination: %s\n" "$IOS_DESTINATION"
 printf "Autoplay: %s\n" "${AUTOPLAY:-off}"
 printf "Demo appointment: %s\n" "${DEMO_APPOINTMENT_ID:-auto}"
 printf "Demo pause seconds: %s\n" "${DEMO_PAUSE_SECONDS:-default}"
+printf "Demo outfit upload: %s\n" "$DEMO_INCLUDE_OUTFIT"
 printf "Output: %s\n\n" "$OUTPUT"
 
 if [[ "$BUILD_AND_LAUNCH" == "1" ]]; then
@@ -59,6 +61,7 @@ if [[ "$BUILD_AND_LAUNCH" == "1" ]]; then
 		SIMCTL_CHILD_DENIM_FIT_DEMO_AUTOPLAY="$AUTOPLAY" \
 		SIMCTL_CHILD_DENIM_FIT_DEMO_APPOINTMENT_ID="$DEMO_APPOINTMENT_ID" \
 		SIMCTL_CHILD_DENIM_FIT_DEMO_PAUSE_SECONDS="$DEMO_PAUSE_SECONDS" \
+		SIMCTL_CHILD_DENIM_FIT_DEMO_INCLUDE_OUTFIT="$DEMO_INCLUDE_OUTFIT" \
 			xcrun simctl launch --terminate-running-process booted "$BUNDLE_ID" >/dev/null
 	else
 		xcrun simctl launch --terminate-running-process booted "$BUNDLE_ID" >/dev/null
