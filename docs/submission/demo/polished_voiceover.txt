@@ -1,0 +1,17 @@
+Denim Fit turns a guided fitting into a connected customer and associate workflow for an in-store denim appointment.
+
+The experience starts in the customer iOS app before the shopper arrives. Instead of walking into the store cold, the customer shares the reason for the visit, the washes and colors they want to focus on, anything they want to avoid, and the style signals that describe the look they are trying to build. The app also captures catalog scope, store location, and appointment time, then confirms the booking with the assigned stylist and appointment details.
+
+This gives the customer a lightweight way to explain what they need without filling out a clinical form. It also gives the store team structured context before the appointment starts. The booking flow is intentionally simple: it asks for the shopping moment, narrows color direction, maps style signals into a Muse profile, chooses a catalog, optionally supports outfit context, and then reserves a store-scoped slot with an available stylist.
+
+That customer context becomes useful immediately inside the associate dashboard. The same appointment appears in the Open queue with timing, customer name, store, stylist, occasion, and status. From there, the associate opens the appointment and sees customer preferences, fit profile signals, order-history context, and AI-assisted product suggestions.
+
+The recommendation experience is designed as associate support, not automation replacing judgment. Deterministic scoring first narrows the catalog around fit, size, color, and product constraints. Claude can then re-rank the shortlist and write concise rationale when available. If AI is unavailable, the workflow still works from the rule-based suggestions, so the demo remains usable and the associate stays in control.
+
+The product prep view gives the associate a clear working list. Each suggestion includes product details, a rationale, and a prep state. The associate can mark products as pulled, add prep notes, message the customer, and see mock confirmation and reminder records without switching tools.
+
+When the customer arrives, check-in unlocks session capture. The associate can record internal session notes, write a customer-facing recap, and add internal feedback about the quality of the prep. Those fields are intentionally separated. Store teams keep the operational detail they need, while the customer receives a clean recap of what worked.
+
+After completion, the customer returns to the same iOS appointment detail. They can read the recap, review the message thread, and submit feedback. The loop closes with customer intent, associate prep, in-store notes, recap, and feedback connected through one demo flow.
+
+The result is a guided fitting experience that helps customers feel prepared and helps associates show up with a point of view before the fitting room conversation begins. It demonstrates how a focused customer app and a practical associate dashboard can make an appointment feel more personal, more prepared, and easier to follow up.

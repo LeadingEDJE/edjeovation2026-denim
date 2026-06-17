@@ -26,6 +26,11 @@
 		"test:e2e:smoke": "playwright test --grep @readonly",
 		"test:e2e:mutating": "playwright test --grep @mutating",
 		"e2e:install": "playwright install --with-deps chromium",
+		"demo:assemble": "bash scripts/demo-assemble-video.sh",
+		"demo:polish": "bash scripts/demo-polish-video.sh",
+		"demo:preflight": "bash scripts/demo-preflight.sh",
+		"demo:record:ios": "bash scripts/demo-record-ios.sh",
+		"demo:record:web": "bash scripts/demo-record-web.sh",
 		"prepare": "husky"
 	},
 	"engines": {

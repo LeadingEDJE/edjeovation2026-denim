@@ -38,6 +38,7 @@ struct FittingView: View {
     @State private var stretchPreference = "comfort-stretch"
     @State private var status = "Loading your profile"
     @State private var isLoading = false
+    @State private var demoAutoplayStarted = false
 
     private let apiClient = APIClient()
     private let styleGroups = MuseStyleGroup.all
@@ -94,19 +95,27 @@ struct FittingView: View {
                     Button("Home") {
                         Task { await refreshCustomerData() }
                     }
-                    Button("Admin") {
-                        screen = .admin
+                    if !isDemoAutoplay {
+                        Button("Admin") {
+                            screen = .admin
+                        }
                     }
                 }
             }
             .task {
                 await loadInitialData()
+                await startDemoAutoplayIfNeeded()
             }
         }
     }
 
     private var isNavyChrome: Bool {
         screen == .booking && (step == .landing || step == .confirmation)
+    }
+
+    private var isDemoAutoplay: Bool {
+        let mode = ProcessInfo.processInfo.environment["DENIM_FIT_DEMO_AUTOPLAY"]?.trimmingCharacters(in: .whitespacesAndNewlines)
+        return !(mode?.isEmpty ?? true)
     }
 
     @ViewBuilder
@@ -1520,6 +1529,110 @@ struct FittingView: View {
         } catch {
             status = "Could not load your fitting journey"
         }
+    }
+
+    @MainActor
+    private func startDemoAutoplayIfNeeded() async {
+        guard !demoAutoplayStarted else { return }
+        let mode = ProcessInfo.processInfo.environment["DENIM_FIT_DEMO_AUTOPLAY"]?.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let mode, !mode.isEmpty else { return }
+
+        demoAutoplayStarted = true
+        switch mode {
+        case "booking":
+            await runBookingDemoAutoplay()
+        case "recap":
+            await runRecapDemoAutoplay()
+        default:
+            status = "Unknown demo autoplay mode"
+        }
+    }
+
+    @MainActor
+    private func runBookingDemoAutoplay() async {
+        await demoPause(1.0)
+        if let appointment {
+            await openAppointmentDetail(appointment)
+            return
+        }
+
+        startBooking()
+        await demoPause()
+
+        occasion = "Everyday denim for cafe work days and dinner out"
+        await demoPause()
+        step = .colors
+        await demoPause()
+
+        focusColors = ["Dark wash", "Cream", "Navy"]
+        avoidColors = ["Red"]
+        await demoPause()
+        step = .style
+        await demoPause()
+
+        selectedKeywords = ["minimal", "effortless", "timeless essentials"]
+        await demoPause()
+        step = .catalog
+        await demoPause()
+
+        selectedCatalogAudiences = ["womens"]
+        await demoPause()
+        step = .outfit
+        await demoPause(0.8)
+
+        step = .store
+        if let soho = stores.first(where: { $0.storeId == "anf_soho_001" }) ?? stores.first {
+            await selectStore(soho)
+        }
+        await demoPause()
+
+        step = .schedule
+        selectedSlot = slots.first
+        await demoPause()
+
+        step = .review
+        guidance = "Prefers polished everyday denim with clean hems."
+        await demoPause(1.2)
+
+        await bookAppointment()
+        await demoPause(1.8)
+
+        if let appointment {
+            await openAppointmentDetail(appointment)
+        }
+    }
+
+    @MainActor
+    private func runRecapDemoAutoplay() async {
+        await demoPause(1.0)
+        await refreshCustomerData()
+
+        let demoAppointmentId = ProcessInfo.processInfo.environment["DENIM_FIT_DEMO_APPOINTMENT_ID"]?.trimmingCharacters(in: .whitespacesAndNewlines)
+        let demoOccasion = "Everyday denim for cafe work days and dinner out"
+        let completedAppointment =
+            pastAppointments.first(where: { $0.status == "completed" && $0.id == demoAppointmentId }) ??
+            pastAppointments.first(where: { $0.status == "completed" && $0.occasion == demoOccasion }) ??
+            pastAppointments.first(where: { $0.status == "completed" })
+
+        if let completed = completedAppointment {
+            await openAppointmentDetail(completed)
+            await demoPause(1.2)
+            feedbackRating = 5
+            feedbackComment = "Loved having the fit notes and pulled options ready before I arrived."
+            await demoPause()
+            await submitFeedback()
+        } else if let appointment {
+            await openAppointmentDetail(appointment)
+        }
+    }
+
+    private func demoPause(_ seconds: Double = 1.0) async {
+        let configuredSeconds = ProcessInfo.processInfo.environment["DENIM_FIT_DEMO_PAUSE_SECONDS"]
+            .flatMap(Double.init)
+            .map { max(0.1, $0) }
+        let duration = configuredSeconds ?? seconds
+        let nanoseconds = UInt64(duration * 1_000_000_000)
+        try? await Task.sleep(nanoseconds: nanoseconds)
     }
 
     @MainActor

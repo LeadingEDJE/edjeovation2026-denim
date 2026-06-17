@@ -1,0 +1,35 @@
+1
+00:00:00,000 --> 00:00:20,000
+The customer begins a guided fitting before arriving at the store.
+
+2
+00:00:20,000 --> 00:01:25,000
+The app captures occasion, colors, style signals, catalog scope, outfit context, store, and time.
+
+3
+00:01:25,000 --> 00:01:55,000
+After confirmation, the customer can manage the appointment, message the stylist, and return later for recap and feedback.
+
+4
+00:01:55,000 --> 00:02:20,000
+The associate starts from an operational dashboard with searchable open appointments.
+
+5
+00:02:20,000 --> 00:03:10,000
+AI-assisted suggestions combine customer context, fit signals, product details, and associate-facing rationale.
+
+6
+00:03:10,000 --> 00:03:45,000
+The associate marks products as pulled, adds prep notes, and messages the customer from the same workspace.
+
+7
+00:03:45,000 --> 00:04:25,000
+At check-in, session capture unlocks so internal notes and customer-facing recap stay separate.
+
+8
+00:04:25,000 --> 00:04:50,000
+The customer reads the recap in the app and submits feedback after the fitting.
+
+9
+00:04:50,000 --> 00:05:00,000
+The demo connects customer intent, associate prep, in-store capture, recap, and feedback.
