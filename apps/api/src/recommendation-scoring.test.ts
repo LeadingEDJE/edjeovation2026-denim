@@ -35,6 +35,8 @@ function product(overrides: Partial<CatalogProduct>): CatalogProduct {
 		rise: null,
 		stretch: null,
 		sizes: [],
+		waistSizes: [],
+		lengthSizes: [],
 		colors: [],
 		scrapedAt: new Date().toISOString(),
 		...overrides,
@@ -63,13 +65,55 @@ describe("scoreProduct", () => {
 			product({
 				fit: "straight",
 				stretch: "comfort-stretch",
-				sizes: ["28", "29", "30", "Short", "Regular", "Long"],
+				waistSizes: ["28", "29", "30"],
+				lengthSizes: ["Short", "Regular", "Long"],
 			}),
 		);
-		// 0.4 fit + 0.25 stretch + 0.2 waist + 0.1 length = 0.95
-		expect(score).toBeCloseTo(0.95, 5);
+		// 0.4 fit + 0.25 stretch + 0.2 waist + 0.3 length = 1.15, clamped to 1.0.
+		expect(score).toBeCloseTo(1, 5);
 		expect(reasons.some((r) => r.includes("Fit matches"))).toBe(true);
 		expect(reasons.some((r) => r.includes("waist size"))).toBe(true);
+		expect(reasons.some((r) => r.includes("Regular length"))).toBe(true);
+	});
+
+	it("penalizes a length-sized pant that lacks the customer's length", () => {
+		// input inseam 30 → target length "Regular".
+		const offersLength = scoreProduct(
+			input,
+			product({
+				fit: "straight",
+				waistSizes: ["29"],
+				lengthSizes: ["Short", "Regular", "Long"],
+			}),
+		).score;
+		const missingLength = scoreProduct(
+			input,
+			product({
+				fit: "straight",
+				waistSizes: ["29"],
+				lengthSizes: ["Short", "Long"],
+			}),
+		).score;
+		// Strong preference: the off-length pant scores well below the in-length one,
+		// but is not removed (still a finite, comparable score).
+		expect(offersLength).toBeGreaterThan(missingLength);
+		expect(offersLength - missingLength).toBeCloseTo(0.65, 5);
+	});
+
+	it("does not apply inseam-length scoring to non-bottoms", () => {
+		// A dress carries a Petite/Regular/Tall *height* axis that shares the
+		// "Regular" label with pant lengths. A customer whose inseam maps to "Short"
+		// must NOT be penalized for it — length scoring is bottoms-only.
+		const shortInseam = { ...input, inseamInches: 28 }; // → "Short"
+		const dress = product({
+			name: "Linen-Blend Midi Dress",
+			fit: null,
+			stretch: null,
+			lengthSizes: ["Petite", "Regular", "Tall"],
+		});
+		const { score, reasons } = scoreProduct(shortInseam, dress);
+		expect(reasons.some((r) => r.includes("length"))).toBe(false);
+		expect(score).toBe(0); // no fit/stretch/waist/color signals, no penalty
 	});
 
 	it("gives partial credit to an adjacent fit", () => {

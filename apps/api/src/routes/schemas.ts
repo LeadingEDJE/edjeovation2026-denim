@@ -438,6 +438,10 @@ export const outfitAnalysisJsonSchema = {
 		suggestedStyleKeywords: { type: "array", items: { type: "string" } },
 		pairingContext: { type: "string" },
 		engine: { type: "string", enum: ["claude", "sample", "manual"] },
+		// Hidden, internal-only body-shape read (see OutfitAnalysis.bodyType). Listed
+		// here so it survives request validation and response serialization; it is
+		// never surfaced in any customer- or stylist-facing view.
+		bodyType: { anyOf: [{ type: "string" }, { type: "null" }] },
 	},
 } as const;
 
@@ -449,6 +453,20 @@ export const analyzeOutfitJsonSchema = {
 	properties: {
 		imageBase64: { type: "string", minLength: 1 },
 		mediaType: { type: "string", enum: supportedMediaTypes },
+		// True when the customer marked the photo as being of themselves, opting in
+		// to a discreet body-shape read that tailors recommendations. Defaults off.
+		analyzeBodyType: { type: "boolean", default: false },
+		// The customer's self-reported measurements, used only with analyzeBodyType
+		// to sharpen the body-shape read. All fields optional.
+		measurements: {
+			type: "object",
+			properties: {
+				heightInches: { type: "number" },
+				waistInches: { type: "number" },
+				hipInches: { type: "number" },
+				inseamInches: { type: "number" },
+			},
+		},
 	},
 } as const;
 

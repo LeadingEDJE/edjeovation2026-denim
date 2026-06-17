@@ -3,6 +3,7 @@ import type { FastifyInstance } from "fastify";
 import { HttpError } from "../errors.js";
 import {
 	analyzeOutfit,
+	type BodyMeasurements,
 	normalizeOutfitAnalysis,
 	type SupportedMediaType,
 } from "../outfit-analysis.js";
@@ -1170,12 +1171,18 @@ export async function appointmentRoutes(app: FastifyInstance) {
 			},
 		},
 		async (request) => {
-			const { imageBase64, mediaType } = request.body as {
-				imageBase64: string;
-				mediaType: SupportedMediaType;
-			};
+			const { imageBase64, mediaType, analyzeBodyType, measurements } =
+				request.body as {
+					imageBase64: string;
+					mediaType: SupportedMediaType;
+					analyzeBodyType?: boolean;
+					measurements?: BodyMeasurements;
+				};
 			try {
-				const analysis = await analyzeOutfit(imageBase64, mediaType);
+				const analysis = await analyzeOutfit(imageBase64, mediaType, {
+					analyzeBodyType,
+					measurements,
+				});
 				// imageBase64 falls out of scope here — never persisted or logged.
 				return { analysis };
 			} catch {
