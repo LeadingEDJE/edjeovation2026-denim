@@ -40,6 +40,40 @@ export function selectCatalogProductById(productId: string) {
 	]);
 }
 
+/**
+ * Products eligible for image analysis: those with an image. When
+ * `onlyMissing` is true (the default), skips ones already analyzed so the
+ * backfill is resumable. `limit` of 0 means no cap.
+ */
+export function selectCatalogProductsForImageAnalysis(
+	onlyMissing: boolean,
+	limit: number,
+) {
+	const where = onlyMissing
+		? "WHERE image_url IS NOT NULL AND image_analysis IS NULL"
+		: "WHERE image_url IS NOT NULL";
+	const cap = limit > 0 ? ` LIMIT ${limit}` : "";
+	return pool.query<{
+		product_id: string;
+		name: string;
+		category: string | null;
+		image_url: string;
+	}>(
+		`SELECT product_id, name, category, image_url FROM catalog_products ${where} ORDER BY product_id${cap}`,
+	);
+}
+
+/** Persist a product's structured image-analysis cues (stored as JSONB). */
+export function updateCatalogProductImageAnalysis(
+	productId: string,
+	imageAnalysis: unknown,
+) {
+	return pool.query(
+		"UPDATE catalog_products SET image_analysis = $1::jsonb WHERE product_id = $2",
+		[JSON.stringify(imageAnalysis), productId],
+	);
+}
+
 // --- Appointments: reads -------------------------------------------------
 
 /**

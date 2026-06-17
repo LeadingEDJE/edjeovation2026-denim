@@ -169,6 +169,27 @@ export const catalogQuerySchema = z.object({
 
 export type CatalogQuery = z.infer<typeof catalogQuerySchema>;
 
+// Structured visual style cues read from the product image by a vision model
+// (see product-image-analysis.ts). Persisted on catalog_products.image_analysis
+// and fed to the recommender so selections weigh how a garment actually looks —
+// silhouette, pattern, wash, and styling vibe the text fields don't capture.
+export type ProductImageAnalysis = {
+	// One concise sentence describing how the garment looks.
+	summary: string;
+	// Cut/shape, e.g. "relaxed straight-leg", "fit-and-flare midi".
+	silhouette: string | null;
+	// Visual pattern, e.g. "floral", "striped", "solid"; null if not discernible.
+	pattern: string | null;
+	// Wash/finish for denim and similar, e.g. "medium indigo wash"; null if n/a.
+	wash: string | null;
+	// Notable visible details, e.g. "distressed hem", "puff sleeves".
+	details: string[];
+	// Single formality token, e.g. "casual", "smart-casual", "dressy".
+	formality: string | null;
+	// A few style-vibe keywords, e.g. "minimalist", "boho", "sporty".
+	styleKeywords: string[];
+};
+
 export type CatalogProduct = {
 	productId: string;
 	source: string;
@@ -177,6 +198,8 @@ export type CatalogProduct = {
 	catalogAudiences: CatalogAudience[];
 	productUrl: string;
 	imageUrl: string | null;
+	// Visual style cues read from imageUrl; null until the backfill has run.
+	imageAnalysis: ProductImageAnalysis | null;
 	description: string | null;
 	price: number | null;
 	currency: string | null;

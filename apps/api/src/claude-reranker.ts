@@ -13,6 +13,7 @@ import {
 	type ScoredCandidate,
 	targetLength,
 } from "./recommendation-scoring.js";
+import type { ProductImageAnalysis } from "./types.js";
 
 export type RankedRecommendation = {
 	productId: string;
@@ -62,6 +63,12 @@ Rules:
 - Write a concise, specific rationale (one or two sentences) per product that ties it
   to the customer's preferences AND the appointment's occasion, colors, or style.
   For bottoms, reference fit/size; for other categories, lean on color and style.
+- Each candidate includes a "visual" field: style cues read from the product's photo
+  (silhouette/cut, pattern, wash, notable details, formality, and styling vibe). Weigh
+  it alongside the text attributes when judging how well a piece suits the occasion,
+  colors, and style direction, and let it inform the rationale (e.g. a flowy floral
+  midi for a garden party, a clean dark-wash straight-leg for smart-casual). When a
+  candidate's visual is "n/a", just rely on its other attributes.
 - Favor focus colors and avoid the colors to skip. Lead with the strongest match.
 - Inseam/length: for bottoms sized by length (a "lengths" list of Short/Regular/Long),
   strongly prefer ones that offer the customer's target length and rank down any that
@@ -119,6 +126,25 @@ export function extractJson(text: string): string {
 	return start >= 0 && end > start ? body.slice(start, end + 1) : body;
 }
 
+/**
+ * Compact, single-line render of the vision-read style cues for the prompt.
+ * "n/a" when the product hasn't been image-analyzed yet, so the model simply
+ * leans on the text attributes as before.
+ */
+function formatImageAnalysis(a: ProductImageAnalysis | null): string {
+	if (!a) return "n/a";
+	const parts = [
+		a.summary || null,
+		a.silhouette ? `silhouette: ${a.silhouette}` : null,
+		a.pattern ? `pattern: ${a.pattern}` : null,
+		a.wash ? `wash: ${a.wash}` : null,
+		a.details.length ? `details: ${a.details.join(", ")}` : null,
+		a.formality ? `formality: ${a.formality}` : null,
+		a.styleKeywords.length ? `style: ${a.styleKeywords.join(", ")}` : null,
+	].filter(Boolean);
+	return parts.length ? parts.join("; ") : "n/a";
+}
+
 function candidateLine(c: ScoredCandidate): string {
 	const p = c.product;
 	return [
@@ -136,6 +162,9 @@ function candidateLine(c: ScoredCandidate): string {
 		`lengths: ${p.lengthSizes.join(", ") || "n/a"}`,
 		`ruleScore: ${c.score.toFixed(2)}`,
 		`description: ${(p.description ?? "").slice(0, 200)}`,
+		// Visual read from the product photo (silhouette/pattern/wash/vibe) — adds
+		// styling signal the text fields miss. "n/a" until image analysis has run.
+		`visual: ${formatImageAnalysis(p.imageAnalysis)}`,
 	].join(" | ");
 }
 
